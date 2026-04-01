@@ -1,0 +1,5 @@
+[mcp_servers.dart-mcp-server]
+command = "dart"
+args = [ "mcp-server" ]
+
+[mcp_servers.dart-mcp-server.env]

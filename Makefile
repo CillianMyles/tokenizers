@@ -12,4 +12,4 @@ list:
 .PHONY: rules-generate
 
 rules-generate:
-	rulesync generate --delete -f rules,ignore,skills -t agentsmd,agentsskills,claudecode,codexcli,opencode,cursor,copilot
+	rulesync generate --delete -f rules,skills,mcp,ignore -t agentsmd,agentsskills,claudecode,codexcli,opencode,cursor,copilot
