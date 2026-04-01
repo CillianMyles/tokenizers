@@ -5,19 +5,22 @@ tracking workflows.
 
 The current focus is a GenUI proof of concept: a prompt-driven prototype that
 renders dynamic UI surfaces in Flutter using the
-[`genui`](https://pub.dev/packages/genui) package. Right now, the app uses a
-local mock generation step to demonstrate the rendering loop, data model, and
-surface event handling without requiring a live AI backend.
+[`genui`](https://pub.dev/packages/genui) package. The app now supports two
+execution modes:
+
+- local mock mode for deterministic prototype iteration with no credentials
+- live Gemini mode via the Gemini REST API and a compile-time API key
 
 ## Current Status
 
 - Flutter project scaffolded for `macos`, `ios`, `android`, `web`, `linux`,
   and `windows`
 - `genui` added and integrated into the app shell
+- direct Gemini REST integration added through `http`
 - prompt-driven prototype screen implemented
 - runtime-generated UI surface rendered from GenUI component definitions
-- generated UI events routed back into the host app and reflected in the
-  surface state
+- local mock mode still available as a fallback when no API key is configured
+- live mode can send prompts and UI interaction events to Gemini
 
 ## Project Structure
 
@@ -85,7 +88,13 @@ flutter pub get
 flutter run -d macos
 ```
 
-3. Optional: run it in Chrome instead:
+3. Run the live Gemini-backed mode on macOS:
+
+```bash
+flutter run -d macos --dart-define=GEMINI_API_KEY=your_api_key_here
+```
+
+4. Optional: run it in Chrome instead:
 
 ```bash
 flutter run -d chrome
@@ -93,7 +102,11 @@ flutter run -d chrome
 
 ## Using the Prototype
 
-The current app is a local GenUI demo, not a production workflow yet.
+The current app can run in mock or live mode.
+
+### Mock Mode
+
+Mock mode is active when no Gemini API key is supplied.
 
 - enter or edit the prototype prompt
 - switch between the quick-start workflow presets
@@ -101,16 +114,35 @@ The current app is a local GenUI demo, not a production workflow yet.
 - interact with the generated buttons and text field
 - watch the app update the GenUI data model and surface status in response
 
+### Live Gemini Mode
+
+Live mode is active when you launch the app with:
+
+```bash
+flutter run -d macos --dart-define=GEMINI_API_KEY=your_api_key_here
+```
+
+In live mode:
+
+- the prompt is sent to Gemini
+- the response is parsed as GenUI A2UI messages
+- the rendered surface updates from the live model output
+- subsequent UI interaction events are forwarded back into the live model loop
+
 ## Notes
 
-- The current generation step is mocked locally. It does not yet call a live
-  model backend.
 - Adding `genui` pulls in native plugin dependencies, so the first macOS build
   may take longer while CocoaPods resolves dependencies.
+- The upstream `genui_google_generative_ai` package does not currently resolve
+  against `genui 0.8.0`, so this project uses the Gemini REST API directly
+  instead.
+- The live path is intended as a prototype integration, not a hardened
+  production architecture.
 - The project is experimental and the GenUI package itself is explicitly
   upstream experimental.
 
 ## Next Step
 
-The next milestone is replacing the local mock blueprint mapping with a real
-AI-backed generation flow while keeping the same rendered GenUI surface model.
+The next milestone is improving the live model contract and prompt strategy so
+the generated health workflows are more stable, more domain-specific, and less
+dependent on generic component layouts.

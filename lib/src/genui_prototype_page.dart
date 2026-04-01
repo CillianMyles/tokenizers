@@ -1,12 +1,18 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:genui/genui.dart';
 
-const _surfaceId = 'prototype-surface';
+import 'gemini_genui_service.dart';
 
-/// Material app shell for the local GenUI proof of concept.
+const _surfaceId = 'prototype-surface';
+const _geminiApiKey = String.fromEnvironment('GEMINI_API_KEY');
+const _googleApiKey = String.fromEnvironment('GOOGLE_API_KEY');
+
+String get _configuredGeminiApiKey =>
+    _geminiApiKey.isNotEmpty ? _geminiApiKey : _googleApiKey;
+
+/// Material app shell for the GenUI prototype.
 class GenUiPrototypeApp extends StatelessWidget {
   /// Creates the application shell.
   const GenUiPrototypeApp({super.key});
@@ -44,7 +50,7 @@ class GenUiPrototypeApp extends StatelessWidget {
   }
 }
 
-/// Interactive page that demonstrates a local `genui` workflow prototype.
+/// Interactive page that demonstrates local and live GenUI generation.
 class GenUiPrototypePage extends StatefulWidget {
   /// Creates the GenUI prototype page.
   const GenUiPrototypePage({super.key});
@@ -56,10 +62,23 @@ class GenUiPrototypePage extends StatefulWidget {
 class _GenUiPrototypePageState extends State<GenUiPrototypePage> {
   late final SurfaceController _controller;
   late final TextEditingController _promptController;
-  StreamSubscription<ChatMessage>? _submitSubscription;
+
+  StreamSubscription<ChatMessage>? _mockSubmitSubscription;
+  StreamSubscription<ConversationEvent>? _conversationSubscription;
+
+  Conversation? _conversation;
+  A2uiTransportAdapter? _transport;
+  GeminiGenUiService? _geminiService;
 
   final List<String> _activityLog = <String>[];
   _PrototypeBlueprint _activeBlueprint = _PrototypeBlueprint.intake();
+  String _modeStatus = 'Local mock mode active.';
+  String _assistantStatus =
+      'Use a prompt to generate a surface. Add `--dart-define=GEMINI_API_KEY=...` '
+      'to switch this app into live Gemini mode.';
+  bool _isWaitingForModel = false;
+
+  bool get _isLiveMode => _conversation != null && _transport != null;
 
   @override
   void initState() {
@@ -75,37 +94,148 @@ class _GenUiPrototypePageState extends State<GenUiPrototypePage> {
         sendDataModel: true,
       ),
     );
-    _submitSubscription = _controller.onSubmit.listen(_handleGeneratedEvent);
+
+    if (_configuredGeminiApiKey.isNotEmpty) {
+      _initializeLiveMode(_configuredGeminiApiKey);
+    } else {
+      _initializeMockMode();
+    }
+  }
+
+  void _initializeMockMode() {
+    _mockSubmitSubscription = _controller.onSubmit.listen(_handleMockEvent);
     _generatePrototype(_promptController.text, origin: 'Loaded default demo');
+  }
+
+  void _initializeLiveMode(String apiKey) {
+    _geminiService = GeminiGenUiService(apiKey: apiKey);
+    _transport = A2uiTransportAdapter(onSend: _sendToGemini);
+    _conversation = Conversation(
+      controller: _controller,
+      transport: _transport!,
+    );
+    _conversationSubscription = _conversation!.events.listen((event) {
+      switch (event) {
+        case ConversationWaiting():
+          if (mounted) {
+            setState(() {
+              _isWaitingForModel = true;
+              _assistantStatus = 'Waiting for Gemini response...';
+            });
+          }
+        case ConversationContentReceived(:final text):
+          if (mounted && text.trim().isNotEmpty) {
+            setState(() {
+              _assistantStatus = text.trim();
+            });
+          }
+        case ConversationError(:final error):
+          if (mounted) {
+            setState(() {
+              _assistantStatus = 'Gemini request failed: $error';
+              _activityLog.insert(0, 'Live generation error: $error');
+              _isWaitingForModel = false;
+            });
+          }
+        case ConversationSurfaceAdded():
+        case ConversationComponentsUpdated():
+        case ConversationSurfaceRemoved():
+          if (mounted) {
+            setState(() {
+              _isWaitingForModel = false;
+            });
+          }
+      }
+    });
+    setState(() {
+      _modeStatus =
+          'Live Gemini mode active via `--dart-define=GEMINI_API_KEY=...`.';
+      _assistantStatus =
+          'The next prompt will be sent to Gemini and rendered through GenUI.';
+    });
+    _generatePrototype(_promptController.text, origin: 'Loaded live mode');
+  }
+
+  Future<void> _sendToGemini(ChatMessage message) async {
+    final GeminiGenUiService service = _geminiService!;
+    final SurfaceDefinition? definition = _controller.registry.getSurface(
+      _surfaceId,
+    );
+    final Map<String, Object?> dataModel =
+        _controller.store
+            .getDataModel(_surfaceId)
+            .getValue<Map<String, Object?>>(DataPath.root) ??
+        <String, Object?>{};
+
+    final responseText = await service.generateSurfaceUpdate(
+      surfaceId: _surfaceId,
+      userMessage: message,
+      catalog: BasicCatalogItems.asCatalog(),
+      currentSurface: definition,
+      currentDataModel: dataModel,
+    );
+
+    _transport!.addChunk(responseText);
+    if (mounted) {
+      setState(() {
+        _activityLog.insert(0, 'Gemini returned a live GenUI response.');
+        if (_activityLog.length > 8) {
+          _activityLog.removeLast();
+        }
+      });
+    }
   }
 
   @override
   void dispose() {
-    _submitSubscription?.cancel();
+    _mockSubmitSubscription?.cancel();
+    _conversationSubscription?.cancel();
+    _conversation?.dispose();
+    _transport?.dispose();
+    _geminiService?.dispose();
     _promptController.dispose();
     _controller.dispose();
     super.dispose();
   }
 
-  void _generatePrototype(String prompt, {required String origin}) {
+  Future<void> _generatePrototype(
+    String prompt, {
+    required String origin,
+  }) async {
     final trimmedPrompt = prompt.trim();
     if (trimmedPrompt.isEmpty) {
       return;
     }
 
     final blueprint = _PrototypeBlueprint.fromPrompt(trimmedPrompt);
+
+    if (_isLiveMode) {
+      setState(() {
+        _activeBlueprint = blueprint;
+        _activityLog.insert(0, '$origin: sent live request "$trimmedPrompt".');
+        if (_activityLog.length > 8) {
+          _activityLog.removeLast();
+        }
+        _assistantStatus = 'Dispatching prompt to Gemini...';
+      });
+      await _conversation!.sendRequest(ChatMessage.user(trimmedPrompt));
+      return;
+    }
+
     _controller.handleMessage(
       UpdateDataModel(surfaceId: _surfaceId, value: blueprint.initialData),
     );
     _controller.handleMessage(
       UpdateComponents(
         surfaceId: _surfaceId,
-        components: _buildComponents(blueprint),
+        components: _buildMockComponents(blueprint),
       ),
     );
 
     setState(() {
       _activeBlueprint = blueprint;
+      _assistantStatus =
+          'Mock generation updated the runtime surface from the selected prompt.';
       _activityLog.insert(
         0,
         '$origin: generated "${blueprint.label}" from "$trimmedPrompt".',
@@ -116,7 +246,7 @@ class _GenUiPrototypePageState extends State<GenUiPrototypePage> {
     });
   }
 
-  List<Component> _buildComponents(_PrototypeBlueprint blueprint) {
+  List<Component> _buildMockComponents(_PrototypeBlueprint blueprint) {
     return <Component>[
       const Component(
         id: 'root',
@@ -285,14 +415,15 @@ class _GenUiPrototypePageState extends State<GenUiPrototypePage> {
     ];
   }
 
-  void _handleGeneratedEvent(ChatMessage message) {
+  void _handleMockEvent(ChatMessage message) {
     if (message.parts.uiInteractionParts.isEmpty) {
       return;
     }
 
     final UiInteractionPart part = message.parts.uiInteractionParts.first;
-    final Map<String, Object?> payload =
-        jsonDecode(part.interaction) as Map<String, Object?>;
+    final Map<String, Object?> payload = GeminiGenUiService.decodeJsonObject(
+      part.interaction,
+    );
     final Map<String, Object?> action =
         payload['action']! as Map<String, Object?>;
     final String actionName = action['name']! as String;
@@ -303,7 +434,7 @@ class _GenUiPrototypePageState extends State<GenUiPrototypePage> {
     switch (actionName) {
       case 'notes_submitted':
         final String notes = (context['notes'] as String?)?.trim() ?? '';
-        _updateSurfaceStatus(
+        _updateMockSurfaceStatus(
           headline: 'Notes captured',
           body: notes.isEmpty
               ? 'The generated surface submitted an empty note payload.'
@@ -312,7 +443,7 @@ class _GenUiPrototypePageState extends State<GenUiPrototypePage> {
               'Submitted notes from generated UI${notes.isEmpty ? '.' : ': "$notes".'}',
         );
       case 'book_follow_up':
-        _updateSurfaceStatus(
+        _updateMockSurfaceStatus(
           headline: 'Follow-up visit queued',
           body:
               'The prototype loop reacted to the generated action and moved '
@@ -320,7 +451,7 @@ class _GenUiPrototypePageState extends State<GenUiPrototypePage> {
           activity: 'Triggered generated action: book follow-up.',
         );
       case 'escalate_case':
-        _updateSurfaceStatus(
+        _updateMockSurfaceStatus(
           headline: 'Escalated to clinical review',
           body:
               'GenUI signalled a high-risk branch and the host app updated the '
@@ -328,7 +459,7 @@ class _GenUiPrototypePageState extends State<GenUiPrototypePage> {
           activity: 'Triggered generated action: escalate case.',
         );
       case 'send_reminder':
-        _updateSurfaceStatus(
+        _updateMockSurfaceStatus(
           headline: 'Adherence reminder scheduled',
           body:
               'The generated screen requested a medication reminder flow for '
@@ -336,14 +467,14 @@ class _GenUiPrototypePageState extends State<GenUiPrototypePage> {
           activity: 'Triggered generated action: send reminder.',
         );
       case 'connect_pharmacist':
-        _updateSurfaceStatus(
+        _updateMockSurfaceStatus(
           headline: 'Pharmacist consult requested',
           body:
               'The prototype routed the interaction toward pharmacist support.',
           activity: 'Triggered generated action: connect pharmacist.',
         );
       case 'start_rehab_checkin':
-        _updateSurfaceStatus(
+        _updateMockSurfaceStatus(
           headline: 'Rehab check-in opened',
           body:
               'The generated recovery plan asked the host app to begin the '
@@ -351,7 +482,7 @@ class _GenUiPrototypePageState extends State<GenUiPrototypePage> {
           activity: 'Triggered generated action: start rehab check-in.',
         );
       case 'share_progress':
-        _updateSurfaceStatus(
+        _updateMockSurfaceStatus(
           headline: 'Progress summary prepared',
           body:
               'The prototype assembled a clinician-friendly update request from '
@@ -361,7 +492,7 @@ class _GenUiPrototypePageState extends State<GenUiPrototypePage> {
     }
   }
 
-  void _updateSurfaceStatus({
+  void _updateMockSurfaceStatus({
     required String headline,
     required String body,
     required String activity,
@@ -389,6 +520,7 @@ class _GenUiPrototypePageState extends State<GenUiPrototypePage> {
     );
 
     setState(() {
+      _assistantStatus = 'Mock host handled a generated UI event.';
       _activityLog.insert(0, activity);
       if (_activityLog.length > 8) {
         _activityLog.removeLast();
@@ -415,11 +547,15 @@ class _GenUiPrototypePageState extends State<GenUiPrototypePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SizedBox(
-                    width: 360,
+                    width: 380,
                     child: _ControlPane(
                       promptController: _promptController,
                       activeBlueprint: _activeBlueprint,
                       activityLog: _activityLog,
+                      modeStatus: _modeStatus,
+                      assistantStatus: _assistantStatus,
+                      isLiveMode: _isLiveMode,
+                      isWaitingForModel: _isWaitingForModel,
                       onGenerate: () => _generatePrototype(
                         _promptController.text,
                         origin: 'Manual prompt',
@@ -448,6 +584,10 @@ class _GenUiPrototypePageState extends State<GenUiPrototypePage> {
                   promptController: _promptController,
                   activeBlueprint: _activeBlueprint,
                   activityLog: _activityLog,
+                  modeStatus: _modeStatus,
+                  assistantStatus: _assistantStatus,
+                  isLiveMode: _isLiveMode,
+                  isWaitingForModel: _isWaitingForModel,
                   onGenerate: () => _generatePrototype(
                     _promptController.text,
                     origin: 'Manual prompt',
@@ -476,6 +616,10 @@ class _ControlPane extends StatelessWidget {
     required this.promptController,
     required this.activeBlueprint,
     required this.activityLog,
+    required this.modeStatus,
+    required this.assistantStatus,
+    required this.isLiveMode,
+    required this.isWaitingForModel,
     required this.onGenerate,
     required this.onPickBlueprint,
   });
@@ -483,6 +627,10 @@ class _ControlPane extends StatelessWidget {
   final TextEditingController promptController;
   final _PrototypeBlueprint activeBlueprint;
   final List<String> activityLog;
+  final String modeStatus;
+  final String assistantStatus;
+  final bool isLiveMode;
+  final bool isWaitingForModel;
   final VoidCallback onGenerate;
   final ValueChanged<_PrototypeBlueprint> onPickBlueprint;
 
@@ -509,12 +657,7 @@ class _ControlPane extends StatelessWidget {
                   style: textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  'This demo uses `genui` locally. The "agent" step is mocked, '
-                  'but the surface rendering, event submission, and data-model '
-                  'updates are real.',
-                  style: textTheme.bodyMedium,
-                ),
+                Text(modeStatus, style: textTheme.bodyMedium),
                 const SizedBox(height: 16),
                 TextField(
                   controller: promptController,
@@ -529,10 +672,31 @@ class _ControlPane extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    onPressed: onGenerate,
-                    child: const Text('Generate surface'),
+                    onPressed: isWaitingForModel ? null : onGenerate,
+                    child: Text(
+                      isLiveMode ? 'Generate with Gemini' : 'Generate locally',
+                    ),
                   ),
                 ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFFD9E4E1)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Assistant status', style: textTheme.titleLarge),
+                const SizedBox(height: 12),
+                Text(assistantStatus, style: textTheme.bodyMedium),
               ],
             ),
           ),
@@ -558,7 +722,9 @@ class _ControlPane extends StatelessWidget {
                     final bool selected =
                         blueprint.label == activeBlueprint.label;
                     return FilledButton.tonal(
-                      onPressed: () => onPickBlueprint(blueprint),
+                      onPressed: isWaitingForModel
+                          ? null
+                          : () => onPickBlueprint(blueprint),
                       style: FilledButton.styleFrom(
                         backgroundColor: selected
                             ? Theme.of(context).colorScheme.primaryContainer
@@ -586,6 +752,8 @@ class _ControlPane extends StatelessWidget {
               children: [
                 Text('Interaction log', style: textTheme.titleLarge),
                 const SizedBox(height: 12),
+                if (activityLog.isEmpty)
+                  Text('No activity yet.', style: textTheme.bodyMedium),
                 for (final entry in activityLog.take(6))
                   Padding(
                     padding: const EdgeInsets.only(bottom: 10),
@@ -632,9 +800,8 @@ class _PreviewPane extends StatelessWidget {
               Text('Rendered GenUI surface', style: textTheme.headlineSmall),
               const SizedBox(height: 8),
               Text(
-                'The right-hand panel is rendered from `genui` components and '
-                'a runtime data model, not hand-authored Flutter layout '
-                'widgets.',
+                'This panel is rendered from GenUI components and the runtime '
+                'data model, not from a hand-authored Flutter page layout.',
                 style: textTheme.bodyMedium,
               ),
               const SizedBox(height: 20),
