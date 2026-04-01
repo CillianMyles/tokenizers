@@ -1,3 +1,9 @@
+Please also reference the following rules as needed. The list below is provided in TOON format, and `@` stands for the project root directory.
+
+rules[1]:
+  - path: @.opencode/memories/flutter.md
+    applyTo[1]: **/*.dart
+
 # Operating Guidelines
 
 **TL;DR:** Read first, reason carefully, clarify early, change little, commit often.
