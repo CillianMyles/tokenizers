@@ -46,7 +46,14 @@ De-emphasize style, formatting, and minor conventions - those should be enforced
 
 ## Documentation and Rules
 At the end of your task, ensure any required documentation is updated in the appropriate place e.g. README.  
-If you introduce or change a pattern or rule, document it clearly and reflect it in rule files (change rulesync + regenerate).
+If you introduce or change a pattern or rule, document it clearly and reflect it in rule files (change `.rulesync/` + regenerate).
+
+## MCP Launching
+When using `mcp__dart_mcp_server__launch_app`, pass the project root as a
+plain filesystem path, not a `file://` URI. For this repo, use `/path/to/tokenizers`.
+
+Example:
+`launch_app(root: "/path/to/tokenizers", device: "macos", target: "lib/main.dart")`
 
 ---
 
