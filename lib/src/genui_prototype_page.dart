@@ -3,10 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:genui/genui.dart';
 
+import 'package:tokenizers/env/env.dart';
 import 'gemini_genui_service.dart';
 
 const _surfaceId = 'prototype-surface';
-const _geminiApiKey = String.fromEnvironment('GEMINI_API_KEY');
+const _geminiApiKey = Env.geminiApiKey;
 const _googleApiKey = String.fromEnvironment('GOOGLE_API_KEY');
 
 String get _configuredGeminiApiKey =>
