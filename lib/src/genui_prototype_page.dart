@@ -639,132 +639,136 @@ class _ControlPane extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFFD9E4E1)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Prompt-driven UI prototype',
-                  style: textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 8),
-                Text(modeStatus, style: textTheme.bodyMedium),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: promptController,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'Prototype prompt',
-                    hintText:
-                        'Describe a health workflow you want the UI to build.',
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: const Color(0xFFD9E4E1)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Prompt-driven UI prototype',
+                    style: textTheme.headlineSmall,
                   ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: isWaitingForModel ? null : onGenerate,
-                    child: Text(
-                      isLiveMode ? 'Generate with Gemini' : 'Generate locally',
+                  const SizedBox(height: 8),
+                  Text(modeStatus, style: textTheme.bodyMedium),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: promptController,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'Prototype prompt',
+                      hintText:
+                          'Describe a health workflow you want the UI to build.',
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFFD9E4E1)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Assistant status', style: textTheme.titleLarge),
-                const SizedBox(height: 12),
-                Text(assistantStatus, style: textTheme.bodyMedium),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFFD9E4E1)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Quick starts', style: textTheme.titleLarge),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: _PrototypeBlueprint.all.map((blueprint) {
-                    final bool selected =
-                        blueprint.label == activeBlueprint.label;
-                    return FilledButton.tonal(
-                      onPressed: isWaitingForModel
-                          ? null
-                          : () => onPickBlueprint(blueprint),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: selected
-                            ? Theme.of(context).colorScheme.primaryContainer
-                            : null,
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: isWaitingForModel ? null : onGenerate,
+                      child: Text(
+                        isLiveMode
+                            ? 'Generate with Gemini'
+                            : 'Generate locally',
                       ),
-                      child: Text(blueprint.label),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFFD9E4E1)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Interaction log', style: textTheme.titleLarge),
-                const SizedBox(height: 12),
-                if (activityLog.isEmpty)
-                  Text('No activity yet.', style: textTheme.bodyMedium),
-                for (final entry in activityLog.take(6))
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Text(entry),
+                    ),
                   ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+          const SizedBox(height: 20),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: const Color(0xFFD9E4E1)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Assistant status', style: textTheme.titleLarge),
+                  const SizedBox(height: 12),
+                  Text(assistantStatus, style: textTheme.bodyMedium),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: const Color(0xFFD9E4E1)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Quick starts', style: textTheme.titleLarge),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: _PrototypeBlueprint.all.map((blueprint) {
+                      final bool selected =
+                          blueprint.label == activeBlueprint.label;
+                      return FilledButton.tonal(
+                        onPressed: isWaitingForModel
+                            ? null
+                            : () => onPickBlueprint(blueprint),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: selected
+                              ? Theme.of(context).colorScheme.primaryContainer
+                              : null,
+                        ),
+                        child: Text(blueprint.label),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: const Color(0xFFD9E4E1)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Interaction log', style: textTheme.titleLarge),
+                  const SizedBox(height: 12),
+                  if (activityLog.isEmpty)
+                    Text('No activity yet.', style: textTheme.bodyMedium),
+                  for (final entry in activityLog.take(6))
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Text(entry),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

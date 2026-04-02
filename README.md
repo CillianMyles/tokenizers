@@ -5,144 +5,200 @@ tracking workflows.
 
 The current focus is a GenUI proof of concept: a prompt-driven prototype that
 renders dynamic UI surfaces in Flutter using the
-[`genui`](https://pub.dev/packages/genui) package. The app now supports two
+[`genui`](https://pub.dev/packages/genui) package. The app supports two
 execution modes:
 
-- local mock mode for deterministic prototype iteration with no credentials
-- live Gemini mode via the Gemini REST API and a compile-time API key
+- **local mock mode** for deterministic prototype iteration with no credentials
+- **live Gemini mode** via the Gemini REST API with API key loaded from `.env`
 
 ## Current Status
 
 - Flutter project scaffolded for `macos`, `ios`, `android`, `web`, `linux`,
   and `windows`
 - `genui` added and integrated into the app shell
-- direct Gemini REST integration added through `http`
-- prompt-driven prototype screen implemented
-- runtime-generated UI surface rendered from GenUI component definitions
-- local mock mode still available as a fallback when no API key is configured
-- live mode can send prompts and UI interaction events to Gemini
+- Direct Gemini REST integration added through `http` package
+- Prompt-driven prototype screen implemented
+- Runtime-generated UI surface rendered from GenUI component definitions
+- API key managed via `envied` package (compile-time injection from `.env`)
+- Local mock mode available as fallback when no API key is configured
+- Live mode sends prompts and UI interaction events to Gemini
 
 ## Project Structure
 
-- `lib/main.dart`: app entrypoint
-- `lib/src/genui_prototype_page.dart`: current GenUI proof of concept
-- `pubspec.yaml`: Flutter and package dependencies
+```
+lib/
+├── main.dart                      # App entrypoint
+├── env/
+│   ├── env.dart                   # Envied configuration class
+│   └── env.g.dart                  # Generated (gitignored, contains API key)
+└── src/
+    ├── genui_prototype_page.dart   # GenUI proof of concept screen
+    └── gemini_genui_service.dart   # Gemini REST integration
+```
 
-## macOS Setup
-
-These steps are the baseline for running the app locally on macOS.
+## Setup
 
 ### Prerequisites
 
-- macOS
 - Flutter SDK installed and available on `PATH`
-- Xcode installed
-- CocoaPods installed
+- For macOS: Xcode and CocoaPods installed
+- A Gemini API key from [Google AI Studio](https://aistudio.google.com/)
 
-### Configure macOS Tooling
+### Environment Configuration
 
-1. Point command-line tools at Xcode and finish first-run setup:
+1. Copy the example environment file:
+
+```bash
+cp .env.example .env
+```
+
+2. Add your Gemini API key to `.env`:
+
+```
+GEMINI_API_KEY=your_actual_api_key_here
+```
+
+3. Generate the envied code:
+
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+> **Note**: The generated `lib/env/env.g.dart` file contains your API key and is
+> gitignored. Never commit this file or your `.env` file to version control.
+
+### Platform Setup
+
+#### macOS
+
+Requires Xcode command-line tools and CocoaPods:
 
 ```bash
 sudo sh -c 'xcode-select -s /Applications/Xcode.app/Contents/Developer && xcodebuild -runFirstLaunch'
-```
-
-2. Accept Xcode licenses:
-
-```bash
 sudo xcodebuild -license
-```
-
-3. Install CocoaPods if it is not already installed:
-
-```bash
 sudo gem install cocoapods
-```
-
-4. Verify the environment:
-
-```bash
 flutter doctor -v
-flutter devices
 ```
 
-If `macos` is not listed in `flutter devices`, enable desktop support:
+Enable macOS desktop support:
 
 ```bash
 flutter config --enable-macos-desktop
 ```
 
-## Getting Started
+> **Known issue**: macOS sandbox restricts network access. For now, use Chrome
+> (web) for live mode testing. macOS entitlements need further configuration for
+> outgoing network connections.
 
-From the project root:
+## Running the App
 
-1. Install dependencies:
-
-```bash
-flutter pub get
-```
-
-2. Run the app on macOS:
-
-```bash
-flutter run -d macos
-```
-
-3. Run the live Gemini-backed mode on macOS:
-
-```bash
-flutter run -d macos --dart-define=GEMINI_API_KEY=your_api_key_here
-```
-
-4. Optional: run it in Chrome instead:
+### Web (Recommended for Live Mode)
 
 ```bash
 flutter run -d chrome
 ```
 
+Web doesn't have sandbox restrictions and works immediately with live Gemini
+mode.
+
+### macOS
+
+```bash
+flutter run -d macos
+```
+
+Mock mode works on macOS. Live mode requires network entitlements (pending).
+
+### Other Platforms
+
+```bash
+flutter devices  # List available devices
+flutter run -d <device_id>
+```
+
 ## Using the Prototype
 
-The current app can run in mock or live mode.
+### Mock Mode (Default)
 
-### Mock Mode
+Active when no valid Gemini API key is configured:
 
-Mock mode is active when no Gemini API key is supplied.
-
-- enter or edit the prototype prompt
-- switch between the quick-start workflow presets
-- generate a surface
-- interact with the generated buttons and text field
-- watch the app update the GenUI data model and surface status in response
+- Enter or edit the prototype prompt
+- Switch between quick-start workflow presets (Symptom Intake, Medication
+  Adherence, Recovery Plan)
+- Generate a surface using deterministic mock data
+- Interact with generated buttons and text fields
+- Watch the app update the GenUI data model and surface status
 
 ### Live Gemini Mode
 
-Live mode is active when you launch the app with:
+Active when a valid API key is configured:
 
-```bash
-flutter run -d macos --dart-define=GEMINI_API_KEY=your_api_key_here
+- Prompts are sent to Gemini REST API
+- Responses parsed as GenUI A2UI messages
+- Rendered surface updates from live model output
+- UI interaction events forwarded into the live model loop
+- Interaction log shows request/response status
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     GenUiPrototypePage                       │
+│  ┌─────────────────────┐    ┌─────────────────────────────┐ │
+│  │    _ControlPane     │    │       _PreviewPane          │ │
+│  │  - Prompt input     │    │  - Surface widget           │ │
+│  │  - Quick starts     │    │  - Renders GenUI components  │ │
+│  │  - Status display   │    │                             │ │
+│  │  - Activity log     │    │                             │ │
+│  └─────────────────────┘    └─────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                    ┌─────────▼─────────┐
+                    │ GeminiGenUiService │
+                    │  - REST API calls  │
+                    │  - A2UI parsing    │
+                    └────────────────────┘
 ```
 
-In live mode:
+## Development
 
-- the prompt is sent to Gemini
-- the response is parsed as GenUI A2UI messages
-- the rendered surface updates from the live model output
-- subsequent UI interaction events are forwarded back into the live model loop
+### Code Generation
+
+After modifying `lib/env/env.dart` or adding new envied fields:
+
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+### Format and Analyze
+
+```bash
+dart format .
+flutter analyze
+```
 
 ## Notes
 
-- Adding `genui` pulls in native plugin dependencies, so the first macOS build
-  may take longer while CocoaPods resolves dependencies.
-- The upstream `genui_google_generative_ai` package does not currently resolve
-  against `genui 0.8.0`, so this project uses the Gemini REST API directly
-  instead.
-- The live path is intended as a prototype integration, not a hardened
-  production architecture.
-- The project is experimental and the GenUI package itself is explicitly
-  upstream experimental.
+- Adding `genui` pulls in native plugin dependencies; first macOS build may take
+  longer while CocoaPods resolves dependencies.
+- The upstream `genui_google_generative_ai` package doesn't resolve against
+  `genui 0.8.0`, so this project uses the Gemini REST API directly.
+- The live path is intended as a prototype integration, not a hardened production
+  architecture.
+- The project is experimental; the GenUI package itself is explicitly upstream
+  experimental.
 
-## Next Step
+## Next Steps
 
-The next milestone is improving the live model contract and prompt strategy so
-the generated health workflows are more stable, more domain-specific, and less
-dependent on generic component layouts.
+1. **Improve live model contract**: Refine prompt strategy so generated health
+   workflows are more stable, domain-specific, and less dependent on generic
+   component layouts.
+
+2. **Fix macOS network entitlements**: Configure proper code signing and
+   entitlements for outgoing network connections in release builds.
+
+3. **Add error handling UI**: Surface API errors more gracefully with retry
+   options and clearer status indicators.
+
+4. **Persist surfaces locally**: Cache generated surfaces for offline review and
+   comparison.
