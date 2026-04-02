@@ -1,5 +1,6 @@
 # Environment
 .env
+lib/env/*.g.dart
 
 # Miscellaneous
 *.class
