@@ -222,21 +222,36 @@ class ChatCoordinator {
 
     await _eventStore.append(initialEvents);
 
-    final response = await _modelProvider.generateResponse(
-      activeSchedules: activeSchedules,
-      conversation: <ConversationMessageView>[
-        ...existingMessages,
-        ConversationMessageView(
-          actor: ConversationActor.user,
-          createdAt: now,
-          messageId: messageId,
-          text: trimmed,
-          threadId: threadId,
-        ),
-      ],
-      threadId: threadId,
-      userText: trimmed,
-    );
+    final responseConversation = <ConversationMessageView>[
+      ...existingMessages,
+      ConversationMessageView(
+        actor: ConversationActor.user,
+        createdAt: now,
+        messageId: messageId,
+        text: trimmed,
+        threadId: threadId,
+      ),
+    ];
+
+    late final ModelResponseContract response;
+    try {
+      response = await _modelProvider.generateResponse(
+        activeSchedules: activeSchedules,
+        conversation: responseConversation,
+        threadId: threadId,
+        userText: trimmed,
+      );
+    } on Object catch (error, stackTrace) {
+      response = ModelResponseContract(
+        actions: const <ModelProposalAction>[],
+        assistantText:
+            'The model was unavailable, so no proposal was created. Your message is still stored locally.',
+        rawPayload: <String, Object?>{
+          'provider_error': error.toString(),
+          'stack_trace': stackTrace.toString(),
+        },
+      );
+    }
 
     final responseEvents = <EventEnvelope<DomainEvent>>[
       EventEnvelope<DomainEvent>(

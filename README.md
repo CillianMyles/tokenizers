@@ -15,6 +15,8 @@ event-sourced local data model.
 - Native Drift-backed `event_log` plus projection tables
 - Web fallback still uses the in-memory event store until Drift web assets are
   added
+- Gemini-backed `ModelProvider` available in the new shell when
+  `GEMINI_API_KEY` is configured
 - Unit tests covering projection rebuilds and chat command orchestration
 - GitHub Actions CI running format, analyze, and test checks on pushes and PRs
 - Deterministic demo model provider behind a `ModelProvider` interface
@@ -58,15 +60,15 @@ store until the required Drift web assets are added.
 
 ## Environment
 
-Gemini configuration now uses a compile-time define:
+Gemini configuration uses a compile-time define:
 
 ```bash
 flutter run --dart-define=GEMINI_API_KEY=your_key_here
 ```
 
-The live Gemini-backed provider has not been reconnected to the new v0 shell
-yet. The old prototype path still reads the same `GEMINI_API_KEY` value through
-`lib/env/env.dart`.
+When `GEMINI_API_KEY` is present, the new v0 shell uses the live
+`GeminiModelProvider`. Without the key, the app falls back to the deterministic
+demo provider.
 
 ## Development
 
@@ -96,4 +98,4 @@ dart run build_runner build --delete-conflicting-outputs
 
 1. Replace the web fallback with real Drift web persistence assets and setup.
 2. Add widget and integration coverage for proposal review and calendar flows.
-3. Reconnect the live Gemini provider to the new shell.
+3. Add attachment, image, and voice ingestion to the event-sourced workflow.

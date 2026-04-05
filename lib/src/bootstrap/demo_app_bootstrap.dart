@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../env/env.dart';
 import '../app/app_session.dart';
 import '../core/application/event_store.dart';
 import '../core/application/projection_runner.dart';
@@ -10,6 +11,7 @@ import '../data/app_database.dart';
 import '../data/demo_model_provider.dart';
 import '../data/drift_event_store.dart';
 import '../data/drift_workspace.dart';
+import '../data/gemini_model_provider.dart';
 import '../data/in_memory_event_store.dart';
 import '../data/in_memory_workspace.dart';
 import '../features/calendar/application/medication_repository.dart';
@@ -41,7 +43,7 @@ class AppBootstrap {
 /// Creates the v0 demo bootstrap used by the application.
 Future<AppBootstrap> createDemoAppBootstrap() async {
   const currentThreadId = 'thread-current';
-  final modelProvider = DemoModelProvider(referenceDate: DateTime(2026, 4, 5));
+  final modelProvider = _createModelProvider();
   final appSession = AppSessionController(initialThreadId: currentThreadId);
 
   if (kIsWeb) {
@@ -85,6 +87,13 @@ Future<AppBootstrap> createDemoAppBootstrap() async {
     modelProvider: modelProvider,
     projectionRunner: workspace,
   );
+}
+
+ModelProvider _createModelProvider() {
+  if (Env.geminiApiKey.isNotEmpty) {
+    return GeminiModelProvider(apiKey: Env.geminiApiKey);
+  }
+  return DemoModelProvider(referenceDate: DateTime(2026, 4, 5));
 }
 
 Future<void> _seedIfNeeded(EventStore eventStore) async {
