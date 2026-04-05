@@ -245,31 +245,33 @@ class ProjectionState {
       }
     }
 
-    final threads = threadTitles.entries.map((entry) {
-      final threadId = entry.key;
-      return ConversationThreadView(
-        lastMessagePreview: threadSnippets[threadId] ?? 'No messages yet.',
-        lastUpdatedAt: threadUpdatedAt[threadId] ?? DateTime(1970),
-        pendingProposalCount: pendingCounts[threadId] ?? 0,
-        threadId: threadId,
-        title: entry.value,
-      );
-    }).toList()
-      ..sort((left, right) => right.lastUpdatedAt.compareTo(left.lastUpdatedAt));
+    final threads =
+        threadTitles.entries.map((entry) {
+          final threadId = entry.key;
+          return ConversationThreadView(
+            lastMessagePreview: threadSnippets[threadId] ?? 'No messages yet.',
+            lastUpdatedAt: threadUpdatedAt[threadId] ?? DateTime(1970),
+            pendingProposalCount: pendingCounts[threadId] ?? 0,
+            threadId: threadId,
+            title: entry.value,
+          );
+        }).toList()..sort(
+          (left, right) => right.lastUpdatedAt.compareTo(left.lastUpdatedAt),
+        );
 
-    final activeSchedules = schedulesById.values
-        .where((schedule) => schedule.isActive)
-        .toList()
-      ..sort((left, right) => left.medicationName.compareTo(right.medicationName));
+    final activeSchedules =
+        schedulesById.values.where((schedule) => schedule.isActive).toList()
+          ..sort(
+            (left, right) =>
+                left.medicationName.compareTo(right.medicationName),
+          );
 
     return ProjectionState(
       activeSchedules: activeSchedules,
       medicationsById: medicationNames,
       messagesByThread: messagesByThread.map(
-        (key, value) => MapEntry(
-          key,
-          List<ConversationMessageView>.unmodifiable(value),
-        ),
+        (key, value) =>
+            MapEntry(key, List<ConversationMessageView>.unmodifiable(value)),
       ),
       pendingProposalsByThread: pendingByThread,
       proposalsById: proposalsById,
@@ -298,9 +300,10 @@ ProposalActionView proposalActionFromJson(Map<String, Object?> json) {
     doseUnit: json['dose_unit'] as String?,
     endDate: _tryParseDate(json['end_date']),
     medicationName: json['medication_name'] as String?,
-    missingFields: ((json['missing_fields'] ?? const <Object?>[]) as List<Object?>)
-        .whereType<String>()
-        .toList(),
+    missingFields:
+        ((json['missing_fields'] ?? const <Object?>[]) as List<Object?>)
+            .whereType<String>()
+            .toList(),
     notes: json['notes'] as String?,
     route: json['route'] as String?,
     startDate: _tryParseDate(json['start_date']),

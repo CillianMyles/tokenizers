@@ -15,6 +15,8 @@ event-sourced local data model.
 - Native Drift-backed `event_log` plus projection tables
 - Web fallback still uses the in-memory event store until Drift web assets are
   added
+- Unit tests covering projection rebuilds and chat command orchestration
+- GitHub Actions CI running format, analyze, and test checks on pushes and PRs
 - Deterministic demo model provider behind a `ModelProvider` interface
 - Pending proposals remain separate from confirmed medication schedules
 - Confirmed schedules project into a day-based medication calendar
@@ -92,6 +94,6 @@ dart run build_runner build --delete-conflicting-outputs
 
 ## Next Steps
 
-1. Add unit tests for reducers, command orchestration, and confirmation gates.
-2. Add CI for format, analyze, and test checks on pushes and pull requests.
-3. Replace the web fallback with real Drift web persistence assets and setup.
+1. Replace the web fallback with real Drift web persistence assets and setup.
+2. Add widget and integration coverage for proposal review and calendar flows.
+3. Reconnect the live Gemini provider to the new shell.

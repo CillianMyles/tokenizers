@@ -19,9 +19,11 @@ import 'projection_state.dart';
 class DriftWorkspace
     implements ConversationRepository, MedicationRepository, ProjectionRunner {
   /// Creates a Drift workspace.
-  DriftWorkspace({required AppDatabase database, required EventStore eventStore})
-    : _database = database,
-      _eventStore = eventStore {
+  DriftWorkspace({
+    required AppDatabase database,
+    required EventStore eventStore,
+  }) : _database = database,
+       _eventStore = eventStore {
     _subscription = _eventStore.watchAll().listen((_) {
       unawaited(rebuild());
     });
@@ -201,18 +203,17 @@ class DriftWorkspace
     final dayText = _dateText(day)!;
     final joinQuery =
         _database.select(_database.medicationScheduleTimesTable).join(<Join>[
-          innerJoin(
-            _database.medicationSchedulesTable,
-            _database.medicationSchedulesTable.scheduleId.equalsExp(
-              _database.medicationScheduleTimesTable.scheduleId,
+            innerJoin(
+              _database.medicationSchedulesTable,
+              _database.medicationSchedulesTable.scheduleId.equalsExp(
+                _database.medicationScheduleTimesTable.scheduleId,
+              ),
             ),
-          ),
-        ])
+          ])
           ..where(
             _database.medicationSchedulesTable.isActive.equals(true) &
-                _database.medicationSchedulesTable.startDate.isSmallerOrEqualValue(
-                  dayText,
-                ) &
+                _database.medicationSchedulesTable.startDate
+                    .isSmallerOrEqualValue(dayText) &
                 (_database.medicationSchedulesTable.endDate.isNull() |
                     _database.medicationSchedulesTable.endDate
                         .isBiggerOrEqualValue(dayText)),
@@ -223,26 +224,28 @@ class DriftWorkspace
           ]);
 
     return joinQuery.watch().map((rows) {
-      return rows.map((row) {
-        final schedule = row.readTable(_database.medicationSchedulesTable);
-        final time = row.readTable(_database.medicationScheduleTimesTable);
-        final parts = time.timeOfDay.split(':');
-        return MedicationCalendarEntry(
-          dateTime: DateTime(
-            day.year,
-            day.month,
-            day.day,
-            int.parse(parts[0]),
-            int.parse(parts[1]),
-          ),
-          doseLabel: _doseLabel(schedule.doseAmount, schedule.doseUnit),
-          medicationName: schedule.medicationName,
-          notes: schedule.notes,
-          scheduleId: schedule.scheduleId,
-          sourceProposalId: schedule.sourceProposalId,
-          threadId: schedule.threadId,
-        );
-      }).toList(growable: false);
+      return rows
+          .map((row) {
+            final schedule = row.readTable(_database.medicationSchedulesTable);
+            final time = row.readTable(_database.medicationScheduleTimesTable);
+            final parts = time.timeOfDay.split(':');
+            return MedicationCalendarEntry(
+              dateTime: DateTime(
+                day.year,
+                day.month,
+                day.day,
+                int.parse(parts[0]),
+                int.parse(parts[1]),
+              ),
+              doseLabel: _doseLabel(schedule.doseAmount, schedule.doseUnit),
+              medicationName: schedule.medicationName,
+              notes: schedule.notes,
+              scheduleId: schedule.scheduleId,
+              sourceProposalId: schedule.sourceProposalId,
+              threadId: schedule.threadId,
+            );
+          })
+          .toList(growable: false);
     });
   }
 

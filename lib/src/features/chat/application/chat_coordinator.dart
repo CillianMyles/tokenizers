@@ -4,8 +4,8 @@ import '../../../core/domain/event_envelope.dart';
 import '../../../core/model/model_provider.dart';
 import '../../../core/model/model_response_contract.dart';
 import '../../calendar/application/medication_repository.dart';
-import '../domain/conversation_models.dart';
 import '../../proposals/domain/proposal_models.dart';
+import '../domain/conversation_models.dart';
 import 'conversation_repository.dart';
 
 /// Orchestrates the chat-to-proposal-to-confirmation workflow.
