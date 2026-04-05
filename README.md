@@ -1,204 +1,87 @@
 # Tokenizers
 
-Tokenizers is a Flutter application exploring AI-powered health and medical
-tracking workflows.
+Tokenizers is a Flutter application exploring reliable, offline-first
+medication capture.
 
-The current focus is a GenUI proof of concept: a prompt-driven prototype that
-renders dynamic UI surfaces in Flutter using the
-[`genui`](https://pub.dev/packages/genui) package. The app supports two
-execution modes:
-
-- **local mock mode** for deterministic prototype iteration with no credentials
-- **live Gemini mode** via the Gemini REST API with API key loaded from `.env`
+The current codebase is moving from a prompt-driven GenUI prototype toward the
+v0 architecture in [docs/plans/v0.md](docs/plans/v0.md): a chat-first app shell
+with explicit proposal review, confirmation-gated medication changes, and an
+event-sourced local data model.
 
 ## Current Status
 
-- Flutter project scaffolded for `macos`, `ios`, `android`, `web`, `linux`,
-  and `windows`
-- `genui` added and integrated into the app shell
-- Direct Gemini REST integration added through `http` package
-- Prompt-driven prototype screen implemented
-- Runtime-generated UI surface rendered from GenUI component definitions
-- API key managed via `envied` package (compile-time injection from `.env`)
-- Local mock mode available as fallback when no API key is configured
-- Live mode sends prompts and UI interaction events to Gemini
+- Routed app shell with `Chat`, `Calendar`, and `History` surfaces
+- Pure-Dart event and proposal types for the v0 workflow
+- In-memory event store and projection runner used as the first architecture
+  checkpoint
+- Deterministic demo model provider behind a `ModelProvider` interface
+- Pending proposals remain separate from confirmed medication schedules
+- Confirmed schedules project into a day-based medication calendar
+- Legacy GenUI prototype code is still present in `lib/src/genui_prototype_page.dart`
+  while the new shell is being built out
 
 ## Project Structure
 
-```
+```text
 lib/
-├── main.dart                      # App entrypoint
+├── main.dart
 ├── env/
-│   ├── env.dart                   # Envied configuration class
-│   └── env.g.dart                  # Generated (gitignored, contains API key)
+│   └── env.dart
 └── src/
-    ├── genui_prototype_page.dart   # GenUI proof of concept screen
-    └── gemini_genui_service.dart   # Gemini REST integration
+    ├── app/                       # App shell, routing, theme, scope
+    ├── bootstrap/                 # Service/bootstrap wiring
+    ├── core/                      # Shared event and model contracts
+    ├── data/                      # In-memory event store and projections
+    └── features/
+        ├── calendar/
+        ├── chat/
+        ├── history/
+        └── proposals/
 ```
-
-## Setup
-
-### Prerequisites
-
-- Flutter SDK installed and available on `PATH`
-- For macOS: Xcode and CocoaPods installed
-- A Gemini API key from [Google AI Studio](https://aistudio.google.com/)
-
-### Environment Configuration
-
-1. Copy the example environment file:
-
-```bash
-cp .env.example .env
-```
-
-2. Add your Gemini API key to `.env`:
-
-```
-GEMINI_API_KEY=your_actual_api_key_here
-```
-
-3. Generate the envied code:
-
-```bash
-dart run build_runner build --delete-conflicting-outputs
-```
-
-> **Note**: The generated `lib/env/env.g.dart` file contains your API key and is
-> gitignored. Never commit this file or your `.env` file to version control.
-
-### Platform Setup
-
-#### macOS
-
-Requires Xcode command-line tools and CocoaPods:
-
-```bash
-sudo sh -c 'xcode-select -s /Applications/Xcode.app/Contents/Developer && xcodebuild -runFirstLaunch'
-sudo xcodebuild -license
-sudo gem install cocoapods
-flutter doctor -v
-```
-
-Enable macOS desktop support:
-
-```bash
-flutter config --enable-macos-desktop
-```
-
-> **Known issue**: macOS sandbox restricts network access. For now, use Chrome
-> (web) for live mode testing. macOS entitlements need further configuration for
-> outgoing network connections.
 
 ## Running the App
-
-### Web (Recommended for Live Mode)
 
 ```bash
 flutter run -d chrome
 ```
 
-Web doesn't have sandbox restrictions and works immediately with live Gemini
-mode.
+The current default experience is a local demo flow. Type a medication change in
+chat, review the generated proposal, and confirm it to project the schedule into
+the calendar.
 
-### macOS
+## Environment
 
-```bash
-flutter run -d macos
-```
-
-Mock mode works on macOS. Live mode requires network entitlements (pending).
-
-### Other Platforms
+Gemini configuration now uses a compile-time define:
 
 ```bash
-flutter devices  # List available devices
-flutter run -d <device_id>
+flutter run --dart-define=GEMINI_API_KEY=your_key_here
 ```
 
-## Using the Prototype
-
-### Mock Mode (Default)
-
-Active when no valid Gemini API key is configured:
-
-- Enter or edit the prototype prompt
-- Switch between quick-start workflow presets (Symptom Intake, Medication
-  Adherence, Recovery Plan)
-- Generate a surface using deterministic mock data
-- Interact with generated buttons and text fields
-- Watch the app update the GenUI data model and surface status
-
-### Live Gemini Mode
-
-Active when a valid API key is configured:
-
-- Prompts are sent to Gemini REST API
-- Responses parsed as GenUI A2UI messages
-- Rendered surface updates from live model output
-- UI interaction events forwarded into the live model loop
-- Interaction log shows request/response status
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     GenUiPrototypePage                       │
-│  ┌─────────────────────┐    ┌─────────────────────────────┐ │
-│  │    _ControlPane     │    │       _PreviewPane          │ │
-│  │  - Prompt input     │    │  - Surface widget           │ │
-│  │  - Quick starts     │    │  - Renders GenUI components  │ │
-│  │  - Status display   │    │                             │ │
-│  │  - Activity log     │    │                             │ │
-│  └─────────────────────┘    └─────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                    ┌─────────▼─────────┐
-                    │ GeminiGenUiService │
-                    │  - REST API calls  │
-                    │  - A2UI parsing    │
-                    └────────────────────┘
-```
+The live Gemini-backed provider has not been reconnected to the new v0 shell
+yet. The old prototype path still reads the same `GEMINI_API_KEY` value through
+`lib/env/env.dart`.
 
 ## Development
 
-### Code Generation
-
-After modifying `lib/env/env.dart` or adding new envied fields:
-
-```bash
-dart run build_runner build --delete-conflicting-outputs
-```
-
-### Format and Analyze
+Format and analyze:
 
 ```bash
 dart format .
 flutter analyze
 ```
 
-## Notes
+Run tests:
 
-- Adding `genui` pulls in native plugin dependencies; first macOS build may take
-  longer while CocoaPods resolves dependencies.
-- The upstream `genui_google_generative_ai` package doesn't resolve against
-  `genui 0.8.0`, so this project uses the Gemini REST API directly.
-- The live path is intended as a prototype integration, not a hardened production
-  architecture.
-- The project is experimental; the GenUI package itself is explicitly upstream
-  experimental.
+```bash
+flutter test
+```
+
+At the moment there is no `test/` directory yet, so `flutter test` exits with
+`Test directory "test" not found.` until the first test slice lands.
 
 ## Next Steps
 
-1. **Improve live model contract**: Refine prompt strategy so generated health
-   workflows are more stable, domain-specific, and less dependent on generic
-   component layouts.
-
-2. **Fix macOS network entitlements**: Configure proper code signing and
-   entitlements for outgoing network connections in release builds.
-
-3. **Add error handling UI**: Surface API errors more gracefully with retry
-   options and clearer status indicators.
-
-4. **Persist surfaces locally**: Cache generated surfaces for offline review and
-   comparison.
+1. Replace the in-memory event store with Drift-backed persistence and
+   projection rebuild support.
+2. Add unit tests for reducers, command orchestration, and confirmation gates.
+3. Add CI for format, analyze, and test checks on pushes and pull requests.

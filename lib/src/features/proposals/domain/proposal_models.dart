@@ -1,0 +1,141 @@
+/// The projected proposal status.
+enum ProposalStatus { pending, confirmed, cancelled, superseded }
+
+/// Proposal action types supported in v0.
+enum ProposalActionType {
+  addMedicationSchedule('add_medication_schedule'),
+  requestMissingInfo('request_missing_info'),
+  stopMedicationSchedule('stop_medication_schedule'),
+  updateMedicationSchedule('update_medication_schedule');
+
+  const ProposalActionType(this.wireValue);
+
+  /// Wire-format value stored in the event log.
+  final String wireValue;
+}
+
+/// A projected proposal action.
+class ProposalActionView {
+  /// Creates a proposal action view.
+  const ProposalActionView({
+    required this.actionId,
+    required this.type,
+    this.doseAmount,
+    this.doseUnit,
+    this.endDate,
+    this.medicationName,
+    this.missingFields = const <String>[],
+    this.notes,
+    this.route,
+    this.startDate,
+    this.targetScheduleId,
+    this.times = const <String>[],
+  });
+
+  /// Action id.
+  final String actionId;
+
+  /// Dose amount.
+  final String? doseAmount;
+
+  /// Dose unit.
+  final String? doseUnit;
+
+  /// Optional end date.
+  final DateTime? endDate;
+
+  /// Medication name.
+  final String? medicationName;
+
+  /// Required missing fields for follow-up.
+  final List<String> missingFields;
+
+  /// Notes and instructions.
+  final String? notes;
+
+  /// Optional route.
+  final String? route;
+
+  /// Optional start date.
+  final DateTime? startDate;
+
+  /// Existing schedule being changed.
+  final String? targetScheduleId;
+
+  /// Fixed times per day.
+  final List<String> times;
+
+  /// Supported proposal action type.
+  final ProposalActionType type;
+
+  /// A compact summary of the action.
+  String get summary {
+    return switch (type) {
+      ProposalActionType.addMedicationSchedule =>
+        'Add ${medicationName ?? 'medication'}'
+            '${doseAmount == null || doseUnit == null ? '' : ' • $doseAmount $doseUnit'}'
+            '${times.isEmpty ? '' : ' • ${times.join(', ')}'}',
+      ProposalActionType.requestMissingInfo =>
+        'Missing: ${missingFields.join(', ')}',
+      ProposalActionType.stopMedicationSchedule =>
+        'Stop ${medicationName ?? 'active schedule'}',
+      ProposalActionType.updateMedicationSchedule =>
+        'Update ${medicationName ?? 'schedule'}',
+    };
+  }
+}
+
+/// A projected medication proposal.
+class ProposalView {
+  /// Creates a proposal view.
+  const ProposalView({
+    required this.actions,
+    required this.assistantText,
+    required this.createdAt,
+    required this.proposalId,
+    required this.status,
+    required this.summary,
+    required this.threadId,
+  });
+
+  /// Structured proposed actions.
+  final List<ProposalActionView> actions;
+
+  /// Assistant text for the user.
+  final String assistantText;
+
+  /// Proposal creation time.
+  final DateTime createdAt;
+
+  /// Proposal id.
+  final String proposalId;
+
+  /// Current proposal status.
+  final ProposalStatus status;
+
+  /// Summary text.
+  final String summary;
+
+  /// Parent thread id.
+  final String threadId;
+
+  /// Whether the proposal can safely be confirmed.
+  bool get isConfirmable =>
+      actions.isNotEmpty &&
+      actions.every(
+        (action) => action.type != ProposalActionType.requestMissingInfo,
+      );
+
+  /// Returns a modified copy of the proposal.
+  ProposalView copyWith({ProposalStatus? status}) {
+    return ProposalView(
+      actions: actions,
+      assistantText: assistantText,
+      createdAt: createdAt,
+      proposalId: proposalId,
+      status: status ?? this.status,
+      summary: summary,
+      threadId: threadId,
+    );
+  }
+}
