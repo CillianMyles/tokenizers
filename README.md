@@ -12,8 +12,9 @@ event-sourced local data model.
 
 - Routed app shell with `Chat`, `Calendar`, and `History` surfaces
 - Pure-Dart event and proposal types for the v0 workflow
-- In-memory event store and projection runner used as the first architecture
-  checkpoint
+- Native Drift-backed `event_log` plus projection tables
+- Web fallback still uses the in-memory event store until Drift web assets are
+  added
 - Deterministic demo model provider behind a `ModelProvider` interface
 - Pending proposals remain separate from confirmed medication schedules
 - Confirmed schedules project into a day-based medication calendar
@@ -31,7 +32,7 @@ lib/
     ├── app/                       # App shell, routing, theme, scope
     ├── bootstrap/                 # Service/bootstrap wiring
     ├── core/                      # Shared event and model contracts
-    ├── data/                      # In-memory event store and projections
+    ├── data/                      # Drift + in-memory persistence layers
     └── features/
         ├── calendar/
         ├── chat/
@@ -45,9 +46,13 @@ lib/
 flutter run -d chrome
 ```
 
-The current default experience is a local demo flow. Type a medication change in
-chat, review the generated proposal, and confirm it to project the schedule into
-the calendar.
+The current default experience is a local demo flow. Type a medication change
+in chat, review the generated proposal, and confirm it to project the schedule
+into the calendar.
+
+On native platforms, the event log and read models are stored locally in
+SQLite via Drift. On web, the app currently falls back to the in-memory demo
+store until the required Drift web assets are added.
 
 ## Environment
 
@@ -79,9 +84,14 @@ flutter test
 At the moment there is no `test/` directory yet, so `flutter test` exits with
 `Test directory "test" not found.` until the first test slice lands.
 
+Regenerate Drift code after changing the database schema:
+
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
 ## Next Steps
 
-1. Replace the in-memory event store with Drift-backed persistence and
-   projection rebuild support.
-2. Add unit tests for reducers, command orchestration, and confirmation gates.
-3. Add CI for format, analyze, and test checks on pushes and pull requests.
+1. Add unit tests for reducers, command orchestration, and confirmation gates.
+2. Add CI for format, analyze, and test checks on pushes and pull requests.
+3. Replace the web fallback with real Drift web persistence assets and setup.

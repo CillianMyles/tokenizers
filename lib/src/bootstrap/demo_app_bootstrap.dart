@@ -1,9 +1,15 @@
+import 'package:flutter/foundation.dart';
+
 import '../app/app_session.dart';
 import '../core/application/event_store.dart';
 import '../core/application/projection_runner.dart';
 import '../core/domain/domain_event.dart';
 import '../core/domain/event_envelope.dart';
 import '../core/model/model_provider.dart';
+import '../data/app_database.dart';
+import '../data/demo_model_provider.dart';
+import '../data/drift_event_store.dart';
+import '../data/drift_workspace.dart';
 import '../data/in_memory_event_store.dart';
 import '../data/in_memory_workspace.dart';
 import '../features/calendar/application/medication_repository.dart';
@@ -35,28 +41,57 @@ class AppBootstrap {
 /// Creates the v0 demo bootstrap used by the application.
 Future<AppBootstrap> createDemoAppBootstrap() async {
   const currentThreadId = 'thread-current';
-  final eventStore = InMemoryEventStore();
-  final workspace = InMemoryWorkspace(eventStore: eventStore);
   final modelProvider = DemoModelProvider(referenceDate: DateTime(2026, 4, 5));
-  final chatCoordinator = ChatCoordinator(
-    conversationRepository: workspace,
-    eventStore: eventStore,
-    medicationRepository: workspace,
-    modelProvider: modelProvider,
-  );
   final appSession = AppSessionController(initialThreadId: currentThreadId);
 
-  await eventStore.append(_seedEvents());
+  if (kIsWeb) {
+    final eventStore = InMemoryEventStore();
+    final workspace = InMemoryWorkspace(eventStore: eventStore);
+    await _seedIfNeeded(eventStore);
+
+    return AppBootstrap(
+      appSession: appSession,
+      chatCoordinator: ChatCoordinator(
+        conversationRepository: workspace,
+        eventStore: eventStore,
+        medicationRepository: workspace,
+        modelProvider: modelProvider,
+      ),
+      conversationRepository: workspace,
+      eventStore: eventStore,
+      medicationRepository: workspace,
+      modelProvider: modelProvider,
+      projectionRunner: workspace,
+    );
+  }
+
+  final database = AppDatabase();
+  final eventStore = DriftEventStore(database: database);
+  final workspace = DriftWorkspace(database: database, eventStore: eventStore);
+  await _seedIfNeeded(eventStore);
+  await workspace.rebuild();
 
   return AppBootstrap(
     appSession: appSession,
-    chatCoordinator: chatCoordinator,
+    chatCoordinator: ChatCoordinator(
+      conversationRepository: workspace,
+      eventStore: eventStore,
+      medicationRepository: workspace,
+      modelProvider: modelProvider,
+    ),
     conversationRepository: workspace,
     eventStore: eventStore,
     medicationRepository: workspace,
     modelProvider: modelProvider,
     projectionRunner: workspace,
   );
+}
+
+Future<void> _seedIfNeeded(EventStore eventStore) async {
+  if ((await eventStore.loadAll()).isNotEmpty) {
+    return;
+  }
+  await eventStore.append(_seedEvents());
 }
 
 List<EventEnvelope<DomainEvent>> _seedEvents() {
