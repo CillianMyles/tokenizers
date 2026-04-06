@@ -111,7 +111,7 @@ The system should then:
 1. parse the incoming information
 2. extract proposed medication and dosage details
 3. generate a structured proposal for what should be saved
-4. show that proposal in UI above the chat using GenUI
+4. show that proposal in a structured review UI above the chat
 5. let the user confirm, edit, or cancel
 6. on confirmation, save the result to a local SQL database
 7. schedule medication reminders based on the confirmed dosage/timing
@@ -157,8 +157,9 @@ The user must then be able to:
 - edit
 - cancel
 
-This confirmation/edit step is where **GenUI** fits best.
-The chat collects the raw user input, and the GenUI layer renders the structured proposal and editing controls.
+This confirmation/edit step is where the structured proposal review UI fits best.
+The chat collects the raw user input, and the proposal panel renders the
+structured proposal and editing controls.
 
 ### Timeline / calendar direction
 
@@ -173,7 +174,7 @@ This should be treated as **next-step UX**, not the first thing to build.
 
 For the hackathon version, keep the architecture simple:
 - build it as a Flutter app
-- use GenUI for the proposal / confirmation UI
+- use a structured proposal / confirmation UI in the app shell
 - use a local SQL database for persistence
 - do not build a backend server just to hide an API key
 - it is acceptable for the hackathon build to read the AI key from a local file/config
@@ -188,7 +189,7 @@ The goal is to prove the product loop, not build a production platform.
 If we can get this one loop working well, the MVP is successful:
 1. send text, image, or voice note
 2. extract a medication schedule proposal
-3. let the user confirm/edit it in GenUI
+3. let the user confirm/edit it in the proposal review UI
 4. save it locally
 5. create reminders from the confirmed plan
 

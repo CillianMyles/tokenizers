@@ -12,7 +12,7 @@ local data model.
 
 - Routed app shell with `Chat`, `Calendar`, and `History` surfaces
 - Pure-Dart event and proposal types for the v0 workflow
-- Native Drift-backed `event_log` plus projection tables
+- Drift-backed `event_log` plus projection tables across native and web
 - Gemini-backed `ModelProvider` available in the new shell when
   `GEMINI_API_KEY` is configured in a local `.env`
 - Unit tests covering projection rebuilds and chat command orchestration
@@ -31,7 +31,7 @@ lib/
     ├── app/                       # App shell, routing, theme, scope
     ├── bootstrap/                 # Service/bootstrap wiring
     ├── core/                      # Shared event and model contracts
-    ├── data/                      # Drift + in-memory persistence layers
+    ├── data/                      # Drift persistence, projections, providers
     └── features/
         ├── calendar/
         ├── chat/
@@ -50,7 +50,7 @@ Type a medication change in chat, review the generated proposal, and confirm it
 to project the schedule into the calendar.
 
 The event log and read models are stored locally in SQLite via Drift on native
-platforms and on the web.
+platforms and on the web via the bundled Drift worker + `sqlite3.wasm` assets.
 
 ## Environment
 
@@ -67,7 +67,7 @@ Without the key, the app now shows a configuration error banner and disables
 medication submission instead of falling back to a local demo model.
 
 The `.env` file is bundled as a local Flutter asset for your machine at build
-time, so no `--dart-define` flag is required.
+time, so no extra launch-time configuration flag is required.
 
 ## Development
 
@@ -100,4 +100,4 @@ make rules-generate
 
 1. Add widget and integration coverage for proposal review and calendar flows.
 2. Add attachment, image, and voice ingestion to the event-sourced workflow.
-3. Improve the web persistence setup and worker asset maintenance workflow.
+3. Add explicit maintenance docs for the bundled web Drift worker assets.
