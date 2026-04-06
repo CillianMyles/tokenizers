@@ -11,5 +11,8 @@ list:
 
 .PHONY: rules-generate
 
+# rulesync rewrites the Codex MCP section, so reapply Codex-only approval
+# blocks after generation.
 rules-generate:
 	rulesync generate --delete -f rules,skills,mcp,ignore -t agentsmd,agentsskills,claudecode,codexcli,opencode,cursor,copilot
+	dart tool/sync_codex_dart_mcp_approvals.dart

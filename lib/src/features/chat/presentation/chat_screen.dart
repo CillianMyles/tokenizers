@@ -96,6 +96,7 @@ class _ChatScreenState extends State<ChatScreen> {
     required AppBootstrap bootstrap,
     required String threadId,
   }) {
+    final configurationError = bootstrap.configurationError;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -124,9 +125,10 @@ class _ChatScreenState extends State<ChatScreen> {
               controller: _composerController,
               maxLines: 4,
               minLines: 2,
-              decoration: const InputDecoration(
-                hintText:
-                    'Describe a medication change, for example “Add ibuprofen 200 mg at 8am”.',
+              decoration: InputDecoration(
+                hintText: configurationError == null
+                    ? 'Describe a medication change, for example “Add ibuprofen 200 mg at 8am”.'
+                    : 'Add GEMINI_API_KEY to .env before sending medication updates.',
               ),
             ),
             const SizedBox(height: 16),
@@ -134,13 +136,14 @@ class _ChatScreenState extends State<ChatScreen> {
               children: <Widget>[
                 Expanded(
                   child: Text(
-                    'Text stays local first. Structured proposals are reviewed before confirmation.',
+                    configurationError ??
+                        'Text stays local first. Structured proposals are reviewed before confirmation.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
                 const SizedBox(width: 12),
                 FilledButton.icon(
-                  onPressed: _isSubmitting
+                  onPressed: _isSubmitting || configurationError != null
                       ? null
                       : () async {
                           setState(() {

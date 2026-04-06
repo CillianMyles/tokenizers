@@ -7,11 +7,6 @@ import 'package:tokenizers/env/env.dart';
 import 'gemini_genui_service.dart';
 
 const _surfaceId = 'prototype-surface';
-const _geminiApiKey = Env.geminiApiKey;
-const _googleApiKey = String.fromEnvironment('GOOGLE_API_KEY');
-
-String get _configuredGeminiApiKey =>
-    _geminiApiKey.isNotEmpty ? _geminiApiKey : _googleApiKey;
 
 /// Material app shell for the GenUI prototype.
 class GenUiPrototypeApp extends StatelessWidget {
@@ -64,7 +59,6 @@ class _GenUiPrototypePageState extends State<GenUiPrototypePage> {
   late final SurfaceController _controller;
   late final TextEditingController _promptController;
 
-  StreamSubscription<ChatMessage>? _mockSubmitSubscription;
   StreamSubscription<ConversationEvent>? _conversationSubscription;
 
   Conversation? _conversation;
@@ -73,10 +67,10 @@ class _GenUiPrototypePageState extends State<GenUiPrototypePage> {
 
   final List<String> _activityLog = <String>[];
   _PrototypeBlueprint _activeBlueprint = _PrototypeBlueprint.intake();
-  String _modeStatus = 'Local mock mode active.';
+  String _modeStatus = 'Gemini mode requires local `.env` configuration.';
   String _assistantStatus =
-      'Use a prompt to generate a surface. Add `--dart-define=GEMINI_API_KEY=...` '
-      'to switch this app into live Gemini mode.';
+      'Use a prompt to generate a surface. Add `GEMINI_API_KEY` to your local '
+      '`.env` file to switch this app into live Gemini mode.';
   bool _isWaitingForModel = false;
 
   bool get _isLiveMode => _conversation != null && _transport != null;
@@ -96,16 +90,20 @@ class _GenUiPrototypePageState extends State<GenUiPrototypePage> {
       ),
     );
 
-    if (_configuredGeminiApiKey.isNotEmpty) {
-      _initializeLiveMode(_configuredGeminiApiKey);
+    if (Env.geminiApiKey.isNotEmpty) {
+      _initializeLiveMode(Env.geminiApiKey);
     } else {
-      _initializeMockMode();
+      _showMissingConfiguration();
     }
   }
 
-  void _initializeMockMode() {
-    _mockSubmitSubscription = _controller.onSubmit.listen(_handleMockEvent);
-    _generatePrototype(_promptController.text, origin: 'Loaded default demo');
+  void _showMissingConfiguration() {
+    setState(() {
+      _modeStatus = 'Gemini mode disabled until GEMINI_API_KEY is set.';
+      _assistantStatus =
+          'Missing GEMINI_API_KEY in your local `.env`. Add the key and '
+          'relaunch the prototype.';
+    });
   }
 
   void _initializeLiveMode(String apiKey) {
@@ -149,8 +147,7 @@ class _GenUiPrototypePageState extends State<GenUiPrototypePage> {
       }
     });
     setState(() {
-      _modeStatus =
-          'Live Gemini mode active via `--dart-define=GEMINI_API_KEY=...`.';
+      _modeStatus = 'Live Gemini mode active via local `.env` configuration.';
       _assistantStatus =
           'The next prompt will be sent to Gemini and rendered through GenUI.';
     });
@@ -189,7 +186,6 @@ class _GenUiPrototypePageState extends State<GenUiPrototypePage> {
 
   @override
   void dispose() {
-    _mockSubmitSubscription?.cancel();
     _conversationSubscription?.cancel();
     _conversation?.dispose();
     _transport?.dispose();
@@ -223,23 +219,13 @@ class _GenUiPrototypePageState extends State<GenUiPrototypePage> {
       return;
     }
 
-    _controller.handleMessage(
-      UpdateDataModel(surfaceId: _surfaceId, value: blueprint.initialData),
-    );
-    _controller.handleMessage(
-      UpdateComponents(
-        surfaceId: _surfaceId,
-        components: _buildMockComponents(blueprint),
-      ),
-    );
-
     setState(() {
-      _activeBlueprint = blueprint;
       _assistantStatus =
-          'Mock generation updated the runtime surface from the selected prompt.';
+          'Missing GEMINI_API_KEY in your local `.env`. The prototype will '
+          'not generate local fallback surfaces anymore.';
       _activityLog.insert(
         0,
-        '$origin: generated "${blueprint.label}" from "$trimmedPrompt".',
+        '$origin: blocked because Gemini is not configured.',
       );
       if (_activityLog.length > 8) {
         _activityLog.removeLast();
@@ -674,12 +660,10 @@ class _ControlPane extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton(
-                      onPressed: isWaitingForModel ? null : onGenerate,
-                      child: Text(
-                        isLiveMode
-                            ? 'Generate with Gemini'
-                            : 'Generate locally',
-                      ),
+                      onPressed: isWaitingForModel || !isLiveMode
+                          ? null
+                          : onGenerate,
+                      child: const Text('Generate with Gemini'),
                     ),
                   ),
                 ],

@@ -10,5 +10,34 @@
       "enabled": true,
       "environment": {}
     }
+  },
+  "tools": {
+    "dart-mcp-server_add_roots": true,
+    "dart-mcp-server_analyze_files": true,
+    "dart-mcp-server_connect_dart_tooling_daemon": true,
+    "dart-mcp-server_create_project": true,
+    "dart-mcp-server_dart_fix": true,
+    "dart-mcp-server_dart_format": true,
+    "dart-mcp-server_flutter_driver": true,
+    "dart-mcp-server_get_active_location": true,
+    "dart-mcp-server_get_app_logs": true,
+    "dart-mcp-server_get_runtime_errors": true,
+    "dart-mcp-server_get_selected_widget": true,
+    "dart-mcp-server_get_widget_tree": true,
+    "dart-mcp-server_hot_reload": true,
+    "dart-mcp-server_hot_restart": true,
+    "dart-mcp-server_hover": true,
+    "dart-mcp-server_launch_app": true,
+    "dart-mcp-server_list_devices": true,
+    "dart-mcp-server_list_running_apps": true,
+    "dart-mcp-server_pub": true,
+    "dart-mcp-server_pub_dev_search": true,
+    "dart-mcp-server_read_package_uris": true,
+    "dart-mcp-server_remove_roots": true,
+    "dart-mcp-server_resolve_workspace_symbol": true,
+    "dart-mcp-server_run_tests": true,
+    "dart-mcp-server_set_widget_selection_mode": true,
+    "dart-mcp-server_signature_help": true,
+    "dart-mcp-server_stop_app": true
   }
 }

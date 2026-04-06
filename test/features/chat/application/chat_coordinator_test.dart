@@ -175,6 +175,32 @@ void main() {
         );
       },
     );
+
+    test(
+      'submitText surfaces provider failures in the recorded assistant turn',
+      () async {
+        final eventStore = _FakeEventStore();
+        final coordinator = ChatCoordinator(
+          conversationRepository: _FakeConversationRepository(),
+          eventStore: eventStore,
+          medicationRepository: _FakeMedicationRepository(),
+          modelProvider: _ThrowingModelProvider(
+            message: 'Missing GEMINI_API_KEY in your local .env.',
+          ),
+        );
+
+        await coordinator.submitText('thread-1', 'Add ibuprofen 200 mg at 8am');
+
+        final assistantTurn = eventStore.events.singleWhere(
+          (event) => event.event.type == 'model_turn_recorded',
+        );
+
+        expect(
+          assistantTurn.event.payload['assistant_text'],
+          contains('Missing GEMINI_API_KEY in your local .env.'),
+        );
+      },
+    );
   });
 }
 
@@ -262,6 +288,22 @@ class _FakeModelProvider implements ModelProvider {
     lastConversation = conversation;
     lastUserText = userText;
     return response;
+  }
+}
+
+class _ThrowingModelProvider implements ModelProvider {
+  const _ThrowingModelProvider({required this.message});
+
+  final String message;
+
+  @override
+  Future<ModelResponseContract> generateResponse({
+    required List<MedicationScheduleView> activeSchedules,
+    required List<ConversationMessageView> conversation,
+    required String threadId,
+    required String userText,
+  }) {
+    throw StateError(message);
   }
 }
 

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'app_scope.dart';
+
 /// Shared scaffold with the primary app navigation.
 class AppShell extends StatelessWidget {
   /// Creates the shared app shell.
@@ -10,6 +12,7 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final configurationError = AppScope.of(context).configurationError;
     return Scaffold(
       body: DecoratedBox(
         decoration: const BoxDecoration(
@@ -19,7 +22,20 @@ class AppShell extends StatelessWidget {
             end: Alignment.bottomRight,
           ),
         ),
-        child: SafeArea(child: navigationShell),
+        child: SafeArea(
+          child: Column(
+            children: <Widget>[
+              if (configurationError case final message?) ...<Widget>[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: _ConfigurationBanner(message: message),
+                ),
+                const SizedBox(height: 8),
+              ],
+              Expanded(child: navigationShell),
+            ],
+          ),
+        ),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationShell.currentIndex,
@@ -43,6 +59,41 @@ class AppShell extends StatelessWidget {
             label: 'History',
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ConfigurationBanner extends StatelessWidget {
+  const _ConfigurationBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: <Widget>[
+            Icon(Icons.error_outline, color: colorScheme.onErrorContainer),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onErrorContainer,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

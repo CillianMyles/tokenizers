@@ -16,10 +16,9 @@ event-sourced local data model.
 - Web fallback still uses the in-memory event store until Drift web assets are
   added
 - Gemini-backed `ModelProvider` available in the new shell when
-  `GEMINI_API_KEY` is configured
+  `GEMINI_API_KEY` is configured in a local `.env`
 - Unit tests covering projection rebuilds and chat command orchestration
 - GitHub Actions CI running format, analyze, and test checks on pushes and PRs
-- Deterministic demo model provider behind a `ModelProvider` interface
 - Pending proposals remain separate from confirmed medication schedules
 - Confirmed schedules project into a day-based medication calendar
 - Legacy GenUI prototype code is still present in `lib/src/genui_prototype_page.dart`
@@ -50,9 +49,9 @@ lib/
 flutter run -d chrome
 ```
 
-The current default experience is a local demo flow. Type a medication change
-in chat, review the generated proposal, and confirm it to project the schedule
-into the calendar.
+The current default experience is a Gemini-backed medication capture flow.
+Type a medication change in chat, review the generated proposal, and confirm it
+to project the schedule into the calendar.
 
 On native platforms, the event log and read models are stored locally in
 SQLite via Drift. On web, the app currently falls back to the in-memory demo
@@ -60,15 +59,20 @@ store until the required Drift web assets are added.
 
 ## Environment
 
-Gemini configuration uses a compile-time define:
+Each developer should keep their own Gemini key in a local `.env` file that is
+ignored by git.
 
-```bash
-flutter run --dart-define=GEMINI_API_KEY=your_key_here
-```
+1. Copy `.env.example` to `.env`.
+2. Set `GEMINI_API_KEY=your_key_here`.
 
 When `GEMINI_API_KEY` is present, the new v0 shell uses the live
-`GeminiModelProvider`. Without the key, the app falls back to the deterministic
-demo provider.
+`GeminiModelProvider`.
+
+Without the key, the app now shows a configuration error banner and disables
+medication submission instead of falling back to a local demo model.
+
+The `.env` file is bundled as a local Flutter asset for your machine at build
+time, so no `--dart-define` flag is required.
 
 ## Development
 
@@ -85,13 +89,16 @@ Run tests:
 flutter test
 ```
 
-At the moment there is no `test/` directory yet, so `flutter test` exits with
-`Test directory "test" not found.` until the first test slice lands.
-
 Regenerate Drift code after changing the database schema:
 
 ```bash
 dart run build_runner build --delete-conflicting-outputs
+```
+
+Regenerate AI tool rules and then reapply the Codex Flutter MCP approval block:
+
+```bash
+make rules-generate
 ```
 
 ## Next Steps

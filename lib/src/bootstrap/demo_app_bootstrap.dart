@@ -7,8 +7,8 @@ import '../core/application/projection_runner.dart';
 import '../core/domain/domain_event.dart';
 import '../core/domain/event_envelope.dart';
 import '../core/model/model_provider.dart';
+import '../core/model/model_response_contract.dart';
 import '../data/app_database.dart';
-import '../data/demo_model_provider.dart';
 import '../data/drift_event_store.dart';
 import '../data/drift_workspace.dart';
 import '../data/gemini_model_provider.dart';
@@ -24,6 +24,7 @@ class AppBootstrap {
   const AppBootstrap({
     required this.appSession,
     required this.chatCoordinator,
+    required this.configurationError,
     required this.conversationRepository,
     required this.eventStore,
     required this.medicationRepository,
@@ -33,6 +34,7 @@ class AppBootstrap {
 
   final AppSessionController appSession;
   final ChatCoordinator chatCoordinator;
+  final String? configurationError;
   final ConversationRepository conversationRepository;
   final EventStore eventStore;
   final MedicationRepository medicationRepository;
@@ -40,10 +42,11 @@ class AppBootstrap {
   final ProjectionRunner projectionRunner;
 }
 
-/// Creates the v0 demo bootstrap used by the application.
+/// Creates the application bootstrap used by the v0 shell.
 Future<AppBootstrap> createDemoAppBootstrap() async {
   const currentThreadId = 'thread-current';
-  final modelProvider = _createModelProvider();
+  final configurationError = _configurationError();
+  final modelProvider = _createModelProvider(configurationError);
   final appSession = AppSessionController(initialThreadId: currentThreadId);
 
   if (kIsWeb) {
@@ -59,6 +62,7 @@ Future<AppBootstrap> createDemoAppBootstrap() async {
         medicationRepository: workspace,
         modelProvider: modelProvider,
       ),
+      configurationError: configurationError,
       conversationRepository: workspace,
       eventStore: eventStore,
       medicationRepository: workspace,
@@ -81,6 +85,7 @@ Future<AppBootstrap> createDemoAppBootstrap() async {
       medicationRepository: workspace,
       modelProvider: modelProvider,
     ),
+    configurationError: configurationError,
     conversationRepository: workspace,
     eventStore: eventStore,
     medicationRepository: workspace,
@@ -89,11 +94,19 @@ Future<AppBootstrap> createDemoAppBootstrap() async {
   );
 }
 
-ModelProvider _createModelProvider() {
+String? _configurationError() {
   if (Env.geminiApiKey.isNotEmpty) {
-    return GeminiModelProvider(apiKey: Env.geminiApiKey);
+    return null;
   }
-  return DemoModelProvider(referenceDate: DateTime(2026, 4, 5));
+  return 'Missing GEMINI_API_KEY in your local .env. Copy .env.example to '
+      '.env, add your Gemini key, and relaunch the app.';
+}
+
+ModelProvider _createModelProvider(String? configurationError) {
+  if (configurationError != null) {
+    return _MissingConfigurationModelProvider(message: configurationError);
+  }
+  return GeminiModelProvider(apiKey: Env.geminiApiKey);
 }
 
 Future<void> _seedIfNeeded(EventStore eventStore) async {
@@ -305,6 +318,22 @@ List<EventEnvelope<DomainEvent>> _seedEvents() {
       },
     ),
   ];
+}
+
+final class _MissingConfigurationModelProvider implements ModelProvider {
+  const _MissingConfigurationModelProvider({required this.message});
+
+  final String message;
+
+  @override
+  Future<ModelResponseContract> generateResponse({
+    required List activeSchedules,
+    required List conversation,
+    required String threadId,
+    required String userText,
+  }) {
+    throw StateError(message);
+  }
 }
 
 EventEnvelope<DomainEvent> _event({

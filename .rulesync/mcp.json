@@ -5,7 +5,36 @@
             "args": [
                 "mcp-server"
             ],
-            "env": {}
+            "env": {},
+            "enabledTools": [
+                "add_roots",
+                "analyze_files",
+                "connect_dart_tooling_daemon",
+                "create_project",
+                "dart_fix",
+                "dart_format",
+                "flutter_driver",
+                "get_active_location",
+                "get_app_logs",
+                "get_runtime_errors",
+                "get_selected_widget",
+                "get_widget_tree",
+                "hot_reload",
+                "hot_restart",
+                "hover",
+                "launch_app",
+                "list_devices",
+                "list_running_apps",
+                "pub",
+                "pub_dev_search",
+                "read_package_uris",
+                "remove_roots",
+                "resolve_workspace_symbol",
+                "run_tests",
+                "set_widget_selection_mode",
+                "signature_help",
+                "stop_app"
+            ]
         }
     }
 }

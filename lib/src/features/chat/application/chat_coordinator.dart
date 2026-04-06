@@ -242,11 +242,13 @@ class ChatCoordinator {
         userText: trimmed,
       );
     } on Object catch (error, stackTrace) {
+      final errorMessage = _describeModelError(error);
       response = ModelResponseContract(
         actions: const <ModelProposalAction>[],
         assistantText:
-            'The model was unavailable, so no proposal was created. Your message is still stored locally.',
+            'Gemini request failed. $errorMessage Your message is still stored locally.',
         rawPayload: <String, Object?>{
+          'provider_error_message': errorMessage,
           'provider_error': error.toString(),
           'stack_trace': stackTrace.toString(),
         },
@@ -349,5 +351,16 @@ class ChatCoordinator {
       ModelProposalActionType.updateMedicationSchedule =>
         'Update ${first.medicationName ?? 'the medication schedule'}.',
     };
+  }
+
+  String _describeModelError(Object error) {
+    final message = error.toString().trim();
+    if (message.isEmpty) {
+      return 'An unknown error occurred.';
+    }
+    if (error case StateError(:final message)) {
+      return message;
+    }
+    return message;
   }
 }
