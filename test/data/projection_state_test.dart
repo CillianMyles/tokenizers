@@ -185,6 +185,47 @@ void main() {
       expect(state.schedulesById['schedule-1']?.endDate, DateTime(2026, 4, 6));
       expect(state.activeSchedules, isEmpty);
     });
+
+    test(
+      'falls back to the event date when a schedule start date is missing',
+      () {
+        final state = ProjectionState.fromEvents(<EventEnvelope<DomainEvent>>[
+          _event(
+            actorType: EventActorType.user,
+            aggregateId: 'medication-1',
+            eventId: 'event-1',
+            eventType: 'medication_registered',
+            occurredAt: DateTime(2026, 4, 6, 9, 45),
+            payload: const <String, Object?>{
+              'medication_id': 'medication-1',
+              'medication_name': 'Magnesium',
+            },
+          ),
+          _event(
+            actorType: EventActorType.user,
+            aggregateId: 'schedule-1',
+            eventId: 'event-2',
+            eventType: 'medication_schedule_added',
+            occurredAt: DateTime(2026, 4, 6, 9, 46),
+            payload: const <String, Object?>{
+              'schedule_id': 'schedule-1',
+              'medication_id': 'medication-1',
+              'medication_name': 'Magnesium',
+              'dose_amount': '250',
+              'dose_unit': 'mg',
+              'start_date': '',
+              'times': <String>['21:00'],
+            },
+          ),
+        ]);
+
+        expect(
+          state.schedulesById['schedule-1']?.startDate,
+          DateTime(2026, 4, 6),
+        );
+        expect(state.activeSchedules.single.medicationName, 'Magnesium');
+      },
+    );
   });
 }
 

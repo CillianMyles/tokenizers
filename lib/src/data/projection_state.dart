@@ -211,7 +211,10 @@ class ProjectionState {
             route: payload['route'] as String?,
             scheduleId: scheduleId,
             sourceProposalId: payload['source_proposal_id'] as String?,
-            startDate: _parseDate(payload['start_date']! as String),
+            startDate: _parseDateOrFallback(
+              payload['start_date'],
+              envelope.occurredAt,
+            ),
             threadId: payload['thread_id'] as String?,
             times: ((payload['times'] ?? const <Object?>[]) as List<Object?>)
                 .whereType<String>()
@@ -223,7 +226,10 @@ class ProjectionState {
           final existing = schedulesById[scheduleId];
           if (existing != null) {
             schedulesById[scheduleId] = existing.copyWith(
-              endDate: _parseDate(payload['end_date']! as String),
+              endDate: _parseDateOrFallback(
+                payload['end_date'],
+                envelope.occurredAt,
+              ),
             );
           }
           break;
@@ -280,8 +286,12 @@ class ProjectionState {
     );
   }
 
-  static DateTime _parseDate(String value) {
-    return DateTime.parse(value);
+  static DateTime _parseDateOrFallback(Object? value, DateTime fallback) {
+    final parsed = _tryParseDate(value);
+    if (parsed != null) {
+      return parsed;
+    }
+    return DateTime(fallback.year, fallback.month, fallback.day);
   }
 
   static DateTime? _tryParseDate(Object? value) {

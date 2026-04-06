@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 import '../../env/env.dart';
 import '../app/app_session.dart';
 import '../core/application/event_store.dart';
@@ -12,8 +10,6 @@ import '../data/app_database.dart';
 import '../data/drift_event_store.dart';
 import '../data/drift_workspace.dart';
 import '../data/gemini_model_provider.dart';
-import '../data/in_memory_event_store.dart';
-import '../data/in_memory_workspace.dart';
 import '../features/calendar/application/medication_repository.dart';
 import '../features/chat/application/chat_coordinator.dart';
 import '../features/chat/application/conversation_repository.dart';
@@ -48,28 +44,6 @@ Future<AppBootstrap> createDemoAppBootstrap() async {
   final configurationError = _configurationError();
   final modelProvider = _createModelProvider(configurationError);
   final appSession = AppSessionController(initialThreadId: currentThreadId);
-
-  if (kIsWeb) {
-    final eventStore = InMemoryEventStore();
-    final workspace = InMemoryWorkspace(eventStore: eventStore);
-    await _seedIfNeeded(eventStore);
-
-    return AppBootstrap(
-      appSession: appSession,
-      chatCoordinator: ChatCoordinator(
-        conversationRepository: workspace,
-        eventStore: eventStore,
-        medicationRepository: workspace,
-        modelProvider: modelProvider,
-      ),
-      configurationError: configurationError,
-      conversationRepository: workspace,
-      eventStore: eventStore,
-      medicationRepository: workspace,
-      modelProvider: modelProvider,
-      projectionRunner: workspace,
-    );
-  }
 
   final database = AppDatabase();
   final eventStore = DriftEventStore(database: database);

@@ -13,8 +13,6 @@ local data model.
 - Routed app shell with `Chat`, `Calendar`, and `History` surfaces
 - Pure-Dart event and proposal types for the v0 workflow
 - Native Drift-backed `event_log` plus projection tables
-- Web fallback still uses the in-memory event store until Drift web assets are
-  added
 - Gemini-backed `ModelProvider` available in the new shell when
   `GEMINI_API_KEY` is configured in a local `.env`
 - Unit tests covering projection rebuilds and chat command orchestration
@@ -51,9 +49,8 @@ The current default experience is a Gemini-backed medication capture flow.
 Type a medication change in chat, review the generated proposal, and confirm it
 to project the schedule into the calendar.
 
-On native platforms, the event log and read models are stored locally in
-SQLite via Drift. On web, the app currently falls back to the in-memory demo
-store until the required Drift web assets are added.
+The event log and read models are stored locally in SQLite via Drift on native
+platforms and on the web.
 
 ## Environment
 
@@ -101,6 +98,6 @@ make rules-generate
 
 ## Next Steps
 
-1. Replace the web fallback with real Drift web persistence assets and setup.
-2. Add widget and integration coverage for proposal review and calendar flows.
-3. Add attachment, image, and voice ingestion to the event-sourced workflow.
+1. Add widget and integration coverage for proposal review and calendar flows.
+2. Add attachment, image, and voice ingestion to the event-sourced workflow.
+3. Improve the web persistence setup and worker asset maintenance workflow.

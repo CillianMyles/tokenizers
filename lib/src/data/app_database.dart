@@ -252,7 +252,7 @@ class MedicationScheduleTimesTable extends Table {
 )
 class AppDatabase extends _$AppDatabase {
   /// Opens the application database.
-  AppDatabase() : super(_openConnection());
+  AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
   int get schemaVersion => 1;
@@ -261,6 +261,10 @@ class AppDatabase extends _$AppDatabase {
 QueryExecutor _openConnection() {
   return driftDatabase(
     name: 'tokenizers_v0',
+    web: DriftWebOptions(
+      sqlite3Wasm: Uri.parse('sqlite3.wasm'),
+      driftWorker: Uri.parse('drift_worker.js'),
+    ),
     native: DriftNativeOptions(
       shareAcrossIsolates: true,
       setup: _configureNativeDatabase,

@@ -25,13 +25,15 @@ class DriftWorkspace
   }) : _database = database,
        _eventStore = eventStore {
     _subscription = _eventStore.watchAll().listen((_) {
-      unawaited(rebuild());
+      unawaited(_requestRebuild());
     });
   }
 
   final AppDatabase _database;
   final EventStore _eventStore;
   late final StreamSubscription<List<EventEnvelope<DomainEvent>>> _subscription;
+  bool _rebuildQueued = false;
+  bool _rebuildRunning = false;
 
   /// Releases background resources.
   Future<void> dispose() async {
@@ -194,6 +196,23 @@ class DriftWorkspace
         batch.insertAll(_database.medicationScheduleTimesTable, timeRows);
       });
     });
+  }
+
+  Future<void> _requestRebuild() async {
+    _rebuildQueued = true;
+    if (_rebuildRunning) {
+      return;
+    }
+
+    _rebuildRunning = true;
+    try {
+      while (_rebuildQueued) {
+        _rebuildQueued = false;
+        await rebuild();
+      }
+    } finally {
+      _rebuildRunning = false;
+    }
   }
 
   @override

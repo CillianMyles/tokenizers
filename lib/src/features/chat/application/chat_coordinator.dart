@@ -122,7 +122,7 @@ class ChatCoordinator {
                   'notes': action.notes,
                   'route': action.route,
                   'source_proposal_id': proposal.proposalId,
-                  'start_date': _date(action.startDate),
+                  'start_date': _date(action.startDate ?? occurredAt),
                   'thread_id': threadId,
                   'times': action.times,
                 },
