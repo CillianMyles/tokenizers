@@ -3,10 +3,10 @@
 Tokenizers is a Flutter application exploring reliable, offline-first
 medication capture.
 
-The current codebase is moving from a prompt-driven GenUI prototype toward the
-v0 architecture in [docs/plans/v0.md](docs/plans/v0.md): a chat-first app shell
-with explicit proposal review, confirmation-gated medication changes, and an
-event-sourced local data model.
+The current codebase is implementing the v0 architecture in
+[docs/plans/v0.md](docs/plans/v0.md): a chat-first app shell with explicit
+proposal review, confirmation-gated medication changes, and an event-sourced
+local data model.
 
 ## Current Status
 
@@ -21,8 +21,6 @@ event-sourced local data model.
 - GitHub Actions CI running format, analyze, and test checks on pushes and PRs
 - Pending proposals remain separate from confirmed medication schedules
 - Confirmed schedules project into a day-based medication calendar
-- Legacy GenUI prototype code is still present in `lib/src/genui_prototype_page.dart`
-  while the new shell is being built out
 
 ## Project Structure
 
