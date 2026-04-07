@@ -1,5 +1,5 @@
-import '../domain/domain_event.dart';
-import '../domain/event_envelope.dart';
+import 'package:tokenizers/src/core/domain/domain_event.dart';
+import 'package:tokenizers/src/core/domain/event_envelope.dart';
 
 /// Writes and reads immutable event envelopes.
 abstract interface class EventStore {

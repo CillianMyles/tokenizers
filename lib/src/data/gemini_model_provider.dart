@@ -2,10 +2,10 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import '../core/model/model_provider.dart';
-import '../core/model/model_response_contract.dart';
-import '../features/calendar/domain/medication_models.dart';
-import '../features/chat/domain/conversation_models.dart';
+import 'package:tokenizers/src/core/model/model_provider.dart';
+import 'package:tokenizers/src/core/model/model_response_contract.dart';
+import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
+import 'package:tokenizers/src/features/chat/domain/conversation_models.dart';
 
 /// Gemini-backed implementation of the app-owned model contract.
 class GeminiModelProvider implements ModelProvider {

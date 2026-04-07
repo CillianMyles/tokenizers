@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-
-import '../../../app/app_scope.dart';
-import '../../../bootstrap/demo_app_bootstrap.dart';
-import '../../../core/presentation/date_formatters.dart';
-import '../../proposals/presentation/proposal_panel.dart';
-import '../domain/conversation_models.dart';
+import 'package:tokenizers/src/app/app_scope.dart';
+import 'package:tokenizers/src/bootstrap/demo_app_bootstrap.dart';
+import 'package:tokenizers/src/core/presentation/date_formatters.dart';
+import 'package:tokenizers/src/features/chat/domain/conversation_models.dart';
+import 'package:tokenizers/src/features/proposals/presentation/proposal_panel.dart';
 
 /// Primary chat and proposal review surface.
 class ChatScreen extends StatefulWidget {

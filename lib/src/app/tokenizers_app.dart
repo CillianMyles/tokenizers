@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-
-import '../bootstrap/demo_app_bootstrap.dart';
-import 'app_router.dart';
-import 'app_scope.dart';
-import 'app_theme.dart';
+import 'package:tokenizers/src/app/app_router.dart';
+import 'package:tokenizers/src/app/app_scope.dart';
+import 'package:tokenizers/src/app/app_theme.dart';
+import 'package:tokenizers/src/bootstrap/demo_app_bootstrap.dart';
 
 /// Root application widget for the v0 shell.
 class TokenizersApp extends StatefulWidget {

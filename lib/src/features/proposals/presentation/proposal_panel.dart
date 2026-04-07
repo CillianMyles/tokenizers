@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/app_scope.dart';
-import '../../../core/presentation/date_formatters.dart';
-import '../domain/proposal_models.dart';
+import 'package:tokenizers/src/app/app_scope.dart';
+import 'package:tokenizers/src/core/presentation/date_formatters.dart';
+import 'package:tokenizers/src/features/proposals/domain/proposal_models.dart';
 
 /// Pinned proposal review surface for the active thread.
 class ProposalPanel extends StatelessWidget {

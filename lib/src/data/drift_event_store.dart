@@ -2,10 +2,10 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 
-import '../core/application/event_store.dart';
-import '../core/domain/domain_event.dart';
-import '../core/domain/event_envelope.dart';
-import 'app_database.dart';
+import 'package:tokenizers/src/core/application/event_store.dart';
+import 'package:tokenizers/src/core/domain/domain_event.dart';
+import 'package:tokenizers/src/core/domain/event_envelope.dart';
+import 'package:tokenizers/src/data/app_database.dart';
 
 /// Drift-backed event store for native platforms.
 class DriftEventStore implements EventStore {

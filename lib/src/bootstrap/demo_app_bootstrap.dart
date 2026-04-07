@@ -1,18 +1,18 @@
-import '../../env/env.dart';
-import '../app/app_session.dart';
-import '../core/application/event_store.dart';
-import '../core/application/projection_runner.dart';
-import '../core/domain/domain_event.dart';
-import '../core/domain/event_envelope.dart';
-import '../core/model/model_provider.dart';
-import '../core/model/model_response_contract.dart';
-import '../data/app_database.dart';
-import '../data/drift_event_store.dart';
-import '../data/drift_workspace.dart';
-import '../data/gemini_model_provider.dart';
-import '../features/calendar/application/medication_repository.dart';
-import '../features/chat/application/chat_coordinator.dart';
-import '../features/chat/application/conversation_repository.dart';
+import 'package:tokenizers/env/env.dart';
+import 'package:tokenizers/src/app/app_session.dart';
+import 'package:tokenizers/src/core/application/event_store.dart';
+import 'package:tokenizers/src/core/application/projection_runner.dart';
+import 'package:tokenizers/src/core/domain/domain_event.dart';
+import 'package:tokenizers/src/core/domain/event_envelope.dart';
+import 'package:tokenizers/src/core/model/model_provider.dart';
+import 'package:tokenizers/src/core/model/model_response_contract.dart';
+import 'package:tokenizers/src/data/app_database.dart';
+import 'package:tokenizers/src/data/drift_event_store.dart';
+import 'package:tokenizers/src/data/drift_workspace.dart';
+import 'package:tokenizers/src/data/gemini_model_provider.dart';
+import 'package:tokenizers/src/features/calendar/application/medication_repository.dart';
+import 'package:tokenizers/src/features/chat/application/chat_coordinator.dart';
+import 'package:tokenizers/src/features/chat/application/conversation_repository.dart';
 
 /// Bundles the app's core services and repositories.
 class AppBootstrap {

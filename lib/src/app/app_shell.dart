@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import 'app_scope.dart';
+import 'package:tokenizers/src/app/app_scope.dart';
 
 /// Shared scaffold with the primary app navigation.
 class AppShell extends StatelessWidget {

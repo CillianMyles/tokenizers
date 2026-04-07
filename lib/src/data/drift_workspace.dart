@@ -2,18 +2,17 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
-
-import '../core/application/event_store.dart';
-import '../core/application/projection_runner.dart';
-import '../core/domain/domain_event.dart';
-import '../core/domain/event_envelope.dart';
-import '../features/calendar/application/medication_repository.dart';
-import '../features/calendar/domain/medication_models.dart';
-import '../features/chat/application/conversation_repository.dart';
-import '../features/chat/domain/conversation_models.dart';
-import '../features/proposals/domain/proposal_models.dart';
-import 'app_database.dart';
-import 'projection_state.dart';
+import 'package:tokenizers/src/core/application/event_store.dart';
+import 'package:tokenizers/src/core/application/projection_runner.dart';
+import 'package:tokenizers/src/core/domain/domain_event.dart';
+import 'package:tokenizers/src/core/domain/event_envelope.dart';
+import 'package:tokenizers/src/data/app_database.dart';
+import 'package:tokenizers/src/data/projection_state.dart';
+import 'package:tokenizers/src/features/calendar/application/medication_repository.dart';
+import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
+import 'package:tokenizers/src/features/chat/application/conversation_repository.dart';
+import 'package:tokenizers/src/features/chat/domain/conversation_models.dart';
+import 'package:tokenizers/src/features/proposals/domain/proposal_models.dart';
 
 /// Drift-backed repositories and projection runner.
 class DriftWorkspace

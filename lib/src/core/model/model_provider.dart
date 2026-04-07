@@ -1,6 +1,6 @@
-import '../../features/calendar/domain/medication_models.dart';
-import '../../features/chat/domain/conversation_models.dart';
-import 'model_response_contract.dart';
+import 'package:tokenizers/src/core/model/model_response_contract.dart';
+import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
+import 'package:tokenizers/src/features/chat/domain/conversation_models.dart';
 
 /// Produces app-owned model responses for a user turn.
 abstract interface class ModelProvider {

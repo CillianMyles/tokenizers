@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../app/app_scope.dart';
-import '../../../core/presentation/date_formatters.dart';
-import '../../chat/domain/conversation_models.dart';
+import 'package:tokenizers/src/app/app_scope.dart';
+import 'package:tokenizers/src/core/presentation/date_formatters.dart';
+import 'package:tokenizers/src/features/chat/domain/conversation_models.dart';
 
 /// Thread history and audit entry point.
 class ConversationHistoryScreen extends StatelessWidget {

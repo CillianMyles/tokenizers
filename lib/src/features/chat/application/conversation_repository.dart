@@ -1,5 +1,5 @@
-import '../../proposals/domain/proposal_models.dart';
-import '../domain/conversation_models.dart';
+import 'package:tokenizers/src/features/chat/domain/conversation_models.dart';
+import 'package:tokenizers/src/features/proposals/domain/proposal_models.dart';
 
 /// Reads projected conversation threads, messages, and pending proposals.
 abstract interface class ConversationRepository {

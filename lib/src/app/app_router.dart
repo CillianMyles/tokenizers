@@ -1,9 +1,8 @@
 import 'package:go_router/go_router.dart';
-
-import '../features/calendar/presentation/medication_calendar_screen.dart';
-import '../features/chat/presentation/chat_screen.dart';
-import '../features/history/presentation/conversation_history_screen.dart';
-import 'app_shell.dart';
+import 'package:tokenizers/src/app/app_shell.dart';
+import 'package:tokenizers/src/features/calendar/presentation/medication_calendar_screen.dart';
+import 'package:tokenizers/src/features/chat/presentation/chat_screen.dart';
+import 'package:tokenizers/src/features/history/presentation/conversation_history_screen.dart';
 
 /// Creates the application's top-level router.
 GoRouter createAppRouter() {

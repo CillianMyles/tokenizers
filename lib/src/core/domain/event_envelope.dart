@@ -1,4 +1,4 @@
-import 'domain_event.dart';
+import 'package:tokenizers/src/core/domain/domain_event.dart';
 
 /// A stable aggregate identifier.
 typedef AggregateId = String;

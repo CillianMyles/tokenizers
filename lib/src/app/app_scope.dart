@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-import '../bootstrap/demo_app_bootstrap.dart';
+import 'package:tokenizers/src/bootstrap/demo_app_bootstrap.dart';
 
 /// Makes app services available to the widget tree.
 class AppScope extends InheritedWidget {

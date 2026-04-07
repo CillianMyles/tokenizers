@@ -1,4 +1,4 @@
-import '../domain/medication_models.dart';
+import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
 
 /// Reads projected medication schedules and calendar entries.
 abstract interface class MedicationRepository {
