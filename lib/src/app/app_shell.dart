@@ -44,9 +44,14 @@ class AppShell extends StatelessWidget {
         },
         destinations: const <NavigationDestination>[
           NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline),
-            selectedIcon: Icon(Icons.chat_bubble),
-            label: 'Home',
+            icon: Icon(Icons.today_outlined),
+            selectedIcon: Icon(Icons.today),
+            label: 'Today',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.auto_awesome_outlined),
+            selectedIcon: Icon(Icons.auto_awesome),
+            label: 'Assistant',
           ),
           NavigationDestination(
             icon: Icon(Icons.medication_outlined),

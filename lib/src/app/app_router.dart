@@ -1,13 +1,14 @@
 import 'package:go_router/go_router.dart';
 import 'package:tokenizers/src/app/app_shell.dart';
+import 'package:tokenizers/src/features/assistant/presentation/assistant_screen.dart';
 import 'package:tokenizers/src/features/calendar/presentation/medication_calendar_screen.dart';
-import 'package:tokenizers/src/features/chat/presentation/chat_screen.dart';
 import 'package:tokenizers/src/features/history/presentation/conversation_history_screen.dart';
+import 'package:tokenizers/src/features/today/presentation/today_screen.dart';
 
 /// Creates the application's top-level router.
 GoRouter createAppRouter() {
   return GoRouter(
-    initialLocation: '/chat',
+    initialLocation: '/today',
     routes: <RouteBase>[
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
@@ -17,9 +18,19 @@ GoRouter createAppRouter() {
           StatefulShellBranch(
             routes: <RouteBase>[
               GoRoute(
-                path: '/chat',
+                path: '/today',
                 pageBuilder: (context, state) {
-                  return const NoTransitionPage<void>(child: ChatScreen());
+                  return const NoTransitionPage<void>(child: TodayScreen());
+                },
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: <RouteBase>[
+              GoRoute(
+                path: '/assistant',
+                pageBuilder: (context, state) {
+                  return const NoTransitionPage<void>(child: AssistantScreen());
                 },
               ),
             ],
