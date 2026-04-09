@@ -653,6 +653,7 @@ class ChatCoordinator {
         type: 'medication_taken',
         payload: <String, Object?>{
           'medication_name': schedule.medicationName,
+          'recorded_at': now.toIso8601String(),
           'schedule_id': schedule.scheduleId,
           'scheduled_for': scheduledFor.toIso8601String(),
           'source_proposal_id': schedule.sourceProposalId,
@@ -660,7 +661,7 @@ class ChatCoordinator {
           'thread_id': schedule.threadId ?? threadId,
         },
       ),
-      occurredAt: takenAt,
+      occurredAt: now,
     );
 
     return _TakenMessageResult(

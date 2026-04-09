@@ -5,6 +5,7 @@ import 'package:tokenizers/src/core/domain/event_envelope.dart';
 import 'package:tokenizers/src/core/presentation/date_formatters.dart';
 import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
 import 'package:tokenizers/src/features/calendar/presentation/medication_schedule_editor.dart';
+import 'package:tokenizers/src/features/calendar/presentation/medication_taken_editor.dart';
 
 /// Day-based calendar view for confirmed medication schedules.
 class MedicationCalendarScreen extends StatefulWidget {
@@ -84,16 +85,27 @@ class _MedicationCalendarScreenState extends State<MedicationCalendarScreen> {
                           return _CalendarEntriesSection(
                             entries: entries,
                             onMarkTaken: (entry) async {
+                              final draft = await showMedicationTakenEditor(
+                                context: context,
+                                entry: entry,
+                                scheduleEntries: entries,
+                              );
+                              if (draft == null) {
+                                return;
+                              }
                               await bootstrap.medicationCommandService
                                   .recordMedicationTaken(
                                     actorType: EventActorType.user,
                                     entry: entry,
+                                    scheduledFor: draft.scheduledFor,
+                                    takenAt: draft.takenAt,
                                   );
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      'Recorded ${entry.medicationName} as taken.',
+                                      'Recorded ${entry.medicationName} at '
+                                      '${formatTime(draft.takenAt)}.',
                                     ),
                                   ),
                                 );
@@ -377,7 +389,7 @@ class _CalendarEntriesSection extends StatelessWidget {
                               FilledButton.tonalIcon(
                                 onPressed: () => onMarkTaken(entry),
                                 icon: const Icon(Icons.check_circle_outline),
-                                label: const Text('Taken'),
+                                label: const Text('Mark taken'),
                               ),
                               if (entry.threadId
                                   case final threadId?) ...<Widget>[

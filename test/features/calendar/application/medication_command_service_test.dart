@@ -152,6 +152,9 @@ void main() {
     test('recordMedicationTaken emits a medication_taken event', () async {
       final eventStore = _FakeEventStore();
       final service = MedicationCommandService(eventStore: eventStore);
+      final recordedAt = DateTime(2026, 4, 9, 11, 30);
+      final scheduledFor = DateTime(2026, 4, 9, 9, 0);
+      final takenAt = DateTime(2026, 4, 9, 9, 3);
 
       await service.recordMedicationTaken(
         actorType: EventActorType.user,
@@ -162,12 +165,19 @@ void main() {
           scheduleId: 'schedule-1',
           threadId: 'thread-1',
         ),
-        takenAt: DateTime(2026, 4, 9, 9, 3),
+        recordedAt: recordedAt,
+        scheduledFor: scheduledFor,
+        takenAt: takenAt,
       );
 
       expect(
         eventStore.events.map((event) => event.event.type).toList(),
         <String>['medication_taken'],
+      );
+      expect(eventStore.events.single.occurredAt, recordedAt);
+      expect(
+        eventStore.events.single.event.payload['recorded_at'],
+        '2026-04-09T11:30:00.000',
       );
       expect(
         eventStore.events.single.event.payload['scheduled_for'],

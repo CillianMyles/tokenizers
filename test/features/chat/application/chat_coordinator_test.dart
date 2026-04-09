@@ -456,11 +456,26 @@ void main() {
           takenEvent.event.payload['source_proposal_id'],
           'proposal-source',
         );
-        expect(
-          takenEvent.event.payload['scheduled_for'],
-          '2026-04-09T09:00:00.000',
+        final scheduledFor = DateTime.parse(
+          takenEvent.event.payload['scheduled_for']! as String,
         );
-        expect(takenEvent.event.payload['taken_at'], '2026-04-09T09:05:00.000');
+        final recordedAt = DateTime.parse(
+          takenEvent.event.payload['recorded_at']! as String,
+        );
+        final takenAt = DateTime.parse(
+          takenEvent.event.payload['taken_at']! as String,
+        );
+        expect(scheduledFor.year, recordedAt.year);
+        expect(scheduledFor.month, recordedAt.month);
+        expect(scheduledFor.day, recordedAt.day);
+        expect(scheduledFor.hour, 9);
+        expect(scheduledFor.minute, 0);
+        expect(takenAt.year, recordedAt.year);
+        expect(takenAt.month, recordedAt.month);
+        expect(takenAt.day, recordedAt.day);
+        expect(takenAt.hour, 9);
+        expect(takenAt.minute, 5);
+        expect(recordedAt, takenEvent.occurredAt);
         expect(
           assistantTurn.event.payload['assistant_text'],
           'Recorded Vitamin D as taken at 09:05.',

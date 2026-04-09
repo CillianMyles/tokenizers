@@ -177,11 +177,15 @@ class MedicationCommandService {
   Future<void> recordMedicationTaken({
     required MedicationCalendarEntry entry,
     required EventActorType actorType,
+    DateTime? recordedAt,
+    DateTime? scheduledFor,
     DateTime? takenAt,
     String? correlationId,
   }) async {
     final writeCorrelationId = correlationId ?? _id('corr');
-    final occurredAt = takenAt ?? DateTime.now();
+    final effectiveRecordedAt = recordedAt ?? DateTime.now();
+    final effectiveScheduledFor = scheduledFor ?? entry.dateTime;
+    final effectiveTakenAt = takenAt ?? effectiveRecordedAt;
     await _eventStore.append(<EventEnvelope<DomainEvent>>[
       EventEnvelope<DomainEvent>(
         eventId: _id('event'),
@@ -193,14 +197,15 @@ class MedicationCommandService {
           type: 'medication_taken',
           payload: <String, Object?>{
             'medication_name': entry.medicationName,
+            'recorded_at': effectiveRecordedAt.toIso8601String(),
             'schedule_id': entry.scheduleId,
-            'scheduled_for': entry.dateTime.toIso8601String(),
+            'scheduled_for': effectiveScheduledFor.toIso8601String(),
             'source_proposal_id': entry.sourceProposalId,
-            'taken_at': occurredAt.toIso8601String(),
+            'taken_at': effectiveTakenAt.toIso8601String(),
             'thread_id': entry.threadId,
           },
         ),
-        occurredAt: occurredAt,
+        occurredAt: effectiveRecordedAt,
       ),
     ]);
   }

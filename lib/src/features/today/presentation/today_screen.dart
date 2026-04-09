@@ -11,6 +11,7 @@ import 'package:tokenizers/src/features/history/domain/history_timeline_models.d
 import 'package:tokenizers/src/features/home/domain/medication_reminder_models.dart';
 import 'package:tokenizers/src/features/proposals/domain/proposal_models.dart';
 import 'package:tokenizers/src/features/proposals/presentation/proposal_draft_sheet.dart';
+import 'package:tokenizers/src/features/calendar/presentation/medication_taken_editor.dart';
 
 /// Operational dashboard for today's activity and next actions.
 class TodayScreen extends StatelessWidget {
@@ -69,16 +70,27 @@ class TodayScreen extends StatelessWidget {
                           _ReminderSectionCard(
                             emptyText: 'Nothing is due right now.',
                             onMarkTaken: (entry) async {
+                              final draft = await showMedicationTakenEditor(
+                                context: context,
+                                entry: entry,
+                                scheduleEntries: entries,
+                              );
+                              if (draft == null) {
+                                return;
+                              }
                               await bootstrap.medicationCommandService
                                   .recordMedicationTaken(
                                     actorType: EventActorType.user,
                                     entry: entry,
+                                    scheduledFor: draft.scheduledFor,
+                                    takenAt: draft.takenAt,
                                   );
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      'Recorded ${entry.medicationName} as taken.',
+                                      'Recorded ${entry.medicationName} at '
+                                      '${formatTime(draft.takenAt)}.',
                                     ),
                                   ),
                                 );
@@ -130,16 +142,27 @@ class TodayScreen extends StatelessWidget {
                             emptyText:
                                 'Nothing else is scheduled for later today.',
                             onMarkTaken: (entry) async {
+                              final draft = await showMedicationTakenEditor(
+                                context: context,
+                                entry: entry,
+                                scheduleEntries: entries,
+                              );
+                              if (draft == null) {
+                                return;
+                              }
                               await bootstrap.medicationCommandService
                                   .recordMedicationTaken(
                                     actorType: EventActorType.user,
                                     entry: entry,
+                                    scheduledFor: draft.scheduledFor,
+                                    takenAt: draft.takenAt,
                                   );
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      'Recorded ${entry.medicationName} as taken.',
+                                      'Recorded ${entry.medicationName} at '
+                                      '${formatTime(draft.takenAt)}.',
                                     ),
                                   ),
                                 );
