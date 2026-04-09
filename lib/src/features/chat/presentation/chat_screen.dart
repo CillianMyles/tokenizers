@@ -251,6 +251,8 @@ class _ChatColumn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bootstrap = AppScope.of(context);
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final composerMaxHeight = screenHeight < 760 ? screenHeight * 0.36 : 420.0;
     return Column(
       children: <Widget>[
         if (header case final header?) ...<Widget>[
@@ -323,7 +325,10 @@ class _ChatColumn extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        composer,
+        ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: composerMaxHeight),
+          child: SingleChildScrollView(child: composer),
+        ),
       ],
     );
   }
