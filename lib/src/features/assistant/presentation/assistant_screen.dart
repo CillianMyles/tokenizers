@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import 'package:tokenizers/src/app/app_scope.dart';
@@ -43,22 +41,17 @@ class _AssistantScreenState extends State<AssistantScreen> {
             children: <Widget>[
               Text(
                 'Assistant',
-                style: Theme.of(context).textTheme.headlineMedium,
+                style: Theme.of(context).textTheme.headlineSmall,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
-                'Draft medication changes, review pending proposals, and keep '
-                'the conversation in one focused workspace.',
+                'Ask for schedule changes, review drafts, and confirm updates '
+                'from one conversation.',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               Expanded(
-                child: _AssistantWorkspace(
-                  composer: _composer(
-                    context,
-                    bootstrap: bootstrap,
-                    threadId: threadId,
-                  ),
+                child: _AssistantConversationPane(
                   onCancelProposal: () {
                     return bootstrap.chatCoordinator.cancelPendingProposal(
                       threadId,
@@ -75,6 +68,17 @@ class _AssistantScreenState extends State<AssistantScreen> {
                   threadId: threadId,
                 ),
               ),
+              const SizedBox(height: 12),
+              _AssistantComposer(
+                controller: _composerController,
+                isSubmitting: _isSubmitting,
+                onSend: () {
+                  return _submitMessage(
+                    bootstrap: bootstrap,
+                    threadId: threadId,
+                  );
+                },
+              ),
             ],
           ),
         ),
@@ -82,127 +86,31 @@ class _AssistantScreenState extends State<AssistantScreen> {
     );
   }
 
-  Widget _composer(
-    BuildContext context, {
+  Future<void> _submitMessage({
     required AppBootstrap bootstrap,
     required String threadId,
-  }) {
-    final configurationError = bootstrap.configurationError;
-    return Card(
-      child: SizedBox.expand(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: <Widget>[
-                          Chip(
-                            avatar: const Icon(
-                              Icons.keyboard_alt_outlined,
-                              size: 18,
-                            ),
-                            label: const Text('Text'),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: null,
-                            icon: const Icon(Icons.photo_camera_back_outlined),
-                            label: const Text('Photo'),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: null,
-                            icon: const Icon(Icons.mic_none_outlined),
-                            label: const Text('Voice'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children:
-                            <String>[
-                              'Add amoxicillin 500 mg at 8am and 8pm',
-                              'Stop metformin',
-                              'Add vitamin D 1000 IU at 9am',
-                            ].map((suggestion) {
-                              return ActionChip(
-                                label: Text(suggestion),
-                                onPressed: () {
-                                  _composerController.text = suggestion;
-                                },
-                              );
-                            }).toList(),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _composerController,
-                        maxLines: 4,
-                        minLines: 2,
-                        decoration: InputDecoration(
-                          hintText: configurationError == null
-                              ? 'Describe a medication change. Drafts stay '
-                                    'pending until you review and confirm them.'
-                              : 'Add GEMINI_API_KEY to .env before sending '
-                                    'medication updates.',
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      configurationError ??
-                          'The assistant only creates drafts. Nothing changes '
-                              'until you review and confirm the proposal.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  FilledButton.icon(
-                    onPressed: _isSubmitting || configurationError != null
-                        ? null
-                        : () async {
-                            setState(() {
-                              _isSubmitting = true;
-                            });
-                            await bootstrap.chatCoordinator.submitText(
-                              threadId,
-                              _composerController.text,
-                            );
-                            if (mounted) {
-                              _composerController.clear();
-                              setState(() {
-                                _isSubmitting = false;
-                              });
-                            }
-                          },
-                    icon: _isSubmitting
-                        ? const SizedBox.square(
-                            dimension: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.send),
-                    label: const Text('Send'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
+  }) async {
+    if (_isSubmitting) {
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    await bootstrap.chatCoordinator.submitText(
+      threadId,
+      _composerController.text,
     );
+
+    if (!mounted) {
+      return;
+    }
+
+    _composerController.clear();
+    setState(() {
+      _isSubmitting = false;
+    });
   }
 
   Future<void> _openDraftEditor(
@@ -227,15 +135,13 @@ class _AssistantScreenState extends State<AssistantScreen> {
   }
 }
 
-class _AssistantWorkspace extends StatelessWidget {
-  const _AssistantWorkspace({
-    required this.composer,
+class _AssistantConversationPane extends StatelessWidget {
+  const _AssistantConversationPane({
     required this.onCancelProposal,
     required this.onReviewProposal,
     required this.threadId,
   });
 
-  final Widget composer;
   final Future<void> Function() onCancelProposal;
   final Future<void> Function(ProposalView proposal) onReviewProposal;
   final String threadId;
@@ -243,72 +149,160 @@ class _AssistantWorkspace extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bootstrap = AppScope.of(context);
+    final colorScheme = Theme.of(context).colorScheme;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final composerHeight = math.min(340.0, constraints.maxHeight * 0.4);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        border: Border.all(color: colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: StreamBuilder<ProposalView?>(
+        stream: bootstrap.conversationRepository.watchPendingProposal(threadId),
+        builder: (context, proposalSnapshot) {
+          final proposal = proposalSnapshot.data;
 
-        return StreamBuilder<ProposalView?>(
-          stream: bootstrap.conversationRepository.watchPendingProposal(
-            threadId,
-          ),
-          builder: (context, proposalSnapshot) {
-            final proposal = proposalSnapshot.data;
+          return StreamBuilder<List<ConversationMessageView>>(
+            stream: bootstrap.conversationRepository.watchMessages(threadId),
+            builder: (context, snapshot) {
+              final messages =
+                  snapshot.data ?? const <ConversationMessageView>[];
+              final hasContent = proposal != null || messages.isNotEmpty;
 
-            return Column(
-              children: <Widget>[
-                if (proposal != null) ...<Widget>[
-                  _PendingProposalCard(
-                    onCancelProposal: onCancelProposal,
-                    onReviewProposal: () => onReviewProposal(proposal),
-                    proposal: proposal,
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                Expanded(
-                  child: StreamBuilder<List<ConversationMessageView>>(
-                    stream: bootstrap.conversationRepository.watchMessages(
-                      threadId,
-                    ),
-                    builder: (context, snapshot) {
-                      final messages =
-                          snapshot.data ?? const <ConversationMessageView>[];
-                      return Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: messages.isEmpty
-                              ? const _EmptyAssistantState()
-                              : ListView.separated(
-                                  reverse: true,
-                                  itemCount: messages.length,
-                                  separatorBuilder: (context, index) =>
-                                      const SizedBox(height: 14),
-                                  itemBuilder: (context, index) {
-                                    final message =
-                                        messages[messages.length - index - 1];
-                                    return _ConversationBubble(
-                                      message: message,
-                                    );
-                                  },
-                                ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(height: composerHeight, child: composer),
-              ],
-            );
-          },
-        );
-      },
+              if (!hasContent) {
+                return const _EmptyAssistantState();
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: messages.length + (proposal == null ? 0 : 1),
+                itemBuilder: (context, index) {
+                  if (proposal != null && index == 0) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: _PendingProposalBanner(
+                        onCancelProposal: onCancelProposal,
+                        onReviewProposal: () => onReviewProposal(proposal),
+                        proposal: proposal,
+                      ),
+                    );
+                  }
+
+                  final messageIndex = proposal == null ? index : index - 1;
+                  final message = messages[messageIndex];
+                  final isLast =
+                      index == messages.length - 1 + (proposal == null ? 0 : 1);
+
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: isLast ? 0 : 14),
+                    child: _ConversationBubble(message: message),
+                  );
+                },
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }
 
-class _PendingProposalCard extends StatelessWidget {
-  const _PendingProposalCard({
+class _AssistantComposer extends StatelessWidget {
+  const _AssistantComposer({
+    required this.controller,
+    required this.isSubmitting,
+    required this.onSend,
+  });
+
+  final TextEditingController controller;
+  final bool isSubmitting;
+  final Future<void> Function() onSend;
+
+  @override
+  Widget build(BuildContext context) {
+    final configurationError = AppScope.of(context).configurationError;
+    final suggestions = <String>[
+      'Add amoxicillin 500 mg at 8am and 8pm',
+      'Stop metformin',
+      'Add vitamin D 1000 IU at 9am',
+    ];
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: suggestions
+                    .map((suggestion) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ActionChip(
+                          label: Text(suggestion),
+                          onPressed: () {
+                            controller.text = suggestion;
+                            controller.selection = TextSelection.fromPosition(
+                              TextPosition(offset: controller.text.length),
+                            );
+                          },
+                        ),
+                      );
+                    })
+                    .toList(growable: false),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              enabled: !isSubmitting && configurationError == null,
+              minLines: 1,
+              maxLines: 5,
+              textInputAction: TextInputAction.send,
+              onSubmitted: (_) => onSend(),
+              decoration: InputDecoration(
+                hintText: configurationError == null
+                    ? 'Describe a medication change...'
+                    : 'Add GEMINI_API_KEY to .env before sending updates.',
+                suffixIcon: Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilledButton(
+                    onPressed: isSubmitting || configurationError != null
+                        ? null
+                        : onSend,
+                    child: isSubmitting
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.send),
+                  ),
+                ),
+                suffixIconConstraints: const BoxConstraints(
+                  minHeight: 48,
+                  minWidth: 72,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              configurationError ??
+                  'The assistant drafts structured changes first. Nothing is '
+                      'applied until you review and confirm.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PendingProposalBanner extends StatelessWidget {
+  const _PendingProposalBanner({
     required this.onCancelProposal,
     required this.onReviewProposal,
     required this.proposal,
@@ -320,22 +314,29 @@ class _PendingProposalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Row(
               children: <Widget>[
+                Icon(Icons.fact_check_outlined, color: colorScheme.primary),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Pending draft',
-                    style: Theme.of(context).textTheme.titleLarge,
+                    'Pending draft ready to review',
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
                 Chip(
-                  avatar: const Icon(Icons.fact_check_outlined, size: 18),
                   label: Text(
                     '${proposal.actions.length} action'
                     '${proposal.actions.length == 1 ? '' : 's'}',
@@ -343,7 +344,7 @@ class _PendingProposalCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Text(
               proposal.summary,
               style: Theme.of(context).textTheme.bodyMedium,
@@ -353,19 +354,20 @@ class _PendingProposalCard extends StatelessWidget {
               proposal.assistantText,
               style: Theme.of(context).textTheme.bodySmall,
             ),
-            const SizedBox(height: 16),
-            Row(
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
               children: <Widget>[
-                OutlinedButton.icon(
-                  onPressed: onCancelProposal,
-                  icon: const Icon(Icons.close),
-                  label: const Text('Discard'),
-                ),
-                const SizedBox(width: 12),
                 FilledButton.icon(
                   onPressed: onReviewProposal,
                   icon: const Icon(Icons.visibility_outlined),
                   label: const Text('Review draft'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: onCancelProposal,
+                  icon: const Icon(Icons.close),
+                  label: const Text('Discard'),
                 ),
               ],
             ),
@@ -389,7 +391,7 @@ class _ConversationBubble extends StatelessWidget {
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520),
+        constraints: const BoxConstraints(maxWidth: 540),
         child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
@@ -403,7 +405,7 @@ class _ConversationBubble extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  message.actor.name,
+                  isUser ? 'You' : 'Assistant',
                   style: Theme.of(
                     context,
                   ).textTheme.labelLarge?.copyWith(color: colorScheme.primary),
@@ -430,26 +432,30 @@ class _EmptyAssistantState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Icon(
-            Icons.auto_awesome_outlined,
-            size: 32,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Start a conversation',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Ask the assistant to add, stop, or update a medication schedule.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(
+              Icons.auto_awesome_outlined,
+              size: 36,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Start a conversation',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Ask to add, update, or stop a medication schedule. The assistant '
+              'will draft the change for review before anything is applied.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
+        ),
       ),
     );
   }
