@@ -73,11 +73,62 @@ void main() {
           ),
         ]);
 
+        expect(groups.single.items, hasLength(1));
         expect(groups.single.items.first.title, 'Tacrolimus added');
         expect(groups.single.items.first.description, '07:00 • 1.2 mg');
-        expect(groups.single.items.last.title, 'Draft accepted');
       },
     );
+
+    test('hides draft-introducing assistant replies from the feed', () {
+      final groups = buildHistoryTimeline(<EventEnvelope<DomainEvent>>[
+        _event(
+          aggregateId: 'thread-1',
+          correlationId: 'corr-1',
+          eventId: 'event-1',
+          eventType: 'model_turn_recorded',
+          occurredAt: DateTime(2026, 4, 9, 23, 47),
+          payload: const <String, Object?>{
+            'assistant_text': 'I drafted a proposal.',
+            'message_id': 'message-1',
+            'thread_id': 'thread-1',
+          },
+        ),
+        _event(
+          aggregateId: 'proposal-1',
+          correlationId: 'corr-1',
+          eventId: 'event-2',
+          eventType: 'proposal_created',
+          occurredAt: DateTime(2026, 4, 9, 23, 47),
+          payload: const <String, Object?>{
+            'proposal_id': 'proposal-1',
+            'summary': 'Add Tacrolimus',
+            'thread_id': 'thread-1',
+          },
+        ),
+      ]);
+
+      expect(groups, isEmpty);
+    });
+
+    test('keeps standalone assistant replies when there is no draft', () {
+      final item = buildHistoryTimeline(<EventEnvelope<DomainEvent>>[
+        _event(
+          aggregateId: 'thread-1',
+          correlationId: 'corr-1',
+          eventId: 'event-1',
+          eventType: 'model_turn_recorded',
+          occurredAt: DateTime(2026, 4, 9, 23, 47),
+          payload: const <String, Object?>{
+            'assistant_text': 'I need the exact dose before I can draft it.',
+            'message_id': 'message-1',
+            'thread_id': 'thread-1',
+          },
+        ),
+      ]).single.items.single;
+
+      expect(item.title, 'Assistant replied');
+      expect(item.description, 'I need the exact dose before I can draft it.');
+    });
 
     test('maps medication_taken as adherence activity', () {
       final item = historyTimelineItemFromEvent(
@@ -124,6 +175,7 @@ void main() {
 
 EventEnvelope<DomainEvent> _event({
   required String aggregateId,
+  String? correlationId,
   required String eventId,
   required String eventType,
   required DateTime occurredAt,
@@ -137,6 +189,7 @@ EventEnvelope<DomainEvent> _event({
         ? 'proposal'
         : 'conversation',
     aggregateId: aggregateId,
+    correlationId: correlationId,
     event: DomainEvent(type: eventType, payload: payload),
     occurredAt: occurredAt,
   );

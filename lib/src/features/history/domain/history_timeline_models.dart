@@ -51,8 +51,20 @@ class HistoryTimelineDayGroup {
 List<HistoryTimelineDayGroup> buildHistoryTimeline(
   List<EventEnvelope<DomainEvent>> events,
 ) {
+  final correlationsWithDraftCreation = events
+      .where((event) => event.event.type == 'proposal_created')
+      .map((event) => event.correlationId)
+      .whereType<String>()
+      .toSet();
+
   final items =
       events
+          .where(
+            (event) => _shouldIncludeInHistory(
+              event,
+              correlationsWithDraftCreation: correlationsWithDraftCreation,
+            ),
+          )
           .map(historyTimelineItemFromEvent)
           .whereType<HistoryTimelineItem>()
           .toList()
@@ -229,6 +241,23 @@ String _takenSummary(Map<String, Object?> payload) {
 
 String _displayTime(String raw) {
   return normalizeMedicationTimeString(raw);
+}
+
+bool _shouldIncludeInHistory(
+  EventEnvelope<DomainEvent> event, {
+  required Set<String> correlationsWithDraftCreation,
+}) {
+  return switch (event.event.type) {
+    'thread_started' => false,
+    'proposal_cancelled' => false,
+    'proposal_confirmed' => false,
+    'proposal_created' => false,
+    'proposal_superseded' => false,
+    'model_turn_recorded' =>
+      event.correlationId == null ||
+          !correlationsWithDraftCreation.contains(event.correlationId),
+    _ => true,
+  };
 }
 
 int _kindSortOrder(HistoryTimelineItemKind kind) {
