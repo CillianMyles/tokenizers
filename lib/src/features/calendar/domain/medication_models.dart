@@ -1,3 +1,4 @@
+import 'package:tokenizers/src/core/domain/medication_dose_schedule.dart';
 import 'package:tokenizers/src/features/proposals/domain/proposal_models.dart';
 
 /// A mutable-friendly medication schedule draft used by forms and commands.
@@ -7,12 +8,16 @@ class MedicationScheduleDraft {
     required this.medicationName,
     required this.startDate,
     required this.times,
+    this.doseSchedule = const <MedicationDoseScheduleEntry>[],
     this.doseAmount,
     this.doseUnit,
     this.endDate,
     this.notes,
     this.route,
   });
+
+  /// Optional per-time doses.
+  final List<MedicationDoseScheduleEntry> doseSchedule;
 
   /// Optional dose amount.
   final String? doseAmount;
@@ -38,12 +43,23 @@ class MedicationScheduleDraft {
   /// Fixed times per day in `HH:mm` format.
   final List<String> times;
 
+  /// Timed dose entries resolved from either legacy or rich schedule data.
+  List<MedicationDoseScheduleEntry> get resolvedDoseSchedule {
+    return resolveMedicationDoseSchedule(
+      doseSchedule: doseSchedule,
+      fallbackDoseAmount: doseAmount,
+      fallbackDoseUnit: doseUnit,
+      fallbackTimes: times,
+    );
+  }
+
   /// Creates a draft from a projected proposal action.
   factory MedicationScheduleDraft.fromProposalAction(
     ProposalActionView action,
   ) {
     return MedicationScheduleDraft(
       doseAmount: action.doseAmount,
+      doseSchedule: action.doseSchedule,
       doseUnit: action.doseUnit,
       endDate: action.endDate,
       medicationName: action.medicationName ?? '',
@@ -60,6 +76,7 @@ class MedicationScheduleDraft {
   ) {
     return MedicationScheduleDraft(
       doseAmount: schedule.doseAmount,
+      doseSchedule: schedule.doseSchedule,
       doseUnit: schedule.doseUnit,
       endDate: schedule.endDate,
       medicationName: schedule.medicationName,
@@ -71,11 +88,13 @@ class MedicationScheduleDraft {
   }
 
   /// Whether the draft contains the minimum data needed to save a schedule.
-  bool get isValid => medicationName.trim().isNotEmpty && times.isNotEmpty;
+  bool get isValid =>
+      medicationName.trim().isNotEmpty && resolvedDoseSchedule.isNotEmpty;
 
   /// Returns a copy with selected fields changed.
   MedicationScheduleDraft copyWith({
     String? doseAmount,
+    List<MedicationDoseScheduleEntry>? doseSchedule,
     String? doseUnit,
     DateTime? endDate,
     bool clearEndDate = false,
@@ -87,6 +106,7 @@ class MedicationScheduleDraft {
   }) {
     return MedicationScheduleDraft(
       doseAmount: doseAmount ?? this.doseAmount,
+      doseSchedule: doseSchedule ?? this.doseSchedule,
       doseUnit: doseUnit ?? this.doseUnit,
       endDate: clearEndDate ? null : endDate ?? this.endDate,
       medicationName: medicationName ?? this.medicationName,
@@ -106,6 +126,7 @@ class MedicationScheduleView {
     required this.scheduleId,
     required this.startDate,
     required this.times,
+    this.doseSchedule = const <MedicationDoseScheduleEntry>[],
     this.doseAmount,
     this.doseUnit,
     this.endDate,
@@ -114,6 +135,9 @@ class MedicationScheduleView {
     this.sourceProposalId,
     this.threadId,
   });
+
+  /// Optional per-time doses.
+  final List<MedicationDoseScheduleEntry> doseSchedule;
 
   /// Dose amount.
   final String? doseAmount;
@@ -148,20 +172,49 @@ class MedicationScheduleView {
   /// Fixed times per day in `HH:mm` format.
   final List<String> times;
 
+  /// Timed dose entries resolved from either legacy or rich schedule data.
+  List<MedicationDoseScheduleEntry> get resolvedDoseSchedule {
+    return resolveMedicationDoseSchedule(
+      doseSchedule: doseSchedule,
+      fallbackDoseAmount: doseAmount,
+      fallbackDoseUnit: doseUnit,
+      fallbackTimes: times,
+    );
+  }
+
   /// Whether the schedule remains active.
   bool get isActive => endDate == null;
 
   /// A human-readable dose label.
   String get doseLabel {
-    if (doseAmount == null || doseUnit == null) {
-      return 'Dose pending';
+    final entries = resolvedDoseSchedule;
+    if (entries.isEmpty) {
+      return formatMedicationDoseLabel(doseAmount, doseUnit);
     }
-    return '$doseAmount $doseUnit';
+    if (hasVariableMedicationDoses(entries)) {
+      return 'Variable dose';
+    }
+    return entries.first.doseLabel;
+  }
+
+  /// A human-readable summary of all timed doses in the day.
+  String get doseScheduleSummary =>
+      summarizeMedicationDoseSchedule(resolvedDoseSchedule);
+
+  /// Returns the display-ready dose for a specific time of day.
+  String doseLabelForTime(String time) {
+    for (final entry in resolvedDoseSchedule) {
+      if (entry.time == time) {
+        return entry.doseLabel;
+      }
+    }
+    return doseLabel;
   }
 
   /// Returns a modified copy of this schedule.
   MedicationScheduleView copyWith({
     String? doseAmount,
+    List<MedicationDoseScheduleEntry>? doseSchedule,
     String? doseUnit,
     DateTime? endDate,
     bool clearEndDate = false,
@@ -173,6 +226,7 @@ class MedicationScheduleView {
   }) {
     return MedicationScheduleView(
       doseAmount: doseAmount ?? this.doseAmount,
+      doseSchedule: doseSchedule ?? this.doseSchedule,
       doseUnit: doseUnit ?? this.doseUnit,
       endDate: clearEndDate ? null : endDate ?? this.endDate,
       medicationName: medicationName ?? this.medicationName,

@@ -1,3 +1,5 @@
+import 'package:tokenizers/src/core/domain/medication_dose_schedule.dart';
+
 /// The projected proposal status.
 enum ProposalStatus { pending, confirmed, cancelled, superseded }
 
@@ -20,6 +22,7 @@ class ProposalActionView {
   const ProposalActionView({
     required this.actionId,
     required this.type,
+    this.doseSchedule = const <MedicationDoseScheduleEntry>[],
     this.doseAmount,
     this.doseUnit,
     this.endDate,
@@ -34,6 +37,9 @@ class ProposalActionView {
 
   /// Action id.
   final String actionId;
+
+  /// Optional per-time doses.
+  final List<MedicationDoseScheduleEntry> doseSchedule;
 
   /// Dose amount.
   final String? doseAmount;
@@ -65,6 +71,16 @@ class ProposalActionView {
   /// Fixed times per day.
   final List<String> times;
 
+  /// Timed dose entries resolved from either legacy or rich schedule data.
+  List<MedicationDoseScheduleEntry> get resolvedDoseSchedule {
+    return resolveMedicationDoseSchedule(
+      doseSchedule: doseSchedule,
+      fallbackDoseAmount: doseAmount,
+      fallbackDoseUnit: doseUnit,
+      fallbackTimes: times,
+    );
+  }
+
   /// Supported proposal action type.
   final ProposalActionType type;
 
@@ -73,8 +89,7 @@ class ProposalActionView {
     return switch (type) {
       ProposalActionType.addMedicationSchedule =>
         'Add ${medicationName ?? 'medication'}'
-            '${doseAmount == null || doseUnit == null ? '' : ' • $doseAmount $doseUnit'}'
-            '${times.isEmpty ? '' : ' • ${times.join(', ')}'}',
+            '${resolvedDoseSchedule.isEmpty ? '' : ' • ${summarizeMedicationDoseSchedule(resolvedDoseSchedule)}'}',
       ProposalActionType.requestMissingInfo =>
         'Missing: ${missingFields.join(', ')}',
       ProposalActionType.stopMedicationSchedule =>

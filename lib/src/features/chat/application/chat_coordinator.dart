@@ -1,4 +1,5 @@
 import 'package:tokenizers/src/core/application/event_store.dart';
+import 'package:tokenizers/src/core/domain/medication_dose_schedule.dart';
 import 'package:tokenizers/src/core/domain/domain_event.dart';
 import 'package:tokenizers/src/core/domain/event_envelope.dart';
 import 'package:tokenizers/src/core/model/model_provider.dart';
@@ -181,6 +182,9 @@ class ChatCoordinator {
                   'source_proposal_id': proposal.proposalId,
                   'start_date': _date(action.startDate ?? occurredAt),
                   'thread_id': targetSchedule.threadId ?? threadId,
+                  'dose_schedule': medicationDoseScheduleToJsonList(
+                    action.resolvedDoseSchedule,
+                  ),
                   'times': action.times,
                 },
               ),
@@ -357,6 +361,9 @@ class ChatCoordinator {
       'route': action.route,
       'start_date': _date(action.startDate),
       'target_schedule_id': action.targetScheduleId,
+      'dose_schedule': medicationDoseScheduleToJsonList(
+        action.resolvedDoseSchedule,
+      ),
       'times': action.times,
       'type': switch (action.type) {
         ModelProposalActionType.addMedicationSchedule =>
@@ -448,6 +455,9 @@ class ChatCoordinator {
             'source_proposal_id': sourceProposalId,
             'start_date': _date(action.startDate ?? occurredAt),
             'thread_id': threadId,
+            'dose_schedule': medicationDoseScheduleToJsonList(
+              action.resolvedDoseSchedule,
+            ),
             'times': action.times,
           },
         ),
@@ -466,6 +476,7 @@ class ChatCoordinator {
   MedicationScheduleDraft _draftFromAction(ProposalActionView action) {
     return MedicationScheduleDraft(
       doseAmount: action.doseAmount,
+      doseSchedule: action.doseSchedule,
       doseUnit: action.doseUnit,
       endDate: action.endDate,
       medicationName: action.medicationName ?? '',
@@ -503,6 +514,9 @@ class ChatCoordinator {
       'route': action.route,
       'start_date': _date(action.startDate),
       'target_schedule_id': action.targetScheduleId,
+      'dose_schedule': medicationDoseScheduleToJsonList(
+        action.resolvedDoseSchedule,
+      ),
       'times': action.times,
       'type': action.type.wireValue,
     };
@@ -550,7 +564,8 @@ class ChatCoordinator {
     final first = actions.first;
     return switch (first.type) {
       ModelProposalActionType.addMedicationSchedule =>
-        'Add ${first.medicationName} ${first.doseAmount ?? ''} ${first.doseUnit ?? ''}'
+        'Add ${first.medicationName ?? 'medication'}'
+                '${first.resolvedDoseSchedule.isEmpty ? '' : ' ${summarizeMedicationDoseSchedule(first.resolvedDoseSchedule)}'}'
             .trim(),
       ModelProposalActionType.requestMissingInfo =>
         'Request missing information before a schedule can be created.',
@@ -565,7 +580,8 @@ class ChatCoordinator {
     final first = actions.first;
     return switch (first.type) {
       ProposalActionType.addMedicationSchedule =>
-        'Add ${first.medicationName} ${first.doseAmount ?? ''} ${first.doseUnit ?? ''}'
+        'Add ${first.medicationName ?? 'medication'}'
+                '${first.resolvedDoseSchedule.isEmpty ? '' : ' ${summarizeMedicationDoseSchedule(first.resolvedDoseSchedule)}'}'
             .trim(),
       ProposalActionType.requestMissingInfo =>
         'Request missing information before a schedule can be created.',

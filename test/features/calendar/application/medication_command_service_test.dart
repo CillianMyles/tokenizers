@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tokenizers/src/core/application/event_store.dart';
+import 'package:tokenizers/src/core/domain/medication_dose_schedule.dart';
 import 'package:tokenizers/src/core/domain/domain_event.dart';
 import 'package:tokenizers/src/core/domain/event_envelope.dart';
 import 'package:tokenizers/src/features/calendar/application/medication_command_service.dart';
@@ -35,6 +36,48 @@ void main() {
         );
       },
     );
+
+    test('addSchedule preserves per-time doses in the event payload', () async {
+      final eventStore = _FakeEventStore();
+      final service = MedicationCommandService(eventStore: eventStore);
+
+      await service.addSchedule(
+        actorType: EventActorType.user,
+        draft: MedicationScheduleDraft(
+          medicationName: 'Tacrolimus',
+          startDate: DateTime(2026, 4, 5),
+          times: const <String>['07:00', '19:00'],
+          doseSchedule: const <MedicationDoseScheduleEntry>[
+            MedicationDoseScheduleEntry(
+              time: '07:00',
+              doseAmount: '1.2',
+              doseUnit: 'mg',
+            ),
+            MedicationDoseScheduleEntry(
+              time: '19:00',
+              doseAmount: '1.0',
+              doseUnit: 'mg',
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        eventStore.events.last.event.payload['dose_schedule'],
+        <Map<String, Object?>>[
+          <String, Object?>{
+            'time': '07:00',
+            'dose_amount': '1.2',
+            'dose_unit': 'mg',
+          },
+          <String, Object?>{
+            'time': '19:00',
+            'dose_amount': '1.0',
+            'dose_unit': 'mg',
+          },
+        ],
+      );
+    });
 
     test(
       'updateSchedule emits medication_schedule_updated for same-name edits',

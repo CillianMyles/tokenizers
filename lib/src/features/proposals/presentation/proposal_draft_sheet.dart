@@ -63,6 +63,7 @@ class _EditableProposalAction {
       actionId: action.actionId,
       draft: MedicationScheduleDraft(
         doseAmount: action.doseAmount,
+        doseSchedule: action.doseSchedule,
         doseUnit: action.doseUnit,
         endDate: action.endDate,
         medicationName: action.medicationName ?? '',
@@ -118,6 +119,7 @@ class _EditableProposalAction {
     return ProposalActionView(
       actionId: actionId,
       doseAmount: draft.doseAmount,
+      doseSchedule: draft.doseSchedule,
       doseUnit: draft.doseUnit,
       endDate: draft.endDate,
       medicationName: draft.medicationName.trim(),

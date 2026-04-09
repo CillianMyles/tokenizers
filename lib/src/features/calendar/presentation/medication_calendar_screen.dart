@@ -275,9 +275,7 @@ class _ActiveSchedulesSection extends StatelessWidget {
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           const SizedBox(height: 8),
-                          Text(
-                            '${schedule.doseLabel} • ${schedule.times.join(', ')}',
-                          ),
+                          Text(schedule.doseScheduleSummary),
                           const SizedBox(height: 4),
                           Text(
                             'Starts ${formatShortDate(schedule.startDate)}'

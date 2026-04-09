@@ -1,3 +1,4 @@
+import 'package:tokenizers/src/core/domain/medication_dose_schedule.dart';
 import 'package:tokenizers/src/core/domain/domain_event.dart';
 import 'package:tokenizers/src/core/domain/event_envelope.dart';
 import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
@@ -71,8 +72,8 @@ class ProjectionState {
       if (end != null && selectedDay.isAfter(end)) {
         continue;
       }
-      for (final time in schedule.times) {
-        final parts = time.split(':');
+      for (final dose in schedule.resolvedDoseSchedule) {
+        final parts = dose.time.split(':');
         entries.add(
           MedicationCalendarEntry(
             dateTime: DateTime(
@@ -82,7 +83,7 @@ class ProjectionState {
               int.parse(parts[0]),
               int.parse(parts[1]),
             ),
-            doseLabel: schedule.doseLabel,
+            doseLabel: dose.doseLabel,
             medicationName: schedule.medicationName,
             notes: schedule.notes,
             scheduleId: schedule.scheduleId,
@@ -212,6 +213,15 @@ class ProjectionState {
           final scheduleId = payload['schedule_id']! as String;
           schedulesById[scheduleId] = MedicationScheduleView(
             doseAmount: payload['dose_amount'] as String?,
+            doseSchedule: medicationDoseScheduleFromJsonList(
+              payload['dose_schedule'],
+              fallbackDoseAmount: payload['dose_amount'] as String?,
+              fallbackDoseUnit: payload['dose_unit'] as String?,
+              fallbackTimes:
+                  ((payload['times'] ?? const <Object?>[]) as List<Object?>)
+                      .whereType<String>()
+                      .toList(),
+            ),
             doseUnit: payload['dose_unit'] as String?,
             endDate: _tryParseDate(payload['end_date']),
             medicationName: medicationName,
@@ -247,6 +257,15 @@ class ProjectionState {
           if (existing != null) {
             schedulesById[scheduleId] = existing.copyWith(
               doseAmount: payload['dose_amount'] as String?,
+              doseSchedule: medicationDoseScheduleFromJsonList(
+                payload['dose_schedule'],
+                fallbackDoseAmount: payload['dose_amount'] as String?,
+                fallbackDoseUnit: payload['dose_unit'] as String?,
+                fallbackTimes:
+                    ((payload['times'] ?? const <Object?>[]) as List<Object?>)
+                        .whereType<String>()
+                        .toList(),
+              ),
               doseUnit: payload['dose_unit'] as String?,
               endDate: _tryParseDate(payload['end_date']),
               medicationName:
@@ -338,6 +357,14 @@ ProposalActionView proposalActionFromJson(Map<String, Object?> json) {
   return ProposalActionView(
     actionId: json['action_id']! as String,
     doseAmount: json['dose_amount'] as String?,
+    doseSchedule: medicationDoseScheduleFromJsonList(
+      json['dose_schedule'],
+      fallbackDoseAmount: json['dose_amount'] as String?,
+      fallbackDoseUnit: json['dose_unit'] as String?,
+      fallbackTimes: ((json['times'] ?? const <Object?>[]) as List<Object?>)
+          .whereType<String>()
+          .toList(),
+    ),
     doseUnit: json['dose_unit'] as String?,
     endDate: _tryParseDate(json['end_date']),
     medicationName: json['medication_name'] as String?,

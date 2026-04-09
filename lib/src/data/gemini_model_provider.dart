@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'package:tokenizers/src/core/domain/medication_dose_schedule.dart';
 import 'package:tokenizers/src/core/model/model_provider.dart';
 import 'package:tokenizers/src/core/model/model_response_contract.dart';
 import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
@@ -116,6 +117,9 @@ class GeminiModelProvider implements ModelProvider {
             'route': schedule.route,
             'start_date': schedule.startDate.toIso8601String().split('T').first,
             'end_date': schedule.endDate?.toIso8601String().split('T').first,
+            'dose_schedule': medicationDoseScheduleToJsonList(
+              schedule.resolvedDoseSchedule,
+            ),
             'times': schedule.times,
             'notes': schedule.notes,
           };
@@ -189,6 +193,14 @@ class GeminiModelProvider implements ModelProvider {
       actionId:
           'action-${DateTime.now().microsecondsSinceEpoch}-${_actionCounter++}',
       doseAmount: json['dose_amount'] as String?,
+      doseSchedule: medicationDoseScheduleFromJsonList(
+        json['dose_schedule'],
+        fallbackDoseAmount: json['dose_amount'] as String?,
+        fallbackDoseUnit: json['dose_unit'] as String?,
+        fallbackTimes: ((json['times'] ?? const <Object?>[]) as List<Object?>)
+            .whereType<String>()
+            .toList(),
+      ),
       doseUnit: json['dose_unit'] as String?,
       endDate: _tryParseDate(json['end_date'] as String?),
       medicationName: json['medication_name'] as String?,
@@ -222,6 +234,7 @@ Never mutate current schedules directly. Always propose actions for explicit use
 If the message is ambiguous or missing required information, use request_missing_info instead of guessing.
 Times must use 24-hour HH:mm format.
 Dates must use YYYY-MM-DD format.
+If doses differ by time, represent them in dose_schedule.
 ''';
 
 final _responseSchema = <String, Object?>{
@@ -247,6 +260,7 @@ final _responseSchema = <String, Object?>{
           'route',
           'start_date',
           'end_date',
+          'dose_schedule',
           'times',
           'notes',
           'target_schedule_id',
@@ -282,6 +296,22 @@ final _responseSchema = <String, Object?>{
           'end_date': <String, Object?>{
             'type': <String>['string', 'null'],
             'format': 'date',
+          },
+          'dose_schedule': <String, Object?>{
+            'type': 'array',
+            'items': <String, Object?>{
+              'type': 'object',
+              'required': <String>['time'],
+              'properties': <String, Object?>{
+                'time': <String, Object?>{'type': 'string', 'format': 'time'},
+                'dose_amount': <String, Object?>{
+                  'type': <String>['string', 'null'],
+                },
+                'dose_unit': <String, Object?>{
+                  'type': <String>['string', 'null'],
+                },
+              },
+            },
           },
           'times': <String, Object?>{
             'type': 'array',

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tokenizers/src/core/application/event_store.dart';
+import 'package:tokenizers/src/core/domain/medication_dose_schedule.dart';
 import 'package:tokenizers/src/core/domain/domain_event.dart';
 import 'package:tokenizers/src/core/domain/event_envelope.dart';
 import 'package:tokenizers/src/core/model/model_provider.dart';
@@ -66,6 +67,69 @@ void main() {
       },
     );
 
+    test('confirmPendingProposal preserves per-time doses', () async {
+      final eventStore = _FakeEventStore();
+      final conversationRepository = _FakeConversationRepository(
+        pendingProposal: ProposalView(
+          actions: <ProposalActionView>[
+            ProposalActionView(
+              actionId: 'action-1',
+              medicationName: 'Tacrolimus',
+              startDate: DateTime(2026, 4, 5),
+              doseSchedule: const <MedicationDoseScheduleEntry>[
+                MedicationDoseScheduleEntry(
+                  time: '07:00',
+                  doseAmount: '1.2',
+                  doseUnit: 'mg',
+                ),
+                MedicationDoseScheduleEntry(
+                  time: '19:00',
+                  doseAmount: '1.0',
+                  doseUnit: 'mg',
+                ),
+              ],
+              times: <String>['07:00', '19:00'],
+              type: ProposalActionType.addMedicationSchedule,
+            ),
+          ],
+          assistantText: 'Review the tacrolimus schedule.',
+          createdAt: DateTime(2026, 4, 5, 8),
+          proposalId: 'proposal-1',
+          status: ProposalStatus.pending,
+          summary: 'Add Tacrolimus',
+          threadId: 'thread-1',
+        ),
+      );
+      final coordinator = ChatCoordinator(
+        conversationRepository: conversationRepository,
+        eventStore: eventStore,
+        medicationRepository: _FakeMedicationRepository(),
+        modelProvider: _FakeModelProvider(),
+      );
+
+      await coordinator.confirmPendingProposal('thread-1');
+
+      final scheduleAdded = eventStore.events.singleWhere(
+        (event) => event.event.type == 'medication_schedule_added',
+      );
+
+      expect(
+        scheduleAdded.event.payload['dose_schedule'],
+        <Map<String, Object?>>[
+          <String, Object?>{
+            'time': '07:00',
+            'dose_amount': '1.2',
+            'dose_unit': 'mg',
+          },
+          <String, Object?>{
+            'time': '19:00',
+            'dose_amount': '1.0',
+            'dose_unit': 'mg',
+          },
+        ],
+      );
+    });
+
     test('confirmPendingProposal uses edited actions when provided', () async {
       final eventStore = _FakeEventStore();
       final conversationRepository = _FakeConversationRepository(
@@ -120,7 +184,7 @@ void main() {
 
       expect(
         proposalConfirmed.event.payload['accepted_summary'],
-        'Add Ibuprofen 400 mg',
+        'Add Ibuprofen 09:00 • 400 mg',
       );
       expect(scheduleAdded.event.payload['dose_amount'], '400');
       expect(scheduleAdded.event.payload['start_date'], '2026-04-06');

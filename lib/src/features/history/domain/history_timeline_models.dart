@@ -1,3 +1,4 @@
+import 'package:tokenizers/src/core/domain/medication_dose_schedule.dart';
 import 'package:tokenizers/src/core/domain/domain_event.dart';
 import 'package:tokenizers/src/core/domain/event_envelope.dart';
 
@@ -188,16 +189,18 @@ HistoryTimelineItem? historyTimelineItemFromEvent(
 
 String _scheduleSummary(Map<String, Object?> payload) {
   final medicationName = payload['medication_name'] as String?;
-  final doseAmount = payload['dose_amount'] as String?;
-  final doseUnit = payload['dose_unit'] as String?;
-  final times = ((payload['times'] ?? const <Object?>[]) as List<Object?>)
-      .whereType<String>()
-      .toList();
+  final doseSchedule = medicationDoseScheduleFromJsonList(
+    payload['dose_schedule'],
+    fallbackDoseAmount: payload['dose_amount'] as String?,
+    fallbackDoseUnit: payload['dose_unit'] as String?,
+    fallbackTimes: ((payload['times'] ?? const <Object?>[]) as List<Object?>)
+        .whereType<String>()
+        .toList(),
+  );
 
   final parts = <String>[
     medicationName ?? 'Medication',
-    if (doseAmount != null && doseUnit != null) '$doseAmount $doseUnit',
-    if (times.isNotEmpty) times.join(', '),
+    if (doseSchedule.isNotEmpty) summarizeMedicationDoseSchedule(doseSchedule),
   ];
   return parts.join(' • ');
 }

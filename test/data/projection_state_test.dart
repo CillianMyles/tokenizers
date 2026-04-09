@@ -203,6 +203,57 @@ void main() {
       },
     );
 
+    test('derives per-time dose labels from dose_schedule payloads', () {
+      final state = ProjectionState.fromEvents(<EventEnvelope<DomainEvent>>[
+        _event(
+          actorType: EventActorType.user,
+          aggregateId: 'medication-1',
+          eventId: 'event-1',
+          eventType: 'medication_registered',
+          occurredAt: DateTime(2026, 4, 5, 6, 55),
+          payload: const <String, Object?>{
+            'medication_id': 'medication-1',
+            'medication_name': 'Tacrolimus',
+          },
+        ),
+        _event(
+          actorType: EventActorType.user,
+          aggregateId: 'schedule-1',
+          eventId: 'event-2',
+          eventType: 'medication_schedule_added',
+          occurredAt: DateTime(2026, 4, 5, 6, 56),
+          payload: const <String, Object?>{
+            'schedule_id': 'schedule-1',
+            'medication_id': 'medication-1',
+            'medication_name': 'Tacrolimus',
+            'start_date': '2026-04-05',
+            'dose_schedule': <Map<String, Object?>>[
+              <String, Object?>{
+                'time': '07:00',
+                'dose_amount': '1.2',
+                'dose_unit': 'mg',
+              },
+              <String, Object?>{
+                'time': '19:00',
+                'dose_amount': '1.0',
+                'dose_unit': 'mg',
+              },
+            ],
+            'times': <String>['07:00', '19:00'],
+          },
+        ),
+      ]);
+
+      final schedule = state.activeSchedules.single;
+      final entries = state.entriesForDay(DateTime(2026, 4, 5));
+
+      expect(schedule.doseLabel, 'Variable dose');
+      expect(entries.map((entry) => entry.doseLabel), <String>[
+        '1.2 mg',
+        '1.0 mg',
+      ]);
+    });
+
     test('removes stopped schedules from active projections', () {
       final state = ProjectionState.fromEvents(<EventEnvelope<DomainEvent>>[
         _event(

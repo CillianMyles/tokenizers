@@ -1,3 +1,5 @@
+import 'package:tokenizers/src/core/domain/medication_dose_schedule.dart';
+
 /// The model-owned medication proposal action type.
 enum ModelProposalActionType {
   addMedicationSchedule,
@@ -12,6 +14,7 @@ class ModelProposalAction {
   const ModelProposalAction({
     required this.actionId,
     required this.type,
+    this.doseSchedule = const <MedicationDoseScheduleEntry>[],
     this.doseAmount,
     this.doseUnit,
     this.endDate,
@@ -29,6 +32,9 @@ class ModelProposalAction {
 
   /// Proposed action type.
   final ModelProposalActionType type;
+
+  /// Optional per-time doses.
+  final List<MedicationDoseScheduleEntry> doseSchedule;
 
   /// Dose amount, when present.
   final String? doseAmount;
@@ -59,6 +65,16 @@ class ModelProposalAction {
 
   /// Fixed times per day in `HH:mm` format.
   final List<String> times;
+
+  /// Timed dose entries resolved from either legacy or rich schedule data.
+  List<MedicationDoseScheduleEntry> get resolvedDoseSchedule {
+    return resolveMedicationDoseSchedule(
+      doseSchedule: doseSchedule,
+      fallbackDoseAmount: doseAmount,
+      fallbackDoseUnit: doseUnit,
+      fallbackTimes: times,
+    );
+  }
 }
 
 /// The app-owned response contract returned by a model provider.

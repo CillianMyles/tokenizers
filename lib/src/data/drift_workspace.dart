@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:tokenizers/src/core/application/event_store.dart';
 import 'package:tokenizers/src/core/application/projection_runner.dart';
+import 'package:tokenizers/src/core/domain/medication_dose_schedule.dart';
 import 'package:tokenizers/src/core/domain/domain_event.dart';
 import 'package:tokenizers/src/core/domain/event_envelope.dart';
 import 'package:tokenizers/src/data/app_database.dart';
@@ -143,7 +144,9 @@ class DriftWorkspace
                 route: Value(action.route),
                 startDate: Value(_dateText(action.startDate)),
                 targetScheduleId: Value(action.targetScheduleId),
-                timesJson: jsonEncode(action.times),
+                timesJson: jsonEncode(
+                  medicationDoseScheduleToJsonList(action.resolvedDoseSchedule),
+                ),
                 type: action.type.wireValue,
               ),
             );
@@ -176,7 +179,9 @@ class DriftWorkspace
               sourceProposalId: Value(schedule.sourceProposalId),
               startDate: _dateText(schedule.startDate)!,
               threadId: Value(schedule.threadId),
-              timesJson: jsonEncode(schedule.times),
+              timesJson: jsonEncode(
+                medicationDoseScheduleToJsonList(schedule.resolvedDoseSchedule),
+              ),
             );
           }).toList(),
         );
@@ -219,35 +224,26 @@ class DriftWorkspace
     DateTime day,
   ) {
     final dayText = _dateText(day)!;
-    final joinQuery =
-        _database.select(_database.medicationScheduleTimesTable).join(<Join>[
-            innerJoin(
-              _database.medicationSchedulesTable,
-              _database.medicationSchedulesTable.scheduleId.equalsExp(
-                _database.medicationScheduleTimesTable.scheduleId,
-              ),
-            ),
-          ])
-          ..where(
-            _database.medicationSchedulesTable.isActive.equals(true) &
-                _database.medicationSchedulesTable.startDate
-                    .isSmallerOrEqualValue(dayText) &
-                (_database.medicationSchedulesTable.endDate.isNull() |
-                    _database.medicationSchedulesTable.endDate
-                        .isBiggerOrEqualValue(dayText)),
-          )
-          ..orderBy(<OrderingTerm>[
-            OrderingTerm.asc(_database.medicationScheduleTimesTable.timeOfDay),
-            OrderingTerm.asc(_database.medicationSchedulesTable.medicationName),
-          ]);
+    final query = _database.select(_database.medicationSchedulesTable)
+      ..where(
+        (table) =>
+            table.isActive.equals(true) &
+            table.startDate.isSmallerOrEqualValue(dayText) &
+            (table.endDate.isNull() |
+                table.endDate.isBiggerOrEqualValue(dayText)),
+      )
+      ..orderBy(<OrderingTerm Function($MedicationSchedulesTableTable)>[
+        (table) => OrderingTerm.asc(table.medicationName),
+      ]);
 
-    return joinQuery.watch().map((rows) {
-      return rows
-          .map((row) {
-            final schedule = row.readTable(_database.medicationSchedulesTable);
-            final time = row.readTable(_database.medicationScheduleTimesTable);
-            final parts = time.timeOfDay.split(':');
-            return MedicationCalendarEntry(
+    return query.watch().map((rows) {
+      final entries = <MedicationCalendarEntry>[];
+      for (final row in rows) {
+        final schedule = _scheduleFromRow(row);
+        for (final dose in schedule.resolvedDoseSchedule) {
+          final parts = dose.time.split(':');
+          entries.add(
+            MedicationCalendarEntry(
               dateTime: DateTime(
                 day.year,
                 day.month,
@@ -255,15 +251,18 @@ class DriftWorkspace
                 int.parse(parts[0]),
                 int.parse(parts[1]),
               ),
-              doseLabel: _doseLabel(schedule.doseAmount, schedule.doseUnit),
+              doseLabel: dose.doseLabel,
               medicationName: schedule.medicationName,
               notes: schedule.notes,
               scheduleId: schedule.scheduleId,
               sourceProposalId: schedule.sourceProposalId,
               threadId: schedule.threadId,
-            );
-          })
-          .toList(growable: false);
+            ),
+          );
+        }
+      }
+      entries.sort((left, right) => left.dateTime.compareTo(right.dateTime));
+      return entries;
     });
   }
 
@@ -334,8 +333,14 @@ class DriftWorkspace
   }
 
   MedicationScheduleView _scheduleFromRow(MedicationSchedulesTableData row) {
+    final doseSchedule = medicationDoseScheduleFromJsonList(
+      jsonDecode(row.timesJson),
+      fallbackDoseAmount: row.doseAmount,
+      fallbackDoseUnit: row.doseUnit,
+    );
     return MedicationScheduleView(
       doseAmount: row.doseAmount,
+      doseSchedule: doseSchedule,
       doseUnit: row.doseUnit,
       endDate: _tryDate(row.endDate),
       medicationName: row.medicationName,
@@ -345,7 +350,7 @@ class DriftWorkspace
       sourceProposalId: row.sourceProposalId,
       startDate: DateTime.parse(row.startDate),
       threadId: row.threadId,
-      times: _stringList(row.timesJson),
+      times: doseSchedule.map((entry) => entry.time).toList(growable: false),
     );
   }
 
@@ -383,9 +388,15 @@ class DriftWorkspace
   }
 
   ProposalActionView _proposalActionFromRow(ProposalActionsTableData row) {
+    final doseSchedule = medicationDoseScheduleFromJsonList(
+      jsonDecode(row.timesJson),
+      fallbackDoseAmount: row.doseAmount,
+      fallbackDoseUnit: row.doseUnit,
+    );
     return ProposalActionView(
       actionId: row.actionId,
       doseAmount: row.doseAmount,
+      doseSchedule: doseSchedule,
       doseUnit: row.doseUnit,
       endDate: _tryDate(row.endDate),
       medicationName: row.medicationName,
@@ -394,18 +405,11 @@ class DriftWorkspace
       route: row.route,
       startDate: _tryDate(row.startDate),
       targetScheduleId: row.targetScheduleId,
-      times: _stringList(row.timesJson),
+      times: doseSchedule.map((entry) => entry.time).toList(growable: false),
       type: ProposalActionType.values.firstWhere(
         (type) => type.wireValue == row.type,
       ),
     );
-  }
-
-  String _doseLabel(String? doseAmount, String? doseUnit) {
-    if (doseAmount == null || doseUnit == null) {
-      return 'Dose pending';
-    }
-    return '$doseAmount $doseUnit';
   }
 
   String? _dateText(DateTime? value) {
