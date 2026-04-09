@@ -32,7 +32,8 @@ List<MedicationReminderView> buildMedicationReminders({
 }) {
   final takenByKey = <String, DateTime>{};
   for (final event in events) {
-    if (event.event.type != 'medication_taken') {
+    if (event.event.type != 'medication_taken' &&
+        event.event.type != 'medication_taken_corrected') {
       continue;
     }
     final payload = event.event.payload;

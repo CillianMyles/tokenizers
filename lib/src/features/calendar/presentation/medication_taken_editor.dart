@@ -22,6 +22,7 @@ class MedicationTakenDraft {
 Future<MedicationTakenDraft?> showMedicationTakenEditor({
   required BuildContext context,
   required MedicationCalendarEntry entry,
+  DateTime? initialTakenAt,
   required List<MedicationCalendarEntry> scheduleEntries,
 }) {
   final sameScheduleEntries =
@@ -38,6 +39,7 @@ Future<MedicationTakenDraft?> showMedicationTakenEditor({
       useSafeArea: true,
       builder: (context) {
         return _MedicationTakenEditorSurface(
+          initialTakenAt: initialTakenAt,
           initialEntry: entry,
           scheduleEntries: sameScheduleEntries,
         );
@@ -52,6 +54,7 @@ Future<MedicationTakenDraft?> showMedicationTakenEditor({
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 560),
           child: _MedicationTakenEditorSurface(
+            initialTakenAt: initialTakenAt,
             initialEntry: entry,
             scheduleEntries: sameScheduleEntries,
           ),
@@ -64,10 +67,12 @@ Future<MedicationTakenDraft?> showMedicationTakenEditor({
 class _MedicationTakenEditorSurface extends StatefulWidget {
   const _MedicationTakenEditorSurface({
     required this.initialEntry,
+    this.initialTakenAt,
     required this.scheduleEntries,
   });
 
   final MedicationCalendarEntry initialEntry;
+  final DateTime? initialTakenAt;
   final List<MedicationCalendarEntry> scheduleEntries;
 
   @override
@@ -84,6 +89,11 @@ class _MedicationTakenEditorSurfaceState
   void initState() {
     super.initState();
     _selectedEntry = widget.initialEntry;
+    final seededTakenAt = widget.initialTakenAt;
+    if (seededTakenAt != null) {
+      _takenAt = seededTakenAt;
+      return;
+    }
     final now = DateTime.now();
     final isSameDay =
         now.year == widget.initialEntry.dateTime.year &&

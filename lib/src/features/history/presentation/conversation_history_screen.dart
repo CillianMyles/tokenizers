@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
 import 'package:tokenizers/src/app/app_scope.dart';
+import 'package:tokenizers/src/core/domain/event_envelope.dart';
 import 'package:tokenizers/src/core/presentation/date_formatters.dart';
 import 'package:tokenizers/src/core/presentation/expandable_text.dart';
+import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
+import 'package:tokenizers/src/features/calendar/presentation/medication_taken_editor.dart';
 import 'package:tokenizers/src/features/history/domain/history_timeline_models.dart';
 
 /// Day-grouped activity history built from the immutable event log.
@@ -96,47 +99,116 @@ class _HistoryEventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canEditAdherence = item.adherenceAction != null;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: CircleAvatar(
-                  backgroundColor: Theme.of(
-                    context,
-                  ).colorScheme.surfaceContainerHighest,
-                  child: Icon(_iconForKind(item.kind)),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: canEditAdherence ? () => _editAdherence(context) : null,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: CircleAvatar(
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    child: Icon(_iconForKind(item.kind)),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(item.title),
-                    const SizedBox(height: 6),
-                    ExpandableText(
-                      item.description,
-                      maxLines: 3,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    Text(
-                      formatTime(item.occurredAt),
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(item.title),
+                      const SizedBox(height: 6),
+                      ExpandableText(
+                        item.description,
+                        maxLines: 3,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      if (canEditAdherence) ...<Widget>[
+                        const SizedBox(height: 6),
+                        Text(
+                          'Tap to edit',
+                          style: Theme.of(context).textTheme.labelMedium,
+                        ),
+                      ],
+                      Text(
+                        formatTime(item.occurredAt),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _editAdherence(BuildContext context) async {
+    final action = item.adherenceAction;
+    if (action == null) {
+      return;
+    }
+    final bootstrap = AppScope.of(context);
+    final entries = await bootstrap.medicationRepository
+        .watchCalendarEntriesForDay(action.scheduledFor)
+        .first;
+    final matchingEntries = entries
+        .where((entry) {
+          return entry.scheduleId == action.scheduleId;
+        })
+        .toList(growable: false);
+    final selectedEntry = matchingEntries.firstWhere(
+      (entry) => entry.dateTime == action.scheduledFor,
+      orElse: () {
+        return MedicationCalendarEntry(
+          dateTime: action.scheduledFor,
+          doseLabel: '',
+          medicationName: action.medicationName,
+          scheduleId: action.scheduleId,
+          sourceProposalId: action.sourceProposalId,
+          threadId: action.threadId,
+        );
+      },
+    );
+    final draft = await showMedicationTakenEditor(
+      context: context,
+      entry: selectedEntry,
+      initialTakenAt: action.takenAt,
+      scheduleEntries: matchingEntries.isEmpty
+          ? <MedicationCalendarEntry>[selectedEntry]
+          : matchingEntries,
+    );
+    if (draft == null) {
+      return;
+    }
+    await bootstrap.medicationCommandService.correctMedicationTaken(
+      actorType: EventActorType.user,
+      entry: selectedEntry,
+      previousTakenAt: action.takenAt,
+      scheduledFor: draft.scheduledFor,
+      takenAt: draft.takenAt,
+    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Updated ${selectedEntry.medicationName} to '
+            '${formatTime(draft.takenAt)}.',
+          ),
+        ),
+      );
+    }
   }
 
   IconData _iconForKind(HistoryTimelineItemKind kind) {

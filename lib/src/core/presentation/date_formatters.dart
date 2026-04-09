@@ -46,3 +46,8 @@ String formatShortDate(DateTime date) {
 String formatDayAndTime(DateTime dateTime) {
   return '${formatLongDate(dateTime)} • ${formatTime(dateTime)}';
 }
+
+/// Formats a compact timestamp for secondary history detail.
+String formatDateTimeForHistory(DateTime dateTime) {
+  return '${formatShortDate(dateTime)} ${formatTime(dateTime)}';
+}

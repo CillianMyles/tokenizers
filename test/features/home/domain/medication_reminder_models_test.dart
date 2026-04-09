@@ -51,6 +51,49 @@ void main() {
       expect(reminders[2].status, MedicationReminderStatus.taken);
       expect(reminders[2].takenAt, DateTime(2026, 4, 9, 8, 5));
     });
+
+    test('uses corrected taken events as the latest adherence state', () {
+      final reminders = buildMedicationReminders(
+        entries: <MedicationCalendarEntry>[
+          MedicationCalendarEntry(
+            dateTime: DateTime(2026, 4, 9, 8, 0),
+            doseLabel: '500 mg',
+            medicationName: 'Metformin',
+            scheduleId: 'schedule-1',
+          ),
+        ],
+        events: <EventEnvelope<DomainEvent>>[
+          _event(
+            aggregateId: 'schedule-1',
+            eventId: 'event-1',
+            eventType: 'medication_taken',
+            occurredAt: DateTime(2026, 4, 9, 8, 5),
+            payload: const <String, Object?>{
+              'schedule_id': 'schedule-1',
+              'medication_name': 'Metformin',
+              'scheduled_for': '2026-04-09T08:00:00.000',
+              'taken_at': '2026-04-09T08:05:00.000',
+            },
+          ),
+          _event(
+            aggregateId: 'schedule-1',
+            eventId: 'event-2',
+            eventType: 'medication_taken_corrected',
+            occurredAt: DateTime(2026, 4, 9, 8, 10),
+            payload: const <String, Object?>{
+              'schedule_id': 'schedule-1',
+              'medication_name': 'Metformin',
+              'scheduled_for': '2026-04-09T08:00:00.000',
+              'taken_at': '2026-04-09T08:12:00.000',
+            },
+          ),
+        ],
+        now: DateTime(2026, 4, 9, 9, 10),
+      );
+
+      expect(reminders.single.status, MedicationReminderStatus.taken);
+      expect(reminders.single.takenAt, DateTime(2026, 4, 9, 8, 12));
+    });
   });
 }
 

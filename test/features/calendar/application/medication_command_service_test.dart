@@ -188,6 +188,34 @@ void main() {
         '2026-04-09T09:03:00.000',
       );
     });
+
+    test('correctMedicationTaken emits a correction event', () async {
+      final eventStore = _FakeEventStore();
+      final service = MedicationCommandService(eventStore: eventStore);
+
+      await service.correctMedicationTaken(
+        actorType: EventActorType.user,
+        entry: MedicationCalendarEntry(
+          dateTime: DateTime(2026, 4, 9, 9),
+          doseLabel: '1000 IU',
+          medicationName: 'Vitamin D',
+          scheduleId: 'schedule-1',
+          threadId: 'thread-1',
+        ),
+        previousTakenAt: DateTime(2026, 4, 9, 9, 3),
+        takenAt: DateTime(2026, 4, 9, 9, 12),
+      );
+
+      expect(eventStore.events.single.event.type, 'medication_taken_corrected');
+      expect(
+        eventStore.events.single.event.payload['previous_taken_at'],
+        '2026-04-09T09:03:00.000',
+      );
+      expect(
+        eventStore.events.single.event.payload['taken_at'],
+        '2026-04-09T09:12:00.000',
+      );
+    });
   });
 }
 

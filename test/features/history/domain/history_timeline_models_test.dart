@@ -150,7 +150,96 @@ void main() {
       expect(item, isNotNull);
       expect(item?.kind, HistoryTimelineItemKind.adherence);
       expect(item?.title, 'Medication taken');
-      expect(item?.description, 'Vitamin D • scheduled 09:00 • taken 09:05');
+      expect(item?.description, 'Vitamin D • scheduled 09:00');
+      expect(item?.occurredAt, DateTime(2026, 4, 9, 9, 5));
+    });
+
+    test('maps medication_taken_corrected as editable adherence activity', () {
+      final item = historyTimelineItemFromEvent(
+        _event(
+          aggregateId: 'schedule-1',
+          eventId: 'event-1',
+          eventType: 'medication_taken_corrected',
+          occurredAt: DateTime(2026, 4, 9, 9, 12),
+          payload: const <String, Object?>{
+            'schedule_id': 'schedule-1',
+            'medication_name': 'Vitamin D',
+            'scheduled_for': '2026-04-09T09:00:00.000',
+            'taken_at': '2026-04-09T09:12:00.000',
+            'thread_id': 'thread-1',
+          },
+        ),
+      );
+
+      expect(item?.kind, HistoryTimelineItemKind.adherence);
+      expect(item?.title, 'Medication taken');
+      expect(item?.adherenceAction?.scheduleId, 'schedule-1');
+      expect(item?.adherenceAction?.takenAt, DateTime(2026, 4, 9, 9, 12));
+      expect(item?.occurredAt, DateTime(2026, 4, 9, 9, 12));
+    });
+
+    test('keeps only the latest adherence item per scheduled dose', () {
+      final groups = buildHistoryTimeline(<EventEnvelope<DomainEvent>>[
+        _event(
+          aggregateId: 'schedule-1',
+          eventId: 'event-1',
+          eventType: 'medication_taken',
+          occurredAt: DateTime(2026, 4, 9, 9, 5),
+          payload: const <String, Object?>{
+            'schedule_id': 'schedule-1',
+            'medication_name': 'Vitamin D',
+            'scheduled_for': '2026-04-09T09:00:00.000',
+            'taken_at': '2026-04-09T09:05:00.000',
+          },
+        ),
+        _event(
+          aggregateId: 'schedule-1',
+          eventId: 'event-2',
+          eventType: 'medication_taken_corrected',
+          occurredAt: DateTime(2026, 4, 9, 9, 12),
+          payload: const <String, Object?>{
+            'schedule_id': 'schedule-1',
+            'medication_name': 'Vitamin D',
+            'scheduled_for': '2026-04-09T09:00:00.000',
+            'taken_at': '2026-04-09T09:12:00.000',
+          },
+        ),
+      ]);
+
+      expect(groups.single.items, hasLength(1));
+      expect(groups.single.items.single.title, 'Medication taken');
+      expect(
+        groups.single.items.single.description,
+        'Vitamin D • scheduled 09:00',
+      );
+      expect(
+        groups.single.items.single.occurredAt,
+        DateTime(2026, 4, 9, 9, 12),
+      );
+    });
+
+    test('shows logged time when it differs from the taken time', () {
+      final item = historyTimelineItemFromEvent(
+        _event(
+          aggregateId: 'schedule-1',
+          eventId: 'event-1',
+          eventType: 'medication_taken_corrected',
+          occurredAt: DateTime(2026, 4, 9, 23, 41),
+          payload: const <String, Object?>{
+            'recorded_at': '2026-04-09T23:41:00.000',
+            'schedule_id': 'schedule-1',
+            'medication_name': 'Vitamin D',
+            'scheduled_for': '2026-04-09T09:00:00.000',
+            'taken_at': '2026-04-09T09:12:00.000',
+          },
+        ),
+      );
+
+      expect(
+        item?.description,
+        'Vitamin D • scheduled 09:00 • logged Apr 9, 2026 23:41',
+      );
+      expect(item?.occurredAt, DateTime(2026, 4, 9, 9, 12));
     });
 
     test('keeps reminder event shapes mappable when they are introduced', () {

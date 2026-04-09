@@ -1,6 +1,7 @@
 import 'package:tokenizers/src/core/domain/medication_dose_schedule.dart';
 import 'package:tokenizers/src/core/domain/domain_event.dart';
 import 'package:tokenizers/src/core/domain/event_envelope.dart';
+import 'package:tokenizers/src/core/presentation/date_formatters.dart';
 
 /// The high-level category for an activity timeline item.
 enum HistoryTimelineItemKind {
@@ -16,11 +17,15 @@ enum HistoryTimelineItemKind {
 class HistoryTimelineItem {
   /// Creates a history timeline item.
   const HistoryTimelineItem({
+    this.adherenceAction,
     required this.description,
     required this.kind,
     required this.occurredAt,
     required this.title,
   });
+
+  /// Optional adherence correction metadata for tappable history items.
+  final HistoryTimelineAdherenceAction? adherenceAction;
 
   /// Secondary detail text.
   final String description;
@@ -33,6 +38,37 @@ class HistoryTimelineItem {
 
   /// Primary label.
   final String title;
+}
+
+/// Editable metadata for a medication taken history item.
+class HistoryTimelineAdherenceAction {
+  /// Creates adherence action metadata.
+  const HistoryTimelineAdherenceAction({
+    required this.medicationName,
+    required this.scheduleId,
+    required this.scheduledFor,
+    required this.takenAt,
+    this.sourceProposalId,
+    this.threadId,
+  });
+
+  /// Medication name.
+  final String medicationName;
+
+  /// Schedule id.
+  final String scheduleId;
+
+  /// The scheduled dose time.
+  final DateTime scheduledFor;
+
+  /// The actual taken time.
+  final DateTime takenAt;
+
+  /// Source proposal id when present.
+  final String? sourceProposalId;
+
+  /// Thread id when present.
+  final String? threadId;
 }
 
 /// Activity items grouped by day.
@@ -51,6 +87,7 @@ class HistoryTimelineDayGroup {
 List<HistoryTimelineDayGroup> buildHistoryTimeline(
   List<EventEnvelope<DomainEvent>> events,
 ) {
+  final latestAdherenceEventIds = _latestAdherenceEventIds(events);
   final correlationsWithDraftCreation = events
       .where((event) => event.event.type == 'proposal_created')
       .map((event) => event.correlationId)
@@ -63,6 +100,7 @@ List<HistoryTimelineDayGroup> buildHistoryTimeline(
             (event) => _shouldIncludeInHistory(
               event,
               correlationsWithDraftCreation: correlationsWithDraftCreation,
+              latestAdherenceEventIds: latestAdherenceEventIds,
             ),
           )
           .map(historyTimelineItemFromEvent)
@@ -166,9 +204,17 @@ HistoryTimelineItem? historyTimelineItemFromEvent(
       title: _medicationActionTitle(payload, 'removed'),
     ),
     'medication_taken' => HistoryTimelineItem(
-      description: _takenSummary(payload),
+      adherenceAction: _adherenceAction(payload),
+      description: _takenSummary(payload, fallbackRecordedAt: event.occurredAt),
       kind: HistoryTimelineItemKind.adherence,
-      occurredAt: event.occurredAt,
+      occurredAt: _adherenceDisplayAt(payload, fallback: event.occurredAt),
+      title: 'Medication taken',
+    ),
+    'medication_taken_corrected' => HistoryTimelineItem(
+      adherenceAction: _adherenceAction(payload),
+      description: _takenSummary(payload, fallbackRecordedAt: event.occurredAt),
+      kind: HistoryTimelineItemKind.adherence,
+      occurredAt: _adherenceDisplayAt(payload, fallback: event.occurredAt),
       title: 'Medication taken',
     ),
     'medication_reminder_scheduled' => HistoryTimelineItem(
@@ -226,15 +272,30 @@ String _scheduleDetails(Map<String, Object?> payload) {
   return parts.join(' • ');
 }
 
-String _takenSummary(Map<String, Object?> payload) {
+DateTime _adherenceDisplayAt(
+  Map<String, Object?> payload, {
+  required DateTime fallback,
+}) {
+  return _parseDateTimeString(payload['taken_at'] as String?) ?? fallback;
+}
+
+String _takenSummary(
+  Map<String, Object?> payload, {
+  required DateTime fallbackRecordedAt,
+}) {
   final medicationName = payload['medication_name'] as String?;
   final scheduledFor = payload['scheduled_for'] as String?;
   final takenAt = payload['taken_at'] as String?;
+  final recordedAt =
+      _parseDateTimeString(payload['recorded_at'] as String?) ??
+      fallbackRecordedAt;
+  final parsedTakenAt = _parseDateTimeString(takenAt);
   final parts = <String>[
     medicationName ?? 'Medication',
     if (scheduledFor != null && scheduledFor.isNotEmpty)
       'scheduled ${_displayTime(scheduledFor)}',
-    if (takenAt != null && takenAt.isNotEmpty) 'taken ${_displayTime(takenAt)}',
+    if (parsedTakenAt != null && !_isSameMinute(recordedAt, parsedTakenAt))
+      'logged ${formatDateTimeForHistory(recordedAt)}',
   ];
   return parts.join(' • ');
 }
@@ -246,6 +307,7 @@ String _displayTime(String raw) {
 bool _shouldIncludeInHistory(
   EventEnvelope<DomainEvent> event, {
   required Set<String> correlationsWithDraftCreation,
+  required Set<String> latestAdherenceEventIds,
 }) {
   return switch (event.event.type) {
     'thread_started' => false,
@@ -253,11 +315,76 @@ bool _shouldIncludeInHistory(
     'proposal_confirmed' => false,
     'proposal_created' => false,
     'proposal_superseded' => false,
+    'medication_taken' || 'medication_taken_corrected' =>
+      latestAdherenceEventIds.contains(event.eventId),
     'model_turn_recorded' =>
       event.correlationId == null ||
           !correlationsWithDraftCreation.contains(event.correlationId),
     _ => true,
   };
+}
+
+HistoryTimelineAdherenceAction? _adherenceAction(Map<String, Object?> payload) {
+  final medicationName = payload['medication_name'] as String?;
+  final scheduleId = payload['schedule_id'] as String?;
+  final scheduledFor = _parseDateTimeString(
+    payload['scheduled_for'] as String?,
+  );
+  final takenAt = _parseDateTimeString(payload['taken_at'] as String?);
+  if (medicationName == null ||
+      scheduleId == null ||
+      scheduledFor == null ||
+      takenAt == null) {
+    return null;
+  }
+  return HistoryTimelineAdherenceAction(
+    medicationName: medicationName,
+    scheduleId: scheduleId,
+    scheduledFor: scheduledFor,
+    sourceProposalId: payload['source_proposal_id'] as String?,
+    takenAt: takenAt,
+    threadId: payload['thread_id'] as String?,
+  );
+}
+
+DateTime? _parseDateTimeString(String? raw) {
+  if (raw == null || raw.isEmpty) {
+    return null;
+  }
+  return DateTime.tryParse(raw);
+}
+
+bool _isSameMinute(DateTime left, DateTime right) {
+  return left.year == right.year &&
+      left.month == right.month &&
+      left.day == right.day &&
+      left.hour == right.hour &&
+      left.minute == right.minute;
+}
+
+Set<String> _latestAdherenceEventIds(List<EventEnvelope<DomainEvent>> events) {
+  final latestByKey = <String, EventEnvelope<DomainEvent>>{};
+  for (final event in events) {
+    if (event.event.type != 'medication_taken' &&
+        event.event.type != 'medication_taken_corrected') {
+      continue;
+    }
+    final payload = event.event.payload;
+    final scheduleId = payload['schedule_id'] as String?;
+    final scheduledFor = payload['scheduled_for'] as String?;
+    if (scheduleId == null || scheduledFor == null || scheduledFor.isEmpty) {
+      continue;
+    }
+    final key = '$scheduleId@$scheduledFor';
+    final existing = latestByKey[key];
+    if (existing == null ||
+        event.occurredAt.isAfter(existing.occurredAt) ||
+        (event.occurredAt == existing.occurredAt &&
+            event.event.type == 'medication_taken_corrected')) {
+      latestByKey[key] = event;
+    }
+  }
+  return latestByKey.values.map((event) => event.eventId).toSet();
 }
 
 int _kindSortOrder(HistoryTimelineItemKind kind) {

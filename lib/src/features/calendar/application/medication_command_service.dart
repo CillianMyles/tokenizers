@@ -210,6 +210,44 @@ class MedicationCommandService {
     ]);
   }
 
+  /// Records a correction to a previously logged taken medication time.
+  Future<void> correctMedicationTaken({
+    required MedicationCalendarEntry entry,
+    required EventActorType actorType,
+    required DateTime previousTakenAt,
+    DateTime? recordedAt,
+    DateTime? scheduledFor,
+    required DateTime takenAt,
+    String? correlationId,
+  }) async {
+    final writeCorrelationId = correlationId ?? _id('corr');
+    final effectiveRecordedAt = recordedAt ?? DateTime.now();
+    final effectiveScheduledFor = scheduledFor ?? entry.dateTime;
+    await _eventStore.append(<EventEnvelope<DomainEvent>>[
+      EventEnvelope<DomainEvent>(
+        eventId: _id('event'),
+        aggregateType: 'medication',
+        aggregateId: entry.scheduleId,
+        actorType: actorType,
+        correlationId: writeCorrelationId,
+        event: DomainEvent(
+          type: 'medication_taken_corrected',
+          payload: <String, Object?>{
+            'medication_name': entry.medicationName,
+            'previous_taken_at': previousTakenAt.toIso8601String(),
+            'recorded_at': effectiveRecordedAt.toIso8601String(),
+            'schedule_id': entry.scheduleId,
+            'scheduled_for': effectiveScheduledFor.toIso8601String(),
+            'source_proposal_id': entry.sourceProposalId,
+            'taken_at': takenAt.toIso8601String(),
+            'thread_id': entry.threadId,
+          },
+        ),
+        occurredAt: effectiveRecordedAt,
+      ),
+    ]);
+  }
+
   String? _date(DateTime? value) {
     return value?.toIso8601String().split('T').first;
   }
