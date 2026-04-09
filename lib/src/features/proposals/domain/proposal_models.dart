@@ -127,14 +127,18 @@ class ProposalView {
       );
 
   /// Returns a modified copy of the proposal.
-  ProposalView copyWith({ProposalStatus? status}) {
+  ProposalView copyWith({
+    List<ProposalActionView>? actions,
+    ProposalStatus? status,
+    String? summary,
+  }) {
     return ProposalView(
-      actions: actions,
+      actions: actions ?? this.actions,
       assistantText: assistantText,
       createdAt: createdAt,
       proposalId: proposalId,
       status: status ?? this.status,
-      summary: summary,
+      summary: summary ?? this.summary,
       threadId: threadId,
     );
   }

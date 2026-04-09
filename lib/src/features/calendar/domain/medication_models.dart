@@ -1,3 +1,103 @@
+import 'package:tokenizers/src/features/proposals/domain/proposal_models.dart';
+
+/// A mutable-friendly medication schedule draft used by forms and commands.
+class MedicationScheduleDraft {
+  /// Creates a medication schedule draft.
+  const MedicationScheduleDraft({
+    required this.medicationName,
+    required this.startDate,
+    required this.times,
+    this.doseAmount,
+    this.doseUnit,
+    this.endDate,
+    this.notes,
+    this.route,
+  });
+
+  /// Optional dose amount.
+  final String? doseAmount;
+
+  /// Optional dose unit.
+  final String? doseUnit;
+
+  /// Optional end date.
+  final DateTime? endDate;
+
+  /// Medication name.
+  final String medicationName;
+
+  /// Optional notes.
+  final String? notes;
+
+  /// Optional route.
+  final String? route;
+
+  /// Start date.
+  final DateTime startDate;
+
+  /// Fixed times per day in `HH:mm` format.
+  final List<String> times;
+
+  /// Creates a draft from a projected proposal action.
+  factory MedicationScheduleDraft.fromProposalAction(
+    ProposalActionView action,
+  ) {
+    return MedicationScheduleDraft(
+      doseAmount: action.doseAmount,
+      doseUnit: action.doseUnit,
+      endDate: action.endDate,
+      medicationName: action.medicationName ?? '',
+      notes: action.notes,
+      route: action.route,
+      startDate: action.startDate ?? DateTime.now(),
+      times: action.times,
+    );
+  }
+
+  /// Creates a draft from an existing confirmed schedule.
+  factory MedicationScheduleDraft.fromSchedule(
+    MedicationScheduleView schedule,
+  ) {
+    return MedicationScheduleDraft(
+      doseAmount: schedule.doseAmount,
+      doseUnit: schedule.doseUnit,
+      endDate: schedule.endDate,
+      medicationName: schedule.medicationName,
+      notes: schedule.notes,
+      route: schedule.route,
+      startDate: schedule.startDate,
+      times: schedule.times,
+    );
+  }
+
+  /// Whether the draft contains the minimum data needed to save a schedule.
+  bool get isValid => medicationName.trim().isNotEmpty && times.isNotEmpty;
+
+  /// Returns a copy with selected fields changed.
+  MedicationScheduleDraft copyWith({
+    String? doseAmount,
+    String? doseUnit,
+    DateTime? endDate,
+    bool clearEndDate = false,
+    String? medicationName,
+    String? notes,
+    String? route,
+    DateTime? startDate,
+    List<String>? times,
+  }) {
+    return MedicationScheduleDraft(
+      doseAmount: doseAmount ?? this.doseAmount,
+      doseUnit: doseUnit ?? this.doseUnit,
+      endDate: clearEndDate ? null : endDate ?? this.endDate,
+      medicationName: medicationName ?? this.medicationName,
+      notes: notes ?? this.notes,
+      route: route ?? this.route,
+      startDate: startDate ?? this.startDate,
+      times: times ?? this.times,
+    );
+  }
+}
+
 /// A confirmed medication schedule projection.
 class MedicationScheduleView {
   /// Creates a medication schedule view.
@@ -60,19 +160,29 @@ class MedicationScheduleView {
   }
 
   /// Returns a modified copy of this schedule.
-  MedicationScheduleView copyWith({DateTime? endDate}) {
+  MedicationScheduleView copyWith({
+    String? doseAmount,
+    String? doseUnit,
+    DateTime? endDate,
+    bool clearEndDate = false,
+    String? medicationName,
+    String? notes,
+    String? route,
+    DateTime? startDate,
+    List<String>? times,
+  }) {
     return MedicationScheduleView(
-      doseAmount: doseAmount,
-      doseUnit: doseUnit,
-      endDate: endDate ?? this.endDate,
-      medicationName: medicationName,
-      notes: notes,
-      route: route,
+      doseAmount: doseAmount ?? this.doseAmount,
+      doseUnit: doseUnit ?? this.doseUnit,
+      endDate: clearEndDate ? null : endDate ?? this.endDate,
+      medicationName: medicationName ?? this.medicationName,
+      notes: notes ?? this.notes,
+      route: route ?? this.route,
       scheduleId: scheduleId,
       sourceProposalId: sourceProposalId,
-      startDate: startDate,
+      startDate: startDate ?? this.startDate,
       threadId: threadId,
-      times: times,
+      times: times ?? this.times,
     );
   }
 }

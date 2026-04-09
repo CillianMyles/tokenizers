@@ -66,6 +66,67 @@ void main() {
       },
     );
 
+    test('confirmPendingProposal uses edited actions when provided', () async {
+      final eventStore = _FakeEventStore();
+      final conversationRepository = _FakeConversationRepository(
+        pendingProposal: ProposalView(
+          actions: <ProposalActionView>[
+            ProposalActionView(
+              actionId: 'action-1',
+              doseAmount: '200',
+              doseUnit: 'mg',
+              medicationName: 'Ibuprofen',
+              startDate: DateTime(2026, 4, 5),
+              times: <String>['08:00'],
+              type: ProposalActionType.addMedicationSchedule,
+            ),
+          ],
+          assistantText: 'Review the ibuprofen schedule.',
+          createdAt: DateTime(2026, 4, 5, 8),
+          proposalId: 'proposal-1',
+          status: ProposalStatus.pending,
+          summary: 'Add ibuprofen 200 mg at 08:00.',
+          threadId: 'thread-1',
+        ),
+      );
+      final coordinator = ChatCoordinator(
+        conversationRepository: conversationRepository,
+        eventStore: eventStore,
+        medicationRepository: _FakeMedicationRepository(),
+        modelProvider: _FakeModelProvider(),
+      );
+
+      await coordinator.confirmPendingProposal(
+        'thread-1',
+        editedActions: <ProposalActionView>[
+          ProposalActionView(
+            actionId: 'action-1',
+            doseAmount: '400',
+            doseUnit: 'mg',
+            medicationName: 'Ibuprofen',
+            startDate: DateTime(2026, 4, 6),
+            times: <String>['09:00'],
+            type: ProposalActionType.addMedicationSchedule,
+          ),
+        ],
+      );
+
+      final proposalConfirmed = eventStore.events.singleWhere(
+        (event) => event.event.type == 'proposal_confirmed',
+      );
+      final scheduleAdded = eventStore.events.singleWhere(
+        (event) => event.event.type == 'medication_schedule_added',
+      );
+
+      expect(
+        proposalConfirmed.event.payload['accepted_summary'],
+        'Add Ibuprofen 400 mg',
+      );
+      expect(scheduleAdded.event.payload['dose_amount'], '400');
+      expect(scheduleAdded.event.payload['start_date'], '2026-04-06');
+      expect(scheduleAdded.event.payload['times'], <String>['09:00']);
+    });
+
     test('confirmPendingProposal ignores non-confirmable proposals', () async {
       final eventStore = _FakeEventStore();
       final coordinator = ChatCoordinator(
@@ -95,6 +156,72 @@ void main() {
 
       expect(eventStore.events, isEmpty);
     });
+
+    test(
+      'confirmPendingProposal emits schedule update events for update actions',
+      () async {
+        final eventStore = _FakeEventStore();
+        final coordinator = ChatCoordinator(
+          conversationRepository: _FakeConversationRepository(
+            pendingProposal: ProposalView(
+              actions: <ProposalActionView>[
+                ProposalActionView(
+                  actionId: 'action-1',
+                  doseAmount: '750',
+                  doseUnit: 'mg',
+                  medicationName: 'Metformin',
+                  startDate: DateTime(2026, 4, 5),
+                  targetScheduleId: 'schedule-1',
+                  times: <String>['09:00', '21:00'],
+                  type: ProposalActionType.updateMedicationSchedule,
+                ),
+              ],
+              assistantText: 'Review the updated metformin schedule.',
+              createdAt: DateTime(2026, 4, 5, 8),
+              proposalId: 'proposal-1',
+              status: ProposalStatus.pending,
+              summary: 'Update metformin.',
+              threadId: 'thread-1',
+            ),
+          ),
+          eventStore: eventStore,
+          medicationRepository: _FakeMedicationRepository(
+            activeSchedules: <MedicationScheduleView>[
+              MedicationScheduleView(
+                doseAmount: '500',
+                doseUnit: 'mg',
+                medicationName: 'Metformin',
+                scheduleId: 'schedule-1',
+                startDate: DateTime(2026, 4, 1),
+                threadId: 'thread-1',
+                times: const <String>['08:00', '20:00'],
+              ),
+            ],
+          ),
+          modelProvider: _FakeModelProvider(),
+        );
+
+        await coordinator.confirmPendingProposal('thread-1');
+
+        final eventTypes = eventStore.events
+            .map((event) => event.event.type)
+            .toList();
+        final scheduleUpdated = eventStore.events.singleWhere(
+          (event) => event.event.type == 'medication_schedule_updated',
+        );
+
+        expect(eventTypes, <String>[
+          'proposal_confirmed',
+          'medication_schedule_updated',
+        ]);
+        expect(scheduleUpdated.event.payload['schedule_id'], 'schedule-1');
+        expect(scheduleUpdated.event.payload['dose_amount'], '750');
+        expect(scheduleUpdated.event.payload['times'], <String>[
+          '09:00',
+          '21:00',
+        ]);
+      },
+    );
 
     test(
       'submitText supersedes pending proposals and creates a new proposal',

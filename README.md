@@ -15,6 +15,9 @@ local data model.
 - Drift-backed `event_log` plus projection tables across native and web
 - Gemini-backed `ModelProvider` available in the new shell when
   `GEMINI_API_KEY` is configured in a local `.env`
+- Mobile-first draft review launched from the chat composer instead of a
+  disconnected side panel
+- Direct manual medication add, edit, and remove flows in the calendar screen
 - Unit tests covering projection rebuilds and chat command orchestration
 - GitHub Actions CI running format, analyze, and test checks on pushes and PRs
 - Pending proposals remain separate from confirmed medication schedules
@@ -46,8 +49,11 @@ flutter run -d chrome
 ```
 
 The current default experience is a Gemini-backed medication capture flow.
-Type a medication change in chat, review the generated proposal, and confirm it
-to project the schedule into the calendar.
+Type a medication change in chat, tap the pending draft above the composer,
+edit it if needed, and accept it to project the schedule into the calendar.
+
+Confirmed schedules can also be managed directly from the calendar screen
+without going through chat.
 
 The event log and read models are stored locally in SQLite via Drift on native
 platforms and on the web via the bundled Drift worker + `sqlite3.wasm` assets.
@@ -98,6 +104,8 @@ make rules-generate
 
 ## Next Steps
 
-1. Add widget and integration coverage for proposal review and calendar flows.
-2. Add attachment, image, and voice ingestion to the event-sourced workflow.
+1. Add widget and integration coverage for the new draft editor and manual
+   medication flows.
+2. Turn the visible photo and voice affordances into full event-sourced input
+   pipelines.
 3. Add explicit maintenance docs for the bundled web Drift worker assets.

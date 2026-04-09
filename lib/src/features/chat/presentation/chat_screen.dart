@@ -3,7 +3,8 @@ import 'package:tokenizers/src/app/app_scope.dart';
 import 'package:tokenizers/src/bootstrap/demo_app_bootstrap.dart';
 import 'package:tokenizers/src/core/presentation/date_formatters.dart';
 import 'package:tokenizers/src/features/chat/domain/conversation_models.dart';
-import 'package:tokenizers/src/features/proposals/presentation/proposal_panel.dart';
+import 'package:tokenizers/src/features/proposals/domain/proposal_models.dart';
+import 'package:tokenizers/src/features/proposals/presentation/proposal_draft_sheet.dart';
 
 /// Primary chat and proposal review surface.
 class ChatScreen extends StatefulWidget {
@@ -35,54 +36,30 @@ class _ChatScreenState extends State<ChatScreen> {
           stream: bootstrap.conversationRepository.watchThreads(),
           builder: (context, snapshot) {
             final thread = _findThread(snapshot.data, threadId);
-            return LayoutBuilder(
-              builder: (context, constraints) {
-                final wide = constraints.maxWidth >= 960;
-                return Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: wide
-                      ? Row(
-                          children: <Widget>[
-                            Expanded(
-                              flex: 3,
-                              child: _ChatColumn(
-                                composer: _composer(
-                                  context,
-                                  bootstrap: bootstrap,
-                                  threadId: threadId,
-                                ),
-                                header: _ThreadHeaderCard(thread: thread),
-                                threadId: threadId,
-                              ),
-                            ),
-                            const SizedBox(width: 20),
-                            SizedBox(
-                              width: 360,
-                              child: ProposalPanel(threadId: threadId),
-                            ),
-                          ],
-                        )
-                      : Column(
-                          children: <Widget>[
-                            _ThreadHeaderCard(thread: thread),
-                            const SizedBox(height: 16),
-                            Expanded(
-                              child: _ChatColumn(
-                                composer: _composer(
-                                  context,
-                                  bootstrap: bootstrap,
-                                  threadId: threadId,
-                                ),
-                                header: null,
-                                threadId: threadId,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            ProposalPanel(threadId: threadId),
-                          ],
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 760),
+                  child: Column(
+                    children: <Widget>[
+                      _ThreadHeaderCard(thread: thread),
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: _ChatColumn(
+                          composer: _composer(
+                            context,
+                            bootstrap: bootstrap,
+                            threadId: threadId,
+                          ),
+                          header: null,
+                          threadId: threadId,
                         ),
-                );
-              },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             );
           },
         );
@@ -96,82 +73,151 @@ class _ChatScreenState extends State<ChatScreen> {
     required String threadId,
   }) {
     final configurationError = bootstrap.configurationError;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children:
-                  <String>[
-                    'Add amoxicillin 500 mg at 8am and 8pm',
-                    'Stop metformin',
-                    'Add vitamin D 1000 IU at 9am',
-                  ].map((suggestion) {
-                    return ActionChip(
-                      label: Text(suggestion),
-                      onPressed: () {
-                        _composerController.text = suggestion;
-                      },
-                    );
-                  }).toList(),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _composerController,
-              maxLines: 4,
-              minLines: 2,
-              decoration: InputDecoration(
-                hintText: configurationError == null
-                    ? 'Describe a medication change, for example “Add ibuprofen 200 mg at 8am”.'
-                    : 'Add GEMINI_API_KEY to .env before sending medication updates.',
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
+    return StreamBuilder<ProposalView?>(
+      stream: bootstrap.conversationRepository.watchPendingProposal(threadId),
+      builder: (context, snapshot) {
+        final pendingProposal = snapshot.data;
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Expanded(
-                  child: Text(
-                    configurationError ??
-                        'Text stays local first. Structured proposals are reviewed before confirmation.',
+                if (pendingProposal != null) ...<Widget>[
+                  FilledButton.tonalIcon(
+                    onPressed: () => _openDraftEditor(
+                      context,
+                      bootstrap: bootstrap,
+                      proposal: pendingProposal,
+                      threadId: threadId,
+                    ),
+                    icon: const Icon(Icons.fact_check_outlined),
+                    label: Text(
+                      'Review draft • ${pendingProposal.actions.length} action'
+                      '${pendingProposal.actions.length == 1 ? '' : 's'}',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    pendingProposal.summary,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
+                  const SizedBox(height: 16),
+                ],
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: <Widget>[
+                    Chip(
+                      avatar: const Icon(Icons.keyboard_alt_outlined, size: 18),
+                      label: const Text('Text'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: null,
+                      icon: const Icon(Icons.photo_camera_back_outlined),
+                      label: const Text('Photo'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: null,
+                      icon: const Icon(Icons.mic_none_outlined),
+                      label: const Text('Voice'),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                FilledButton.icon(
-                  onPressed: _isSubmitting || configurationError != null
-                      ? null
-                      : () async {
-                          setState(() {
-                            _isSubmitting = true;
-                          });
-                          await bootstrap.chatCoordinator.submitText(
-                            threadId,
-                            _composerController.text,
-                          );
-                          if (mounted) {
-                            _composerController.clear();
-                            setState(() {
-                              _isSubmitting = false;
-                            });
-                          }
-                        },
-                  icon: _isSubmitting
-                      ? const SizedBox.square(
-                          dimension: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.send),
-                  label: const Text('Send'),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children:
+                      <String>[
+                        'Add amoxicillin 500 mg at 8am and 8pm',
+                        'Stop metformin',
+                        'Add vitamin D 1000 IU at 9am',
+                      ].map((suggestion) {
+                        return ActionChip(
+                          label: Text(suggestion),
+                          onPressed: () {
+                            _composerController.text = suggestion;
+                          },
+                        );
+                      }).toList(),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _composerController,
+                  maxLines: 4,
+                  minLines: 2,
+                  decoration: InputDecoration(
+                    hintText: configurationError == null
+                        ? 'Describe a medication change. Drafts open above the keyboard before anything changes.'
+                        : 'Add GEMINI_API_KEY to .env before sending medication updates.',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        configurationError ??
+                            'Text stays local first. Drafts must be accepted manually before confirmed schedules update.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    FilledButton.icon(
+                      onPressed: _isSubmitting || configurationError != null
+                          ? null
+                          : () async {
+                              setState(() {
+                                _isSubmitting = true;
+                              });
+                              await bootstrap.chatCoordinator.submitText(
+                                threadId,
+                                _composerController.text,
+                              );
+                              if (mounted) {
+                                _composerController.clear();
+                                setState(() {
+                                  _isSubmitting = false;
+                                });
+                              }
+                            },
+                      icon: _isSubmitting
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.send),
+                      label: const Text('Send'),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openDraftEditor(
+    BuildContext context, {
+    required AppBootstrap bootstrap,
+    required ProposalView proposal,
+    required String threadId,
+  }) {
+    return showProposalDraftEditor(
+      context: context,
+      onCancelProposal: () {
+        return bootstrap.chatCoordinator.cancelPendingProposal(threadId);
+      },
+      onConfirmProposal: (actions) {
+        return bootstrap.chatCoordinator.confirmPendingProposal(
+          threadId,
+          editedActions: actions,
+        );
+      },
+      proposal: proposal,
     );
   }
 

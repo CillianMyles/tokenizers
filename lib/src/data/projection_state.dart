@@ -168,8 +168,16 @@ class ProjectionState {
           final proposalId = payload['proposal_id']! as String;
           final existing = proposalsById[proposalId];
           if (existing != null) {
+            final acceptedActions =
+                ((payload['accepted_actions'] ?? const <Object?>[])
+                        as List<Object?>)
+                    .whereType<Map<String, Object?>>()
+                    .map(proposalActionFromJson)
+                    .toList();
             proposalsById[proposalId] = existing.copyWith(
+              actions: acceptedActions.isEmpty ? null : acceptedActions,
               status: ProposalStatus.confirmed,
+              summary: payload['accepted_summary'] as String?,
             );
           }
           break;
@@ -230,6 +238,29 @@ class ProjectionState {
                 payload['end_date'],
                 envelope.occurredAt,
               ),
+            );
+          }
+          break;
+        case 'medication_schedule_updated':
+          final scheduleId = payload['schedule_id']! as String;
+          final existing = schedulesById[scheduleId];
+          if (existing != null) {
+            schedulesById[scheduleId] = existing.copyWith(
+              doseAmount: payload['dose_amount'] as String?,
+              doseUnit: payload['dose_unit'] as String?,
+              endDate: _tryParseDate(payload['end_date']),
+              medicationName:
+                  payload['medication_name'] as String? ??
+                  existing.medicationName,
+              notes: payload['notes'] as String?,
+              route: payload['route'] as String?,
+              startDate: _parseDateOrFallback(
+                payload['start_date'],
+                envelope.occurredAt,
+              ),
+              times: ((payload['times'] ?? const <Object?>[]) as List<Object?>)
+                  .whereType<String>()
+                  .toList(),
             );
           }
           break;

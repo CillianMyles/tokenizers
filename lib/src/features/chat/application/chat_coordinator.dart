@@ -4,6 +4,7 @@ import 'package:tokenizers/src/core/domain/event_envelope.dart';
 import 'package:tokenizers/src/core/model/model_provider.dart';
 import 'package:tokenizers/src/core/model/model_response_contract.dart';
 import 'package:tokenizers/src/features/calendar/application/medication_repository.dart';
+import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
 import 'package:tokenizers/src/features/chat/application/conversation_repository.dart';
 import 'package:tokenizers/src/features/chat/domain/conversation_models.dart';
 import 'package:tokenizers/src/features/proposals/domain/proposal_models.dart';
@@ -55,14 +56,22 @@ class ChatCoordinator {
   }
 
   /// Confirms the current pending proposal and emits medication events.
-  Future<void> confirmPendingProposal(String threadId) async {
+  Future<void> confirmPendingProposal(
+    String threadId, {
+    List<ProposalActionView>? editedActions,
+  }) async {
     final proposal = await _conversationRepository.getPendingProposal(threadId);
-    if (proposal == null || !proposal.isConfirmable) {
+    final confirmedActions = editedActions ?? proposal?.actions;
+    if (proposal == null ||
+        confirmedActions == null ||
+        confirmedActions.isEmpty ||
+        !_canConfirmActions(confirmedActions)) {
       return;
     }
 
     final occurredAt = DateTime.now();
     final correlationId = _id('corr');
+    final activeSchedules = await _medicationRepository.getActiveSchedules();
     final events = <EventEnvelope<DomainEvent>>[
       EventEnvelope<DomainEvent>(
         eventId: _id('event'),
@@ -73,6 +82,10 @@ class ChatCoordinator {
         event: DomainEvent(
           type: 'proposal_confirmed',
           payload: <String, Object?>{
+            'accepted_actions': confirmedActions
+                .map(_proposalActionToJson)
+                .toList(),
+            'accepted_summary': _summarizeConfirmedActions(confirmedActions),
             'proposal_id': proposal.proposalId,
             'thread_id': threadId,
           },
@@ -81,41 +94,85 @@ class ChatCoordinator {
       ),
     ];
 
-    for (final action in proposal.actions) {
+    for (final action in confirmedActions) {
       switch (action.type) {
         case ProposalActionType.addMedicationSchedule:
-          final medicationId = _id('medication');
-          final scheduleId = _id('schedule');
-          events.addAll(<EventEnvelope<DomainEvent>>[
-            EventEnvelope<DomainEvent>(
-              eventId: _id('event'),
-              aggregateType: 'medication',
-              aggregateId: medicationId,
-              actorType: EventActorType.user,
-              correlationId: correlationId,
+          events.addAll(
+            _addScheduleEvents(
+              action: action,
               causationId: proposal.proposalId,
-              event: DomainEvent(
-                type: 'medication_registered',
-                payload: <String, Object?>{
-                  'medication_id': medicationId,
-                  'medication_name': action.medicationName,
-                },
-              ),
+              correlationId: correlationId,
+              occurredAt: occurredAt,
+              sourceProposalId: proposal.proposalId,
+              threadId: threadId,
+            ),
+          );
+          break;
+        case ProposalActionType.stopMedicationSchedule:
+          final targetSchedule = _findSchedule(
+            activeSchedules,
+            action.targetScheduleId,
+          );
+          if (targetSchedule == null) {
+            continue;
+          }
+          events.addAll(
+            _removeScheduleEvents(
+              existingSchedule: targetSchedule,
+              causationId: proposal.proposalId,
+              correlationId: correlationId,
+              endDate: action.startDate ?? occurredAt,
               occurredAt: occurredAt,
             ),
+          );
+          break;
+        case ProposalActionType.requestMissingInfo:
+          break;
+        case ProposalActionType.updateMedicationSchedule:
+          final targetSchedule = _findSchedule(
+            activeSchedules,
+            action.targetScheduleId,
+          );
+          if (targetSchedule == null) {
+            continue;
+          }
+          if ((action.medicationName ?? '').trim() !=
+              targetSchedule.medicationName.trim()) {
+            events.addAll(
+              _removeScheduleEvents(
+                existingSchedule: targetSchedule,
+                causationId: proposal.proposalId,
+                correlationId: correlationId,
+                endDate: action.startDate ?? occurredAt,
+                occurredAt: occurredAt,
+              ),
+            );
+            events.addAll(
+              _addScheduleEvents(
+                action: action,
+                causationId: proposal.proposalId,
+                correlationId: correlationId,
+                occurredAt: occurredAt,
+                sourceProposalId: proposal.proposalId,
+                threadId: targetSchedule.threadId ?? threadId,
+              ),
+            );
+            continue;
+          }
+          events.add(
             EventEnvelope<DomainEvent>(
               eventId: _id('event'),
               aggregateType: 'medication',
-              aggregateId: scheduleId,
+              aggregateId: targetSchedule.scheduleId,
               actorType: EventActorType.user,
               correlationId: correlationId,
               causationId: proposal.proposalId,
               event: DomainEvent(
-                type: 'medication_schedule_added',
+                type: 'medication_schedule_updated',
                 payload: <String, Object?>{
-                  'schedule_id': scheduleId,
-                  'medication_id': medicationId,
-                  'medication_name': action.medicationName,
+                  'schedule_id': targetSchedule.scheduleId,
+                  'medication_name':
+                      action.medicationName ?? targetSchedule.medicationName,
                   'dose_amount': action.doseAmount,
                   'dose_unit': action.doseUnit,
                   'end_date': _date(action.endDate),
@@ -123,39 +180,13 @@ class ChatCoordinator {
                   'route': action.route,
                   'source_proposal_id': proposal.proposalId,
                   'start_date': _date(action.startDate ?? occurredAt),
-                  'thread_id': threadId,
+                  'thread_id': targetSchedule.threadId ?? threadId,
                   'times': action.times,
                 },
               ),
               occurredAt: occurredAt,
             ),
-          ]);
-          break;
-        case ProposalActionType.stopMedicationSchedule:
-          if (action.targetScheduleId == null) {
-            continue;
-          }
-          events.add(
-            EventEnvelope<DomainEvent>(
-              eventId: _id('event'),
-              aggregateType: 'medication',
-              aggregateId: action.targetScheduleId!,
-              actorType: EventActorType.user,
-              correlationId: correlationId,
-              causationId: proposal.proposalId,
-              event: DomainEvent(
-                type: 'medication_schedule_stopped',
-                payload: <String, Object?>{
-                  'schedule_id': action.targetScheduleId,
-                  'end_date': _date(action.startDate ?? occurredAt),
-                },
-              ),
-              occurredAt: occurredAt,
-            ),
           );
-          break;
-        case ProposalActionType.requestMissingInfo:
-        case ProposalActionType.updateMedicationSchedule:
           break;
       }
     }
@@ -327,6 +358,141 @@ class ChatCoordinator {
     };
   }
 
+  List<EventEnvelope<DomainEvent>> _addScheduleEvents({
+    required ProposalActionView action,
+    required String causationId,
+    required String correlationId,
+    required DateTime occurredAt,
+    required String sourceProposalId,
+    required String threadId,
+  }) {
+    final medicationId = _id('medication');
+    final scheduleId = _id('schedule');
+    return <EventEnvelope<DomainEvent>>[
+      EventEnvelope<DomainEvent>(
+        eventId: _id('event'),
+        aggregateType: 'medication',
+        aggregateId: medicationId,
+        actorType: EventActorType.user,
+        correlationId: correlationId,
+        causationId: causationId,
+        event: DomainEvent(
+          type: 'medication_registered',
+          payload: <String, Object?>{
+            'medication_id': medicationId,
+            'medication_name': action.medicationName,
+          },
+        ),
+        occurredAt: occurredAt,
+      ),
+      EventEnvelope<DomainEvent>(
+        eventId: _id('event'),
+        aggregateType: 'medication',
+        aggregateId: scheduleId,
+        actorType: EventActorType.user,
+        correlationId: correlationId,
+        causationId: causationId,
+        event: DomainEvent(
+          type: 'medication_schedule_added',
+          payload: <String, Object?>{
+            'schedule_id': scheduleId,
+            'medication_id': medicationId,
+            'medication_name': action.medicationName,
+            'dose_amount': action.doseAmount,
+            'dose_unit': action.doseUnit,
+            'end_date': _date(action.endDate),
+            'notes': action.notes,
+            'route': action.route,
+            'source_proposal_id': sourceProposalId,
+            'start_date': _date(action.startDate ?? occurredAt),
+            'thread_id': threadId,
+            'times': action.times,
+          },
+        ),
+        occurredAt: occurredAt,
+      ),
+    ];
+  }
+
+  bool _canConfirmActions(List<ProposalActionView> actions) {
+    return actions.every((action) {
+      return action.type != ProposalActionType.requestMissingInfo &&
+          _draftFromAction(action).isValid;
+    });
+  }
+
+  MedicationScheduleDraft _draftFromAction(ProposalActionView action) {
+    return MedicationScheduleDraft(
+      doseAmount: action.doseAmount,
+      doseUnit: action.doseUnit,
+      endDate: action.endDate,
+      medicationName: action.medicationName ?? '',
+      notes: action.notes,
+      route: action.route,
+      startDate: action.startDate ?? DateTime.now(),
+      times: action.times,
+    );
+  }
+
+  MedicationScheduleView? _findSchedule(
+    List<MedicationScheduleView> schedules,
+    String? scheduleId,
+  ) {
+    if (scheduleId == null) {
+      return null;
+    }
+    for (final schedule in schedules) {
+      if (schedule.scheduleId == scheduleId) {
+        return schedule;
+      }
+    }
+    return null;
+  }
+
+  Map<String, Object?> _proposalActionToJson(ProposalActionView action) {
+    return <String, Object?>{
+      'action_id': action.actionId,
+      'dose_amount': action.doseAmount,
+      'dose_unit': action.doseUnit,
+      'end_date': _date(action.endDate),
+      'medication_name': action.medicationName,
+      'missing_fields': action.missingFields,
+      'notes': action.notes,
+      'route': action.route,
+      'start_date': _date(action.startDate),
+      'target_schedule_id': action.targetScheduleId,
+      'times': action.times,
+      'type': action.type.wireValue,
+    };
+  }
+
+  List<EventEnvelope<DomainEvent>> _removeScheduleEvents({
+    required MedicationScheduleView existingSchedule,
+    required String causationId,
+    required String correlationId,
+    required DateTime endDate,
+    required DateTime occurredAt,
+  }) {
+    return <EventEnvelope<DomainEvent>>[
+      EventEnvelope<DomainEvent>(
+        eventId: _id('event'),
+        aggregateType: 'medication',
+        aggregateId: existingSchedule.scheduleId,
+        actorType: EventActorType.user,
+        correlationId: correlationId,
+        causationId: causationId,
+        event: DomainEvent(
+          type: 'medication_schedule_stopped',
+          payload: <String, Object?>{
+            'schedule_id': existingSchedule.scheduleId,
+            'end_date': _date(endDate),
+          },
+        ),
+        occurredAt: occurredAt,
+      ),
+    ];
+  }
+
   String _date(DateTime? dateTime) {
     if (dateTime == null) {
       return '';
@@ -349,6 +515,21 @@ class ChatCoordinator {
       ModelProposalActionType.stopMedicationSchedule =>
         'Stop ${first.medicationName ?? 'the active medication schedule'}.',
       ModelProposalActionType.updateMedicationSchedule =>
+        'Update ${first.medicationName ?? 'the medication schedule'}.',
+    };
+  }
+
+  String _summarizeConfirmedActions(List<ProposalActionView> actions) {
+    final first = actions.first;
+    return switch (first.type) {
+      ProposalActionType.addMedicationSchedule =>
+        'Add ${first.medicationName} ${first.doseAmount ?? ''} ${first.doseUnit ?? ''}'
+            .trim(),
+      ProposalActionType.requestMissingInfo =>
+        'Request missing information before a schedule can be created.',
+      ProposalActionType.stopMedicationSchedule =>
+        'Stop ${first.medicationName ?? 'the active medication schedule'}.',
+      ProposalActionType.updateMedicationSchedule =>
         'Update ${first.medicationName ?? 'the medication schedule'}.',
     };
   }

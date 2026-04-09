@@ -10,6 +10,7 @@ import 'package:tokenizers/src/data/app_database.dart';
 import 'package:tokenizers/src/data/drift_event_store.dart';
 import 'package:tokenizers/src/data/drift_workspace.dart';
 import 'package:tokenizers/src/data/gemini_model_provider.dart';
+import 'package:tokenizers/src/features/calendar/application/medication_command_service.dart';
 import 'package:tokenizers/src/features/calendar/application/medication_repository.dart';
 import 'package:tokenizers/src/features/chat/application/chat_coordinator.dart';
 import 'package:tokenizers/src/features/chat/application/conversation_repository.dart';
@@ -23,6 +24,7 @@ class AppBootstrap {
     required this.configurationError,
     required this.conversationRepository,
     required this.eventStore,
+    required this.medicationCommandService,
     required this.medicationRepository,
     required this.modelProvider,
     required this.projectionRunner,
@@ -33,6 +35,7 @@ class AppBootstrap {
   final String? configurationError;
   final ConversationRepository conversationRepository;
   final EventStore eventStore;
+  final MedicationCommandService medicationCommandService;
   final MedicationRepository medicationRepository;
   final ModelProvider modelProvider;
   final ProjectionRunner projectionRunner;
@@ -47,6 +50,9 @@ Future<AppBootstrap> createDemoAppBootstrap() async {
 
   final database = AppDatabase();
   final eventStore = DriftEventStore(database: database);
+  final medicationCommandService = MedicationCommandService(
+    eventStore: eventStore,
+  );
   final workspace = DriftWorkspace(database: database, eventStore: eventStore);
   await _seedIfNeeded(eventStore);
   await workspace.rebuild();
@@ -62,6 +68,7 @@ Future<AppBootstrap> createDemoAppBootstrap() async {
     configurationError: configurationError,
     conversationRepository: workspace,
     eventStore: eventStore,
+    medicationCommandService: medicationCommandService,
     medicationRepository: workspace,
     modelProvider: modelProvider,
     projectionRunner: workspace,

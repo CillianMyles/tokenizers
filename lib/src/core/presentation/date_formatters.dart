@@ -36,6 +36,12 @@ String formatTime(DateTime dateTime) {
   return '$hour:$minute';
 }
 
+/// Formats a date as `Apr 5, 2026`.
+String formatShortDate(DateTime date) {
+  return '${_monthNames[date.month - 1].substring(0, 3)} ${date.day}, '
+      '${date.year}';
+}
+
 /// Formats a date and time for compact history display.
 String formatDayAndTime(DateTime dateTime) {
   return '${formatLongDate(dateTime)} • ${formatTime(dateTime)}';
