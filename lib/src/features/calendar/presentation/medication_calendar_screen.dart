@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tokenizers/src/app/app_scope.dart';
-import 'package:tokenizers/src/core/domain/domain_event.dart';
+import 'package:tokenizers/src/core/domain/event_envelope.dart';
 import 'package:tokenizers/src/core/presentation/date_formatters.dart';
 import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
 import 'package:tokenizers/src/features/calendar/presentation/medication_schedule_editor.dart';
