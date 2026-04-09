@@ -1,31 +1,59 @@
 # Tokenizers
 
-Tokenizers is a Flutter application exploring reliable, offline-first
-medication capture.
+Tokenizers is a Flutter medication tracker with a local event-sourced data
+model, an assistant-driven schedule workflow, and explicit review before any
+assistant-proposed medication change is applied.
 
-The current codebase is implementing the v0 architecture in
-[docs/plans/v0.md](docs/plans/v0.md): a chat-first app shell with explicit
-proposal review, confirmation-gated medication changes, and an event-sourced
-local data model.
+Fresh installs start empty. There is no bootstrap seed data or demo account.
 
-## Current Status
+## Product Shape
 
-- Routed app shell with `Home`, `Calendar`, and `History` surfaces
-- Pure-Dart event and proposal types for the v0 workflow
-- Drift-backed `event_log` plus projection tables across native and web
-- Gemini-backed `ModelProvider` available in the new shell when
-  `GEMINI_API_KEY` is configured in a local `.env`
-- Mobile-first draft review launched from the chat composer instead of a
-  disconnected side panel
-- Direct manual medication add, edit, and remove flows in the calendar screen
-- Day-grouped activity history built from the event log
-- Medication taken events recorded from the daily schedule view
-- Home reminders derived from today's confirmed medication schedule
-- Direct "I took it" style Home chat logging for explicit adherence updates
-- Unit tests covering projection rebuilds and chat command orchestration
-- GitHub Actions CI running format, analyze, and test checks on pushes and PRs
-- Pending proposals remain separate from confirmed medication schedules
-- Confirmed schedules project into a day-based medication calendar
+The app currently has four top-level surfaces:
+
+- `Today`
+  - upcoming, due-now, overdue, and taken reminders for the selected day
+  - pending review card when the assistant has prepared a draft
+- `Assistant`
+  - chat-first interface for proposing medication changes
+  - pending draft review launched from the conversation area
+- `Calendar`
+  - direct manual add, edit, and remove for confirmed medication schedules
+  - per-time dosing support, including different doses at different times of day
+  - explicit "mark taken" flow with scheduled time and actual taken time
+- `History`
+  - day-grouped activity feed built from the event log
+  - adherence items can be corrected by tapping the entry and editing the taken time
+
+## Core Workflow
+
+There are two ways to change medication state:
+
+1. Manual calendar edits
+   - add, edit, or remove confirmed schedules directly
+2. Assistant proposals
+   - ask for a change in natural language
+   - review the generated draft
+   - confirm it before the change affects confirmed schedules
+
+Adherence is tracked separately from schedule editing:
+
+- you can mark a scheduled dose as taken from `Today` or `Calendar`
+- you can choose both the scheduled dose being completed and the actual taken time
+- history keeps the latest correction for a dose while preserving the audit trail in events
+
+## Architecture
+
+The app uses a local event log as the source of truth.
+
+- events are appended to a Drift-backed store
+- projections build the read models used by `Today`, `Assistant`, `Calendar`, and `History`
+- assistant-generated drafts stay separate from confirmed schedules until explicit confirmation
+- history is derived from events, but filtered to read like a user-facing activity feed rather than a raw event trace
+
+Relevant planning docs:
+
+- [docs/plans/v0.md](docs/plans/v0.md)
+- [docs/plans/v1.md](docs/plans/v1.md)
 
 ## Project Structure
 
@@ -35,64 +63,75 @@ lib/
 ├── env/
 │   └── env.dart
 └── src/
-    ├── app/                       # App shell, routing, theme, scope
-    ├── bootstrap/                 # Service/bootstrap wiring
-    ├── core/                      # Shared event and model contracts
-    ├── data/                      # Drift persistence, projections, providers
+    ├── app/                       # Shell, router, theme, scope
+    ├── bootstrap/                 # App bootstrap wiring
+    ├── core/                      # Shared contracts and utilities
+    ├── data/                      # Drift persistence, projections, model providers
     └── features/
+        ├── assistant/
         ├── calendar/
         ├── chat/
         ├── history/
-        └── proposals/
+        ├── home/
+        ├── proposals/
+        └── today/
 ```
 
-## Running the App
+## Getting Started
+
+Install dependencies:
+
+```bash
+flutter pub get
+```
+
+Create a local environment file:
+
+```bash
+cp .env.example .env
+```
+
+Set:
+
+```bash
+GEMINI_API_KEY=your_key_here
+```
+
+Run the app:
+
+```bash
+flutter run -d ios
+```
+
+Or:
 
 ```bash
 flutter run -d chrome
 ```
 
-The current default experience is a Gemini-backed medication capture flow.
-Type a medication change in Home chat, tap the pending draft above the
-composer, edit it if needed, and accept it to project the schedule into the
-calendar.
+If `GEMINI_API_KEY` is missing, the assistant remains visible but live
+assistant submission is disabled. Manual calendar and adherence flows still
+work.
 
-Confirmed schedules can also be managed directly from the calendar screen
-without going through chat.
+## Local Data
 
-The Home surface also shows reminder cards for today's doses and can record
-explicit adherence messages such as `I took vitamin D at 9:05` directly into
-the event log without mutating pending drafts.
+All app data is stored locally.
 
-The History tab now shows a day-grouped event timeline across assistant,
-proposal, medication, and adherence activity.
-
-The event log and read models are stored locally in SQLite via Drift on native
-platforms and on the web via the bundled Drift worker + `sqlite3.wasm` assets.
-
-## Environment
-
-Each developer should keep their own Gemini key in a local `.env` file that is
-ignored by git.
-
-1. Copy `.env.example` to `.env`.
-2. Set `GEMINI_API_KEY=your_key_here`.
-
-When `GEMINI_API_KEY` is present, the new v0 shell uses the live
-`GeminiModelProvider`.
-
-Without the key, the app now shows a configuration error banner and disables
-medication submission instead of falling back to a local demo model.
-
-The `.env` file is bundled as a local Flutter asset for your machine at build
-time, so no extra launch-time configuration flag is required.
+- native platforms use Drift on SQLite
+- web uses Drift with the bundled SQLite worker/wasm assets
+- installs are no longer pre-seeded with sample medications, chat messages, or history
 
 ## Development
 
-Format and analyze:
+Format:
 
 ```bash
 dart format .
+```
+
+Analyze:
+
+```bash
 flutter analyze
 ```
 
@@ -102,24 +141,20 @@ Run tests:
 flutter test
 ```
 
-Regenerate Drift code after changing the database schema:
+Regenerate generated database code after schema changes:
 
 ```bash
 dart run build_runner build --delete-conflicting-outputs
 ```
 
-Regenerate AI tool rules and then reapply the Codex Flutter MCP approval block:
+Regenerate repo rules:
 
 ```bash
 make rules-generate
 ```
 
-## Next Steps
+## Current Focus
 
-1. Add widget and integration coverage for the new draft editor and manual
-   medication flows.
-2. Add reminder scheduling and delivery events on top of the current
-   reminder-card and adherence model.
-3. Turn the visible photo and voice affordances into full event-sourced input
-   pipelines.
-4. Add explicit maintenance docs for the bundled web Drift worker assets.
+- tighten temporal modeling around scheduled, taken, and recorded times
+- keep history readable while preserving a correct event log
+- improve assistant/media input flows without bypassing review
