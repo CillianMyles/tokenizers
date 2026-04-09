@@ -163,6 +163,9 @@ class _HistoryEventCard extends StatelessWidget {
     final entries = await bootstrap.medicationRepository
         .watchCalendarEntriesForDay(action.scheduledFor)
         .first;
+    if (!context.mounted) {
+      return;
+    }
     final matchingEntries = entries
         .where((entry) {
           return entry.scheduleId == action.scheduleId;

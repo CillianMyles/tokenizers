@@ -1,6 +1,6 @@
-import 'package:tokenizers/src/core/domain/medication_dose_schedule.dart';
 import 'package:tokenizers/src/core/domain/domain_event.dart';
 import 'package:tokenizers/src/core/domain/event_envelope.dart';
+import 'package:tokenizers/src/core/domain/medication_dose_schedule.dart';
 import 'package:tokenizers/src/core/presentation/date_formatters.dart';
 
 /// The high-level category for an activity timeline item.

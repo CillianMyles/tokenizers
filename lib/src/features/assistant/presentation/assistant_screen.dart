@@ -134,6 +134,9 @@ class _AssistantScreenState extends State<AssistantScreen> {
   }) async {
     final activeSchedules = await bootstrap.medicationRepository
         .getActiveSchedules();
+    if (!context.mounted) {
+      return;
+    }
     return showProposalDraftEditor(
       activeSchedules: activeSchedules,
       context: context,

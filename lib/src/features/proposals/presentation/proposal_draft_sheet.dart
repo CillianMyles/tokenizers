@@ -307,9 +307,10 @@ class _ProposalDraftEditorSurfaceState
                                 _isSubmitting = true;
                               });
                               await widget.onCancelProposal();
-                              if (mounted) {
-                                Navigator.of(context).pop();
+                              if (!mounted) {
+                                return;
                               }
+                              Navigator.of(this.context).pop();
                             },
                       child: const Text('Cancel Proposal'),
                     ),

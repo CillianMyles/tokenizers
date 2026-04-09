@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-
 import 'package:tokenizers/src/app/app_scope.dart';
 import 'package:tokenizers/src/core/domain/domain_event.dart';
 import 'package:tokenizers/src/core/domain/event_envelope.dart';
 import 'package:tokenizers/src/core/presentation/date_formatters.dart';
 import 'package:tokenizers/src/core/presentation/expandable_text.dart';
 import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
+import 'package:tokenizers/src/features/calendar/presentation/medication_taken_editor.dart';
 import 'package:tokenizers/src/features/history/domain/history_timeline_models.dart';
 import 'package:tokenizers/src/features/home/domain/medication_reminder_models.dart';
 import 'package:tokenizers/src/features/proposals/domain/proposal_models.dart';
 import 'package:tokenizers/src/features/proposals/presentation/proposal_draft_sheet.dart';
-import 'package:tokenizers/src/features/calendar/presentation/medication_taken_editor.dart';
 
 /// Operational dashboard for today's activity and next actions.
 class TodayScreen extends StatelessWidget {
@@ -112,27 +111,29 @@ class TodayScreen extends StatelessWidget {
                           if (proposal != null) ...<Widget>[
                             const SizedBox(height: 16),
                             _PendingReviewCard(
-                              onReviewProposal: () {
-                                return bootstrap.medicationRepository
-                                    .getActiveSchedules()
-                                    .then((activeSchedules) {
-                                      return showProposalDraftEditor(
-                                        activeSchedules: activeSchedules,
-                                        context: context,
-                                        onCancelProposal: () {
-                                          return bootstrap.chatCoordinator
-                                              .cancelPendingProposal(threadId);
-                                        },
-                                        onConfirmProposal: (actions) {
-                                          return bootstrap.chatCoordinator
-                                              .confirmPendingProposal(
-                                                threadId,
-                                                editedActions: actions,
-                                              );
-                                        },
-                                        proposal: proposal,
-                                      );
-                                    });
+                              onReviewProposal: () async {
+                                final activeSchedules = await bootstrap
+                                    .medicationRepository
+                                    .getActiveSchedules();
+                                if (!context.mounted) {
+                                  return;
+                                }
+                                return showProposalDraftEditor(
+                                  activeSchedules: activeSchedules,
+                                  context: context,
+                                  onCancelProposal: () {
+                                    return bootstrap.chatCoordinator
+                                        .cancelPendingProposal(threadId);
+                                  },
+                                  onConfirmProposal: (actions) {
+                                    return bootstrap.chatCoordinator
+                                        .confirmPendingProposal(
+                                          threadId,
+                                          editedActions: actions,
+                                        );
+                                  },
+                                  proposal: proposal,
+                                );
                               },
                               proposal: proposal,
                             ),

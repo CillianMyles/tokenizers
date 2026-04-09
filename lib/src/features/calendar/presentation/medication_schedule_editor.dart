@@ -352,6 +352,9 @@ class _MedicationScheduleDraftFormSectionState
     if (selectedTime == null) {
       return;
     }
+    if (!context.mounted) {
+      return;
+    }
     final formatted = _formatTimeOfDay(selectedTime);
     if (_hasTimeConflict(formatted)) {
       _showDuplicateTimeMessage(context);
@@ -444,6 +447,9 @@ class _MedicationScheduleDraftFormSectionState
       ),
     );
     if (selectedTime == null) {
+      return;
+    }
+    if (!context.mounted) {
       return;
     }
     final formatted = _formatTimeOfDay(selectedTime);

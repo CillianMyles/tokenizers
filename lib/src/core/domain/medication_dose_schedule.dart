@@ -94,9 +94,9 @@ List<MedicationDoseScheduleEntry> medicationDoseScheduleFromJsonList(
   List<String> fallbackTimes = const <String>[],
 }) {
   final entries = <MedicationDoseScheduleEntry>[];
-  if (raw case List<Object?> values) {
+  if (raw case final List<Object?> values) {
     for (final value in values) {
-      if (value case String time) {
+      if (value case final String time) {
         entries.add(
           MedicationDoseScheduleEntry(
             doseAmount: fallbackDoseAmount,
@@ -106,7 +106,7 @@ List<MedicationDoseScheduleEntry> medicationDoseScheduleFromJsonList(
         );
         continue;
       }
-      if (value case Map<Object?, Object?> json) {
+      if (value case final Map<Object?, Object?> json) {
         final typed = json.cast<String, Object?>();
         final time = typed['time'] as String?;
         if (time == null || time.isEmpty) {
