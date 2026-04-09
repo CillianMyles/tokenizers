@@ -37,19 +37,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 760),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(
-                'Assistant',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Ask for schedule changes, review drafts, and confirm updates '
-                'from one conversation.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 16),
               Expanded(
                 child: _AssistantConversationPane(
                   onCancelProposal: () {
@@ -68,7 +56,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
                   threadId: threadId,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               _AssistantComposer(
                 controller: _composerController,
                 isSubmitting: _isSubmitting,
@@ -149,60 +137,50 @@ class _AssistantConversationPane extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bootstrap = AppScope.of(context);
-    final colorScheme = Theme.of(context).colorScheme;
+    return StreamBuilder<ProposalView?>(
+      stream: bootstrap.conversationRepository.watchPendingProposal(threadId),
+      builder: (context, proposalSnapshot) {
+        final proposal = proposalSnapshot.data;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border.all(color: colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(28),
-      ),
-      child: StreamBuilder<ProposalView?>(
-        stream: bootstrap.conversationRepository.watchPendingProposal(threadId),
-        builder: (context, proposalSnapshot) {
-          final proposal = proposalSnapshot.data;
+        return StreamBuilder<List<ConversationMessageView>>(
+          stream: bootstrap.conversationRepository.watchMessages(threadId),
+          builder: (context, snapshot) {
+            final messages = snapshot.data ?? const <ConversationMessageView>[];
+            final hasContent = proposal != null || messages.isNotEmpty;
 
-          return StreamBuilder<List<ConversationMessageView>>(
-            stream: bootstrap.conversationRepository.watchMessages(threadId),
-            builder: (context, snapshot) {
-              final messages =
-                  snapshot.data ?? const <ConversationMessageView>[];
-              final hasContent = proposal != null || messages.isNotEmpty;
+            if (!hasContent) {
+              return const _EmptyAssistantState();
+            }
 
-              if (!hasContent) {
-                return const _EmptyAssistantState();
-              }
-
-              return ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: messages.length + (proposal == null ? 0 : 1),
-                itemBuilder: (context, index) {
-                  if (proposal != null && index == 0) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: _PendingProposalBanner(
-                        onCancelProposal: onCancelProposal,
-                        onReviewProposal: () => onReviewProposal(proposal),
-                        proposal: proposal,
-                      ),
-                    );
-                  }
-
-                  final messageIndex = proposal == null ? index : index - 1;
-                  final message = messages[messageIndex];
-                  final isLast =
-                      index == messages.length - 1 + (proposal == null ? 0 : 1);
-
+            return ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemCount: messages.length + (proposal == null ? 0 : 1),
+              itemBuilder: (context, index) {
+                if (proposal != null && index == 0) {
                   return Padding(
-                    padding: EdgeInsets.only(bottom: isLast ? 0 : 14),
-                    child: _ConversationBubble(message: message),
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: _PendingProposalBanner(
+                      onCancelProposal: onCancelProposal,
+                      onReviewProposal: () => onReviewProposal(proposal),
+                      proposal: proposal,
+                    ),
                   );
-                },
-              );
-            },
-          );
-        },
-      ),
+                }
+
+                final messageIndex = proposal == null ? index : index - 1;
+                final message = messages[messageIndex];
+                final isLast =
+                    index == messages.length - 1 + (proposal == null ? 0 : 1);
+
+                return Padding(
+                  padding: EdgeInsets.only(bottom: isLast ? 0 : 14),
+                  child: _ConversationBubble(message: message),
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -221,82 +199,195 @@ class _AssistantComposer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final configurationError = AppScope.of(context).configurationError;
+    final colorScheme = Theme.of(context).colorScheme;
     final suggestions = <String>[
       'Add amoxicillin 500 mg at 8am and 8pm',
       'Stop metformin',
       'Add vitamin D 1000 IU at 9am',
     ];
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: suggestions
-                    .map((suggestion) {
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: ActionChip(
-                          label: Text(suggestion),
-                          onPressed: () {
-                            controller.text = suggestion;
-                            controller.selection = TextSelection.fromPosition(
-                              TextPosition(offset: controller.text.length),
-                            );
-                          },
-                        ),
-                      );
-                    })
-                    .toList(growable: false),
-              ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: suggestions
+                  .map((suggestion) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ActionChip(
+                        label: Text(suggestion),
+                        onPressed: () {
+                          controller.text = suggestion;
+                          controller.selection = TextSelection.fromPosition(
+                            TextPosition(offset: controller.text.length),
+                          );
+                        },
+                      ),
+                    );
+                  })
+                  .toList(growable: false),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              enabled: !isSubmitting && configurationError == null,
-              minLines: 1,
-              maxLines: 5,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => onSend(),
-              decoration: InputDecoration(
-                hintText: configurationError == null
-                    ? 'Describe a medication change...'
-                    : 'Add GEMINI_API_KEY to .env before sending updates.',
-                suffixIcon: Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilledButton(
-                    onPressed: isSubmitting || configurationError != null
-                        ? null
-                        : onSend,
-                    child: isSubmitting
-                        ? const SizedBox.square(
-                            dimension: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.send),
+          ),
+          const SizedBox(height: 10),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller,
+            builder: (context, value, child) {
+              final hasText = value.text.trim().isNotEmpty;
+              return TextField(
+                controller: controller,
+                enabled: !isSubmitting && configurationError == null,
+                minLines: 1,
+                maxLines: 5,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) {
+                  if (hasText) {
+                    onSend();
+                  }
+                },
+                decoration: InputDecoration(
+                  hintText: configurationError == null
+                      ? 'Describe a medication change...'
+                      : 'Add GEMINI_API_KEY to .env before sending updates.',
+                  suffixIcon: Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 160),
+                      child: isSubmitting
+                          ? const SizedBox.square(
+                              key: ValueKey('sending'),
+                              dimension: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : hasText
+                          ? IconButton(
+                              key: const ValueKey('send'),
+                              onPressed: configurationError != null
+                                  ? null
+                                  : onSend,
+                              style: IconButton.styleFrom(
+                                backgroundColor: colorScheme.primaryContainer,
+                                foregroundColor: colorScheme.primary,
+                                minimumSize: const Size.square(40),
+                                maximumSize: const Size.square(40),
+                                padding: EdgeInsets.zero,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              icon: const Icon(Icons.arrow_upward, size: 18),
+                            )
+                          : _ComposerActionMenu(
+                              key: const ValueKey('plus'),
+                              onSelected: (action) {
+                                final label = switch (action) {
+                                  _ComposerInputAction.recordAudio =>
+                                    'Record audio',
+                                  _ComposerInputAction.takePhoto =>
+                                    'Take photo',
+                                  _ComposerInputAction.chooseImage =>
+                                    'Choose image',
+                                  _ComposerInputAction.chooseFile =>
+                                    'Choose file',
+                                };
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('$label is not wired yet.'),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ),
+                  suffixIconConstraints: const BoxConstraints(
+                    minHeight: 44,
+                    minWidth: 52,
                   ),
                 ),
-                suffixIconConstraints: const BoxConstraints(
-                  minHeight: 48,
-                  minWidth: 72,
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              configurationError ??
-                  'The assistant drafts structured changes first. Nothing is '
-                      'applied until you review and confirm.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
+              );
+            },
+          ),
+        ],
       ),
+    );
+  }
+}
+
+enum _ComposerInputAction { recordAudio, takePhoto, chooseImage, chooseFile }
+
+class _ComposerActionMenu extends StatelessWidget {
+  const _ComposerActionMenu({required this.onSelected, super.key});
+
+  final ValueChanged<_ComposerInputAction> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return PopupMenuButton<_ComposerInputAction>(
+      tooltip: 'More input options',
+      onSelected: onSelected,
+      color: colorScheme.surface,
+      elevation: 6,
+      icon: Icon(Icons.add, size: 18, color: colorScheme.onSurfaceVariant),
+      style: IconButton.styleFrom(
+        backgroundColor: colorScheme.surfaceContainerHighest,
+        minimumSize: const Size.square(40),
+        maximumSize: const Size.square(40),
+        padding: EdgeInsets.zero,
+        visualDensity: VisualDensity.compact,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      itemBuilder: (context) => <PopupMenuEntry<_ComposerInputAction>>[
+        const PopupMenuItem<_ComposerInputAction>(
+          value: _ComposerInputAction.recordAudio,
+          child: _ComposerActionRow(
+            icon: Icons.mic_none_outlined,
+            label: 'Record audio',
+          ),
+        ),
+        const PopupMenuItem<_ComposerInputAction>(
+          value: _ComposerInputAction.takePhoto,
+          child: _ComposerActionRow(
+            icon: Icons.photo_camera_back_outlined,
+            label: 'Take photo',
+          ),
+        ),
+        const PopupMenuItem<_ComposerInputAction>(
+          value: _ComposerInputAction.chooseImage,
+          child: _ComposerActionRow(
+            icon: Icons.image_outlined,
+            label: 'Choose image',
+          ),
+        ),
+        const PopupMenuItem<_ComposerInputAction>(
+          value: _ComposerInputAction.chooseFile,
+          child: _ComposerActionRow(
+            icon: Icons.attach_file_outlined,
+            label: 'Choose file',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ComposerActionRow extends StatelessWidget {
+  const _ComposerActionRow({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        Icon(icon, size: 18),
+        const SizedBox(width: 12),
+        Text(label),
+      ],
     );
   }
 }
@@ -314,65 +405,56 @@ class _PendingProposalBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                Icon(Icons.fact_check_outlined, color: colorScheme.primary),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Pending draft ready to review',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              const Icon(Icons.fact_check_outlined),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Pending draft ready to review',
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
-                Chip(
-                  label: Text(
-                    '${proposal.actions.length} action'
-                    '${proposal.actions.length == 1 ? '' : 's'}',
-                  ),
+              ),
+              Chip(
+                label: Text(
+                  '${proposal.actions.length} action'
+                  '${proposal.actions.length == 1 ? '' : 's'}',
                 ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              proposal.summary,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              proposal.assistantText,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: <Widget>[
-                FilledButton.icon(
-                  onPressed: onReviewProposal,
-                  icon: const Icon(Icons.visibility_outlined),
-                  label: const Text('Review draft'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: onCancelProposal,
-                  icon: const Icon(Icons.close),
-                  label: const Text('Discard'),
-                ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(proposal.summary, style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 8),
+          Text(
+            proposal.assistantText,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: <Widget>[
+              FilledButton.icon(
+                onPressed: onReviewProposal,
+                icon: const Icon(Icons.visibility_outlined),
+                label: const Text('Review draft'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onCancelProposal,
+                icon: const Icon(Icons.close),
+                label: const Text('Discard'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Divider(height: 24),
+        ],
       ),
     );
   }
