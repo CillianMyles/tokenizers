@@ -40,6 +40,12 @@ String formatMedicationDoseLabel(String? doseAmount, String? doseUnit) {
 /// Normalizes a time string into local `HH:mm` when possible.
 String normalizeMedicationTimeString(String raw) {
   final trimmed = raw.trim();
+  final timeOnlyMatch = RegExp(r'(?:^|T)(\d{1,2}):(\d{2})').firstMatch(trimmed);
+  if (timeOnlyMatch != null) {
+    final hour = timeOnlyMatch.group(1)!.padLeft(2, '0');
+    final minute = timeOnlyMatch.group(2)!;
+    return '$hour:$minute';
+  }
   final parsed = DateTime.tryParse(trimmed);
   if (parsed != null) {
     final hour = parsed.hour.toString().padLeft(2, '0');

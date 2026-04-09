@@ -53,14 +53,12 @@ class _EmptyHistoryState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            'No activity yet.',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(
+          'No activity yet.',
+          style: Theme.of(context).textTheme.titleMedium,
         ),
       ),
     );

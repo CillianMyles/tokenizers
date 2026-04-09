@@ -40,6 +40,45 @@ void main() {
       expect(groups.last.items.single.title, 'Message sent');
     });
 
+    test(
+      'prefers concrete medication changes ahead of proposal meta events',
+      () {
+        final groups = buildHistoryTimeline(<EventEnvelope<DomainEvent>>[
+          _event(
+            aggregateId: 'proposal-1',
+            eventId: 'event-1',
+            eventType: 'proposal_confirmed',
+            occurredAt: DateTime(2026, 4, 9, 23, 49),
+            payload: const <String, Object?>{
+              'proposal_id': 'proposal-1',
+              'thread_id': 'thread-1',
+            },
+          ),
+          _event(
+            aggregateId: 'schedule-1',
+            eventId: 'event-2',
+            eventType: 'medication_schedule_added',
+            occurredAt: DateTime(2026, 4, 9, 23, 49),
+            payload: const <String, Object?>{
+              'schedule_id': 'schedule-1',
+              'medication_name': 'Tacrolimus',
+              'dose_schedule': <Map<String, Object?>>[
+                <String, Object?>{
+                  'time': '07:00:00.000000000Z',
+                  'dose_amount': '1.2',
+                  'dose_unit': 'mg',
+                },
+              ],
+            },
+          ),
+        ]);
+
+        expect(groups.single.items.first.title, 'Tacrolimus added');
+        expect(groups.single.items.first.description, '07:00 • 1.2 mg');
+        expect(groups.single.items.last.title, 'Draft accepted');
+      },
+    );
+
     test('maps medication_taken as adherence activity', () {
       final item = historyTimelineItemFromEvent(
         _event(

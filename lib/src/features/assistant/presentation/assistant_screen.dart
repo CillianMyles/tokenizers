@@ -56,19 +56,6 @@ class _AssistantScreenState extends State<AssistantScreen> {
                         child: _AssistantConversationPane(
                           controller: _conversationScrollController,
                           messages: messages,
-                          onCancelProposal: () {
-                            return bootstrap.chatCoordinator
-                                .cancelPendingProposal(threadId);
-                          },
-                          onReviewProposal: (proposal) {
-                            return _openDraftEditor(
-                              context,
-                              bootstrap: bootstrap,
-                              proposal: proposal,
-                              threadId: threadId,
-                            );
-                          },
-                          proposal: proposal,
                         ),
                       ),
                       if (proposal != null) ...<Widget>[
@@ -191,20 +178,14 @@ class _AssistantConversationPane extends StatelessWidget {
   const _AssistantConversationPane({
     required this.controller,
     required this.messages,
-    required this.onCancelProposal,
-    required this.onReviewProposal,
-    required this.proposal,
   });
 
   final ScrollController controller;
   final List<ConversationMessageView> messages;
-  final Future<void> Function() onCancelProposal;
-  final Future<void> Function(ProposalView proposal) onReviewProposal;
-  final ProposalView? proposal;
 
   @override
   Widget build(BuildContext context) {
-    final hasContent = proposal != null || messages.isNotEmpty;
+    final hasContent = messages.isNotEmpty;
 
     if (!hasContent) {
       return const _EmptyAssistantState();
@@ -213,23 +194,10 @@ class _AssistantConversationPane extends StatelessWidget {
     return ListView.builder(
       controller: controller,
       padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: messages.length + (proposal == null ? 0 : 1),
+      itemCount: messages.length,
       itemBuilder: (context, index) {
-        if (proposal != null && index == 0) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: _PendingProposalBanner(
-              onCancelProposal: onCancelProposal,
-              onReviewProposal: () => onReviewProposal(proposal!),
-              proposal: proposal!,
-            ),
-          );
-        }
-
-        final messageIndex = proposal == null ? index : index - 1;
-        final message = messages[messageIndex];
-        final isLast =
-            index == messages.length - 1 + (proposal == null ? 0 : 1);
+        final message = messages[index];
+        final isLast = index == messages.length - 1;
 
         return Padding(
           padding: EdgeInsets.only(bottom: isLast ? 0 : 14),
@@ -257,10 +225,9 @@ class _AssistantComposer extends StatelessWidget {
   Widget build(BuildContext context) {
     final configurationError = AppScope.of(context).configurationError;
     final colorScheme = Theme.of(context).colorScheme;
-    final suggestions = <String>[
-      'Add amoxicillin 500 mg at 8am and 8pm',
-      'Stop metformin',
-      'Add vitamin D 1000 IU at 9am',
+    const suggestions = <({String label, String text})>[
+      (label: 'Vit D', text: 'Add vitamin D 1000 IU at 9am'),
+      (label: 'Amox', text: 'Add amoxicillin 500 mg at 8am and 8pm'),
     ];
 
     return Padding(
@@ -278,9 +245,9 @@ class _AssistantComposer extends StatelessWidget {
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: _SuggestionPromptChip(
-                          label: suggestion,
+                          label: suggestion.label,
                           onPressed: () {
-                            controller.text = suggestion;
+                            controller.text = suggestion.text;
                             controller.selection = TextSelection.fromPosition(
                               TextPosition(offset: controller.text.length),
                             );
@@ -472,79 +439,6 @@ class _ComposerActionRow extends StatelessWidget {
         const SizedBox(width: 12),
         Text(label),
       ],
-    );
-  }
-}
-
-class _PendingProposalBanner extends StatelessWidget {
-  const _PendingProposalBanner({
-    required this.onCancelProposal,
-    required this.onReviewProposal,
-    required this.proposal,
-  });
-
-  final Future<void> Function() onCancelProposal;
-  final Future<void> Function() onReviewProposal;
-  final ProposalView proposal;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              const Icon(Icons.fact_check_outlined),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Pending draft ready to review',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-              Chip(
-                label: Text(
-                  '${proposal.actions.length} action'
-                  '${proposal.actions.length == 1 ? '' : 's'}',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          ExpandableText(
-            proposal.summary,
-            maxLines: 3,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 8),
-          ExpandableText(
-            proposal.assistantText,
-            maxLines: 4,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: <Widget>[
-              FilledButton.icon(
-                onPressed: onReviewProposal,
-                icon: const Icon(Icons.visibility_outlined),
-                label: const Text('Review'),
-              ),
-              OutlinedButton.icon(
-                onPressed: onCancelProposal,
-                icon: const Icon(Icons.close),
-                label: const Text('Discard'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          const Divider(height: 24),
-        ],
-      ),
     );
   }
 }

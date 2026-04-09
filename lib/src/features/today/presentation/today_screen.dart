@@ -159,8 +159,6 @@ class TodayScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 16),
                           _RecentActivityCard(items: historyItems),
-                          const SizedBox(height: 16),
-                          const _QuickActionsCard(),
                         ],
                       );
                     },
@@ -494,55 +492,6 @@ class _PendingReviewCard extends StatelessWidget {
               onPressed: onReviewProposal,
               icon: const Icon(Icons.auto_awesome_outlined),
               label: const Text('Review draft'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _QuickActionsCard extends StatelessWidget {
-  const _QuickActionsCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              'Quick actions',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Jump straight into the part of the app you need next.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: <Widget>[
-                FilledButton.icon(
-                  onPressed: () => context.go('/assistant'),
-                  icon: const Icon(Icons.auto_awesome_outlined),
-                  label: const Text('Ask Assistant'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () => context.go('/calendar'),
-                  icon: const Icon(Icons.medication_outlined),
-                  label: const Text('Open Calendar'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () => context.go('/history'),
-                  icon: const Icon(Icons.history_outlined),
-                  label: const Text('View History'),
-                ),
-              ],
             ),
           ],
         ),

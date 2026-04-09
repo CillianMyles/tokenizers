@@ -56,7 +56,15 @@ List<HistoryTimelineDayGroup> buildHistoryTimeline(
           .map(historyTimelineItemFromEvent)
           .whereType<HistoryTimelineItem>()
           .toList()
-        ..sort((left, right) => right.occurredAt.compareTo(left.occurredAt));
+        ..sort((left, right) {
+          final timeCompare = right.occurredAt.compareTo(left.occurredAt);
+          if (timeCompare != 0) {
+            return timeCompare;
+          }
+          return _kindSortOrder(
+            left.kind,
+          ).compareTo(_kindSortOrder(right.kind));
+        });
 
   final groups = <HistoryTimelineDayGroup>[];
   for (final item in items) {
@@ -220,11 +228,16 @@ String _takenSummary(Map<String, Object?> payload) {
 }
 
 String _displayTime(String raw) {
-  final parsed = DateTime.tryParse(raw);
-  if (parsed == null) {
-    return raw;
-  }
-  final hour = parsed.hour.toString().padLeft(2, '0');
-  final minute = parsed.minute.toString().padLeft(2, '0');
-  return '$hour:$minute';
+  return normalizeMedicationTimeString(raw);
+}
+
+int _kindSortOrder(HistoryTimelineItemKind kind) {
+  return switch (kind) {
+    HistoryTimelineItemKind.medication => 0,
+    HistoryTimelineItemKind.adherence => 1,
+    HistoryTimelineItemKind.reminder => 2,
+    HistoryTimelineItemKind.proposal => 3,
+    HistoryTimelineItemKind.chat => 4,
+    HistoryTimelineItemKind.system => 5,
+  };
 }
