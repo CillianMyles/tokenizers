@@ -10,6 +10,7 @@ import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
 import 'package:tokenizers/src/features/history/domain/history_timeline_models.dart';
 import 'package:tokenizers/src/features/home/domain/medication_reminder_models.dart';
 import 'package:tokenizers/src/features/proposals/domain/proposal_models.dart';
+import 'package:tokenizers/src/features/proposals/presentation/proposal_draft_sheet.dart';
 
 /// Operational dashboard for today's activity and next actions.
 class TodayScreen extends StatelessWidget {
@@ -98,7 +99,31 @@ class TodayScreen extends StatelessWidget {
                           ),
                           if (proposal != null) ...<Widget>[
                             const SizedBox(height: 16),
-                            _PendingReviewCard(proposal: proposal),
+                            _PendingReviewCard(
+                              onReviewProposal: () {
+                                return bootstrap.medicationRepository
+                                    .getActiveSchedules()
+                                    .then((activeSchedules) {
+                                      return showProposalDraftEditor(
+                                        activeSchedules: activeSchedules,
+                                        context: context,
+                                        onCancelProposal: () {
+                                          return bootstrap.chatCoordinator
+                                              .cancelPendingProposal(threadId);
+                                        },
+                                        onConfirmProposal: (actions) {
+                                          return bootstrap.chatCoordinator
+                                              .confirmPendingProposal(
+                                                threadId,
+                                                editedActions: actions,
+                                              );
+                                        },
+                                        proposal: proposal,
+                                      );
+                                    });
+                              },
+                              proposal: proposal,
+                            ),
                           ],
                           const SizedBox(height: 16),
                           _ReminderSectionCard(
@@ -432,8 +457,12 @@ class _ReminderStatusBadge extends StatelessWidget {
 }
 
 class _PendingReviewCard extends StatelessWidget {
-  const _PendingReviewCard({required this.proposal});
+  const _PendingReviewCard({
+    required this.onReviewProposal,
+    required this.proposal,
+  });
 
+  final Future<void> Function() onReviewProposal;
   final ProposalView proposal;
 
   @override
@@ -462,9 +491,9 @@ class _PendingReviewCard extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             FilledButton.icon(
-              onPressed: () => context.go('/assistant'),
+              onPressed: onReviewProposal,
               icon: const Icon(Icons.auto_awesome_outlined),
-              label: const Text('Review in Assistant'),
+              label: const Text('Review draft'),
             ),
           ],
         ),

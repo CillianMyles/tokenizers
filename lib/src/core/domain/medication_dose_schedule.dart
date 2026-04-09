@@ -37,6 +37,18 @@ String formatMedicationDoseLabel(String? doseAmount, String? doseUnit) {
   return '$doseAmount $doseUnit';
 }
 
+/// Normalizes a time string into local `HH:mm` when possible.
+String normalizeMedicationTimeString(String raw) {
+  final trimmed = raw.trim();
+  final parsed = DateTime.tryParse(trimmed);
+  if (parsed != null) {
+    final hour = parsed.hour.toString().padLeft(2, '0');
+    final minute = parsed.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+  return trimmed;
+}
+
 /// Resolves a backward-compatible timed dose list from shared-dose data.
 List<MedicationDoseScheduleEntry> resolveMedicationDoseSchedule({
   List<MedicationDoseScheduleEntry> doseSchedule =
@@ -46,13 +58,21 @@ List<MedicationDoseScheduleEntry> resolveMedicationDoseSchedule({
   List<String> fallbackTimes = const <String>[],
 }) {
   final entries = doseSchedule.isNotEmpty
-      ? List<MedicationDoseScheduleEntry>.from(doseSchedule)
+      ? doseSchedule
+            .map(
+              (entry) => MedicationDoseScheduleEntry(
+                doseAmount: entry.doseAmount,
+                doseUnit: entry.doseUnit,
+                time: normalizeMedicationTimeString(entry.time),
+              ),
+            )
+            .toList(growable: false)
       : fallbackTimes
             .map(
               (time) => MedicationDoseScheduleEntry(
                 doseAmount: fallbackDoseAmount,
                 doseUnit: fallbackDoseUnit,
-                time: time,
+                time: normalizeMedicationTimeString(time),
               ),
             )
             .toList(growable: false);
@@ -75,7 +95,7 @@ List<MedicationDoseScheduleEntry> medicationDoseScheduleFromJsonList(
           MedicationDoseScheduleEntry(
             doseAmount: fallbackDoseAmount,
             doseUnit: fallbackDoseUnit,
-            time: time,
+            time: normalizeMedicationTimeString(time),
           ),
         );
         continue;
@@ -90,7 +110,7 @@ List<MedicationDoseScheduleEntry> medicationDoseScheduleFromJsonList(
           MedicationDoseScheduleEntry(
             doseAmount: typed['dose_amount'] as String? ?? fallbackDoseAmount,
             doseUnit: typed['dose_unit'] as String? ?? fallbackDoseUnit,
-            time: time,
+            time: normalizeMedicationTimeString(time),
           ),
         );
       }
@@ -129,6 +149,9 @@ String summarizeMedicationDoseSchedule(
   List<MedicationDoseScheduleEntry> entries,
 ) {
   return entries
-      .map((entry) => '${entry.time} • ${entry.doseLabel}')
+      .map(
+        (entry) =>
+            '${normalizeMedicationTimeString(entry.time)} • ${entry.doseLabel}',
+      )
       .join(', ');
 }

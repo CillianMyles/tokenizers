@@ -7,6 +7,7 @@ import 'package:tokenizers/src/features/proposals/domain/proposal_models.dart';
 
 /// Opens an adaptive draft editor for a pending proposal.
 Future<void> showProposalDraftEditor({
+  required List<MedicationScheduleView> activeSchedules,
   required BuildContext context,
   required Future<void> Function() onCancelProposal,
   required Future<void> Function(List<ProposalActionView> actions)
@@ -21,6 +22,7 @@ Future<void> showProposalDraftEditor({
       useSafeArea: true,
       builder: (context) {
         return _ProposalDraftEditorSurface(
+          activeSchedules: activeSchedules,
           onCancelProposal: onCancelProposal,
           onConfirmProposal: onConfirmProposal,
           proposal: proposal,
@@ -37,6 +39,7 @@ Future<void> showProposalDraftEditor({
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
           child: _ProposalDraftEditorSurface(
+            activeSchedules: activeSchedules,
             onCancelProposal: onCancelProposal,
             onConfirmProposal: onConfirmProposal,
             proposal: proposal,
@@ -57,21 +60,43 @@ class _EditableProposalAction {
   });
 
   factory _EditableProposalAction.fromProposalAction(
-    ProposalActionView action,
-  ) {
+    ProposalActionView action, {
+    required List<MedicationScheduleView> activeSchedules,
+  }) {
+    final existingSchedule = _findSchedule(
+      activeSchedules,
+      action.targetScheduleId,
+      action.medicationName,
+    );
+    final baseDraft = existingSchedule == null
+        ? null
+        : MedicationScheduleDraft.fromSchedule(existingSchedule);
     return _EditableProposalAction(
       actionId: action.actionId,
-      draft: MedicationScheduleDraft(
-        doseAmount: action.doseAmount,
-        doseSchedule: action.doseSchedule,
-        doseUnit: action.doseUnit,
-        endDate: action.endDate,
-        medicationName: action.medicationName ?? '',
-        notes: action.notes,
-        route: action.route,
-        startDate: action.startDate ?? DateTime.now(),
-        times: action.times,
-      ),
+      draft:
+          (baseDraft ??
+                  MedicationScheduleDraft(
+                    medicationName: action.medicationName ?? '',
+                    startDate: action.startDate ?? DateTime.now(),
+                    times: action.times,
+                  ))
+              .copyWith(
+                doseAmount: action.doseAmount ?? baseDraft?.doseAmount,
+                doseSchedule: action.doseSchedule.isNotEmpty
+                    ? action.doseSchedule
+                    : baseDraft?.doseSchedule,
+                doseUnit: action.doseUnit ?? baseDraft?.doseUnit,
+                endDate: action.endDate ?? baseDraft?.endDate,
+                medicationName:
+                    (action.medicationName ?? baseDraft?.medicationName ?? '')
+                        .trim(),
+                notes: action.notes ?? baseDraft?.notes,
+                route: action.route ?? baseDraft?.route,
+                startDate: action.startDate ?? baseDraft?.startDate,
+                times: action.times.isNotEmpty
+                    ? action.times
+                    : baseDraft?.times,
+              ),
       missingFields: action.missingFields,
       targetScheduleId: action.targetScheduleId,
       type: action.type,
@@ -132,15 +157,44 @@ class _EditableProposalAction {
       type: effectiveType,
     );
   }
+
+  static MedicationScheduleView? _findSchedule(
+    List<MedicationScheduleView> schedules,
+    String? targetScheduleId,
+    String? medicationName,
+  ) {
+    if (targetScheduleId != null) {
+      for (final schedule in schedules) {
+        if (schedule.scheduleId == targetScheduleId) {
+          return schedule;
+        }
+      }
+    }
+    if (medicationName == null || medicationName.trim().isEmpty) {
+      return null;
+    }
+    final normalizedName = medicationName.trim().toLowerCase();
+    final matches = schedules
+        .where((schedule) {
+          return schedule.medicationName.trim().toLowerCase() == normalizedName;
+        })
+        .toList(growable: false);
+    if (matches.length == 1) {
+      return matches.single;
+    }
+    return null;
+  }
 }
 
 class _ProposalDraftEditorSurface extends StatefulWidget {
   const _ProposalDraftEditorSurface({
+    required this.activeSchedules,
     required this.onCancelProposal,
     required this.onConfirmProposal,
     required this.proposal,
   });
 
+  final List<MedicationScheduleView> activeSchedules;
   final Future<void> Function() onCancelProposal;
   final Future<void> Function(List<ProposalActionView> actions)
   onConfirmProposal;
@@ -162,7 +216,12 @@ class _ProposalDraftEditorSurfaceState
   void initState() {
     super.initState();
     _actions = widget.proposal.actions
-        .map(_EditableProposalAction.fromProposalAction)
+        .map(
+          (action) => _EditableProposalAction.fromProposalAction(
+            action,
+            activeSchedules: widget.activeSchedules,
+          ),
+        )
         .toList(growable: true);
   }
 

@@ -19,11 +19,14 @@ class AssistantScreen extends StatefulWidget {
 
 class _AssistantScreenState extends State<AssistantScreen> {
   final TextEditingController _composerController = TextEditingController();
+  final ScrollController _conversationScrollController = ScrollController();
   bool _isSubmitting = false;
+  String? _lastConversationAnchor;
 
   @override
   void dispose() {
     _composerController.dispose();
+    _conversationScrollController.dispose();
     super.dispose();
   }
 
@@ -40,6 +43,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
           stream: bootstrap.conversationRepository.watchMessages(threadId),
           builder: (context, snapshot) {
             final messages = snapshot.data ?? const <ConversationMessageView>[];
+            _scrollToLatestIfNeeded(messages, proposal);
 
             return Padding(
               padding: const EdgeInsets.all(16),
@@ -50,6 +54,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
                     children: <Widget>[
                       Expanded(
                         child: _AssistantConversationPane(
+                          controller: _conversationScrollController,
                           messages: messages,
                           onCancelProposal: () {
                             return bootstrap.chatCoordinator
@@ -66,6 +71,24 @@ class _AssistantScreenState extends State<AssistantScreen> {
                           proposal: proposal,
                         ),
                       ),
+                      if (proposal != null) ...<Widget>[
+                        const SizedBox(height: 8),
+                        _PendingProposalActionBar(
+                          onCancelProposal: () {
+                            return bootstrap.chatCoordinator
+                                .cancelPendingProposal(threadId);
+                          },
+                          onReviewProposal: () {
+                            return _openDraftEditor(
+                              context,
+                              bootstrap: bootstrap,
+                              proposal: proposal,
+                              threadId: threadId,
+                            );
+                          },
+                          proposal: proposal,
+                        ),
+                      ],
                       const SizedBox(height: 8),
                       _AssistantComposer(
                         controller: _composerController,
@@ -121,8 +144,11 @@ class _AssistantScreenState extends State<AssistantScreen> {
     required AppBootstrap bootstrap,
     required ProposalView proposal,
     required String threadId,
-  }) {
+  }) async {
+    final activeSchedules = await bootstrap.medicationRepository
+        .getActiveSchedules();
     return showProposalDraftEditor(
+      activeSchedules: activeSchedules,
       context: context,
       onCancelProposal: () {
         return bootstrap.chatCoordinator.cancelPendingProposal(threadId);
@@ -136,16 +162,41 @@ class _AssistantScreenState extends State<AssistantScreen> {
       proposal: proposal,
     );
   }
+
+  void _scrollToLatestIfNeeded(
+    List<ConversationMessageView> messages,
+    ProposalView? proposal,
+  ) {
+    final anchor =
+        '${proposal?.proposalId ?? 'no-proposal'}:'
+        '${messages.length}:'
+        '${messages.isEmpty ? 'no-message' : messages.last.messageId}';
+    if (_lastConversationAnchor == anchor) {
+      return;
+    }
+    _lastConversationAnchor = anchor;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_conversationScrollController.hasClients) {
+        return;
+      }
+      _conversationScrollController.jumpTo(
+        _conversationScrollController.position.maxScrollExtent,
+      );
+    });
+  }
 }
 
 class _AssistantConversationPane extends StatelessWidget {
   const _AssistantConversationPane({
+    required this.controller,
     required this.messages,
     required this.onCancelProposal,
     required this.onReviewProposal,
     required this.proposal,
   });
 
+  final ScrollController controller;
   final List<ConversationMessageView> messages;
   final Future<void> Function() onCancelProposal;
   final Future<void> Function(ProposalView proposal) onReviewProposal;
@@ -160,6 +211,7 @@ class _AssistantConversationPane extends StatelessWidget {
     }
 
     return ListView.builder(
+      controller: controller,
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: messages.length + (proposal == null ? 0 : 1),
       itemBuilder: (context, index) {
@@ -480,7 +532,7 @@ class _PendingProposalBanner extends StatelessWidget {
               FilledButton.icon(
                 onPressed: onReviewProposal,
                 icon: const Icon(Icons.visibility_outlined),
-                label: const Text('Review draft'),
+                label: const Text('Review'),
               ),
               OutlinedButton.icon(
                 onPressed: onCancelProposal,
@@ -492,6 +544,55 @@ class _PendingProposalBanner extends StatelessWidget {
           const SizedBox(height: 4),
           const Divider(height: 24),
         ],
+      ),
+    );
+  }
+}
+
+class _PendingProposalActionBar extends StatelessWidget {
+  const _PendingProposalActionBar({
+    required this.onCancelProposal,
+    required this.onReviewProposal,
+    required this.proposal,
+  });
+
+  final Future<void> Function() onCancelProposal;
+  final Future<void> Function() onReviewProposal;
+  final ProposalView proposal;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                'Draft ready: ${proposal.actions.length} action'
+                '${proposal.actions.length == 1 ? '' : 's'}',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            const SizedBox(width: 12),
+            FilledButton(
+              onPressed: onReviewProposal,
+              child: const Text('Review'),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              onPressed: onCancelProposal,
+              icon: const Icon(Icons.close),
+              tooltip: 'Discard draft',
+            ),
+          ],
+        ),
       ),
     );
   }

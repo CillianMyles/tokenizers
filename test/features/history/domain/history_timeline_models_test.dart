@@ -35,7 +35,8 @@ void main() {
 
       expect(groups.length, 2);
       expect(groups.first.day, DateTime(2026, 4, 9));
-      expect(groups.first.items.single.title, 'Medication added');
+      expect(groups.first.items.single.title, 'Magnesium added');
+      expect(groups.first.items.single.description, '21:00 • 250 mg');
       expect(groups.last.items.single.title, 'Message sent');
     });
 

@@ -128,24 +128,22 @@ HistoryTimelineItem? historyTimelineItemFromEvent(
       title: 'Draft replaced',
     ),
     'medication_schedule_added' => HistoryTimelineItem(
-      description: _scheduleSummary(payload),
+      description: _scheduleDetails(payload),
       kind: HistoryTimelineItemKind.medication,
       occurredAt: event.occurredAt,
-      title: 'Medication added',
+      title: _medicationActionTitle(payload, 'added'),
     ),
     'medication_schedule_updated' => HistoryTimelineItem(
-      description: _scheduleSummary(payload),
+      description: _scheduleDetails(payload),
       kind: HistoryTimelineItemKind.medication,
       occurredAt: event.occurredAt,
-      title: 'Medication updated',
+      title: _medicationActionTitle(payload, 'updated'),
     ),
     'medication_schedule_stopped' => HistoryTimelineItem(
-      description:
-          payload['medication_name'] as String? ??
-          'Medication schedule was removed.',
+      description: 'Schedule removed.',
       kind: HistoryTimelineItemKind.medication,
       occurredAt: event.occurredAt,
-      title: 'Medication removed',
+      title: _medicationActionTitle(payload, 'removed'),
     ),
     'medication_taken' => HistoryTimelineItem(
       description: _takenSummary(payload),
@@ -187,8 +185,12 @@ HistoryTimelineItem? historyTimelineItemFromEvent(
   };
 }
 
-String _scheduleSummary(Map<String, Object?> payload) {
+String _medicationActionTitle(Map<String, Object?> payload, String action) {
   final medicationName = payload['medication_name'] as String?;
+  return '${medicationName ?? 'Medication'} $action';
+}
+
+String _scheduleDetails(Map<String, Object?> payload) {
   final doseSchedule = medicationDoseScheduleFromJsonList(
     payload['dose_schedule'],
     fallbackDoseAmount: payload['dose_amount'] as String?,
@@ -199,7 +201,6 @@ String _scheduleSummary(Map<String, Object?> payload) {
   );
 
   final parts = <String>[
-    medicationName ?? 'Medication',
     if (doseSchedule.isNotEmpty) summarizeMedicationDoseSchedule(doseSchedule),
   ];
   return parts.join(' • ');
