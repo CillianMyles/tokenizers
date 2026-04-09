@@ -7,12 +7,14 @@ import 'package:tokenizers/src/core/model/model_response_contract.dart';
 import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
 import 'package:tokenizers/src/features/chat/domain/conversation_models.dart';
 
+const _defaultModel = 'gemini-2.5-flash';
+
 /// Gemini-backed implementation of the app-owned model contract.
 class GeminiModelProvider implements ModelProvider {
   /// Creates a Gemini model provider.
   GeminiModelProvider({
     required this.apiKey,
-    this.model = 'gemini-2.5-flash',
+    this.model = _defaultModel,
     http.Client? client,
   }) : _client = client ?? http.Client();
 
@@ -60,6 +62,7 @@ class GeminiModelProvider implements ModelProvider {
       'https://generativelanguage.googleapis.com/v1beta/models/'
       '$model:generateContent',
     );
+
     final response = await _client.post(
       uri,
       headers: <String, String>{
@@ -215,7 +218,7 @@ class GeminiModelProvider implements ModelProvider {
 const _systemPrompt = '''
 You are extracting medication management proposals for a patient-side tracking app.
 Return JSON only and follow the provided schema exactly.
-Never mutate current schedules directly. Always propose actions for later review.
+Never mutate current schedules directly. Always propose actions for explicit user review.
 If the message is ambiguous or missing required information, use request_missing_info instead of guessing.
 Times must use 24-hour HH:mm format.
 Dates must use YYYY-MM-DD format.
