@@ -6,7 +6,7 @@ import 'package:tokenizers/src/features/chat/domain/conversation_models.dart';
 import 'package:tokenizers/src/features/proposals/domain/proposal_models.dart';
 import 'package:tokenizers/src/features/proposals/presentation/proposal_draft_sheet.dart';
 
-/// Primary structured assistant surface.
+/// Primary home surface for structured medication actions.
 class ChatScreen extends StatefulWidget {
   /// Creates the chat screen.
   const ChatScreen({super.key});
@@ -320,14 +320,11 @@ class _AssistantHeaderCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(
-              'Medication Assistant',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
+            Text('Home', style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 8),
             Text(
-              'Use chat to draft structured medication changes. The app treats '
-              'chat as one assistant surface, not as separate conversations.',
+              'Review medication activity, draft structured changes, and keep '
+              'today’s plan up to date from one place.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 14),

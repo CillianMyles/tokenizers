@@ -46,7 +46,7 @@ class AppShell extends StatelessWidget {
           NavigationDestination(
             icon: Icon(Icons.chat_bubble_outline),
             selectedIcon: Icon(Icons.chat_bubble),
-            label: 'Chat',
+            label: 'Home',
           ),
           NavigationDestination(
             icon: Icon(Icons.medication_outlined),
