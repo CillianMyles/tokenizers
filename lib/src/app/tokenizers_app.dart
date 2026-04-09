@@ -22,17 +22,12 @@ class _TokenizersAppState extends State<TokenizersApp> {
   Widget build(BuildContext context) {
     return AppScope(
       bootstrap: widget.bootstrap,
-      child: ListenableBuilder(
-        listenable: widget.bootstrap.appSession,
-        builder: (context, child) {
-          return MaterialApp.router(
-            debugShowCheckedModeBanner: false,
-            title: 'Tokenizers',
-            theme: AppTheme.light,
-            darkTheme: AppTheme.dark,
-            routerConfig: router,
-          );
-        },
+      child: MaterialApp.router(
+        debugShowCheckedModeBanner: false,
+        title: 'Tokenizers',
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
+        routerConfig: router,
       ),
     );
   }

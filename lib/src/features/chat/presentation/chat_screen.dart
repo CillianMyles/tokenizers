@@ -6,7 +6,7 @@ import 'package:tokenizers/src/features/chat/domain/conversation_models.dart';
 import 'package:tokenizers/src/features/proposals/domain/proposal_models.dart';
 import 'package:tokenizers/src/features/proposals/presentation/proposal_draft_sheet.dart';
 
-/// Primary chat and proposal review surface.
+/// Primary structured assistant surface.
 class ChatScreen extends StatefulWidget {
   /// Creates the chat screen.
   const ChatScreen({super.key});
@@ -28,42 +28,31 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final bootstrap = AppScope.of(context);
-    return ListenableBuilder(
-      listenable: bootstrap.appSession,
-      builder: (context, child) {
-        final threadId = bootstrap.appSession.selectedThreadId;
-        return StreamBuilder<List<ConversationThreadView>>(
-          stream: bootstrap.conversationRepository.watchThreads(),
-          builder: (context, snapshot) {
-            final thread = _findThread(snapshot.data, threadId);
-            return Padding(
-              padding: const EdgeInsets.all(16),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 760),
-                  child: Column(
-                    children: <Widget>[
-                      _ThreadHeaderCard(thread: thread),
-                      const SizedBox(height: 16),
-                      Expanded(
-                        child: _ChatColumn(
-                          composer: _composer(
-                            context,
-                            bootstrap: bootstrap,
-                            threadId: threadId,
-                          ),
-                          header: null,
-                          threadId: threadId,
-                        ),
-                      ),
-                    ],
+    final activityStreamId = bootstrap.activityStreamId;
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: Column(
+            children: <Widget>[
+              const _AssistantHeaderCard(),
+              const SizedBox(height: 16),
+              Expanded(
+                child: _ChatColumn(
+                  composer: _composer(
+                    context,
+                    bootstrap: bootstrap,
+                    threadId: activityStreamId,
                   ),
+                  header: null,
+                  threadId: activityStreamId,
                 ),
               ),
-            );
-          },
-        );
-      },
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -220,21 +209,6 @@ class _ChatScreenState extends State<ChatScreen> {
       proposal: proposal,
     );
   }
-
-  ConversationThreadView? _findThread(
-    List<ConversationThreadView>? threads,
-    String threadId,
-  ) {
-    if (threads == null) {
-      return null;
-    }
-    for (final thread in threads) {
-      if (thread.threadId == threadId) {
-        return thread;
-      }
-    }
-    return null;
-  }
 }
 
 class _ChatColumn extends StatelessWidget {
@@ -334,10 +308,8 @@ class _ChatColumn extends StatelessWidget {
   }
 }
 
-class _ThreadHeaderCard extends StatelessWidget {
-  const _ThreadHeaderCard({required this.thread});
-
-  final ConversationThreadView? thread;
+class _AssistantHeaderCard extends StatelessWidget {
+  const _AssistantHeaderCard();
 
   @override
   Widget build(BuildContext context) {
@@ -349,13 +321,13 @@ class _ThreadHeaderCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(
-              thread?.title ?? 'Conversation',
+              'Medication Assistant',
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 8),
             Text(
-              'Pending proposals stay isolated until you confirm them. '
-              'Confirmed schedules are projected into the medication calendar.',
+              'Use chat to draft structured medication changes. The app treats '
+              'chat as one assistant surface, not as separate conversations.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 14),
@@ -371,10 +343,7 @@ class _ThreadHeaderCard extends StatelessWidget {
                 ),
                 Chip(
                   avatar: const Icon(Icons.shield_outlined, size: 18),
-                  label: Text(
-                    '${thread?.pendingProposalCount ?? 0} pending proposal'
-                    '${(thread?.pendingProposalCount ?? 0) == 1 ? '' : 's'}',
-                  ),
+                  label: const Text('Confirmation-gated changes'),
                   side: BorderSide.none,
                   backgroundColor: colorScheme.primaryContainer,
                 ),

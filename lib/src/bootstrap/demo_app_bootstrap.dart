@@ -1,5 +1,4 @@
 import 'package:tokenizers/env/env.dart';
-import 'package:tokenizers/src/app/app_session.dart';
 import 'package:tokenizers/src/core/application/event_store.dart';
 import 'package:tokenizers/src/core/application/projection_runner.dart';
 import 'package:tokenizers/src/core/domain/domain_event.dart';
@@ -19,7 +18,7 @@ import 'package:tokenizers/src/features/chat/application/conversation_repository
 class AppBootstrap {
   /// Creates an app bootstrap.
   const AppBootstrap({
-    required this.appSession,
+    required this.activityStreamId,
     required this.chatCoordinator,
     required this.configurationError,
     required this.conversationRepository,
@@ -30,7 +29,7 @@ class AppBootstrap {
     required this.projectionRunner,
   });
 
-  final AppSessionController appSession;
+  final String activityStreamId;
   final ChatCoordinator chatCoordinator;
   final String? configurationError;
   final ConversationRepository conversationRepository;
@@ -43,10 +42,9 @@ class AppBootstrap {
 
 /// Creates the application bootstrap used by the v0 shell.
 Future<AppBootstrap> createDemoAppBootstrap() async {
-  const currentThreadId = 'thread-current';
+  const activityStreamId = 'thread-current';
   final configurationError = _configurationError();
   final modelProvider = _createModelProvider(configurationError);
-  final appSession = AppSessionController(initialThreadId: currentThreadId);
 
   final database = AppDatabase();
   final eventStore = DriftEventStore(database: database);
@@ -58,7 +56,7 @@ Future<AppBootstrap> createDemoAppBootstrap() async {
   await workspace.rebuild();
 
   return AppBootstrap(
-    appSession: appSession,
+    activityStreamId: activityStreamId,
     chatCoordinator: ChatCoordinator(
       conversationRepository: workspace,
       eventStore: eventStore,

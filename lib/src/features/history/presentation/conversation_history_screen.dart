@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import 'package:tokenizers/src/app/app_scope.dart';
-import 'package:tokenizers/src/core/application/event_store.dart';
 import 'package:tokenizers/src/core/presentation/date_formatters.dart';
 import 'package:tokenizers/src/features/history/domain/history_timeline_models.dart';
 
@@ -34,7 +32,7 @@ class ConversationHistoryScreen extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     'A day-grouped timeline of medication, proposal, '
-                    'conversation, and adherence events.',
+                    'assistant, and adherence events.',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 20),
@@ -110,7 +108,6 @@ class _HistoryEventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bootstrap = AppScope.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Card(
@@ -127,15 +124,6 @@ class _HistoryEventCard extends StatelessWidget {
             padding: const EdgeInsets.only(top: 8),
             child: Text('${item.description}\n${formatTime(item.occurredAt)}'),
           ),
-          trailing: item.threadId == null
-              ? null
-              : const Icon(Icons.chevron_right),
-          onTap: item.threadId == null
-              ? null
-              : () {
-                  bootstrap.appSession.selectThread(item.threadId!);
-                  context.go('/chat');
-                },
         ),
       ),
     );

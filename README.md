@@ -57,7 +57,7 @@ edit it if needed, and accept it to project the schedule into the calendar.
 Confirmed schedules can also be managed directly from the calendar screen
 without going through chat.
 
-The History tab now shows a day-grouped event timeline across conversation,
+The History tab now shows a day-grouped event timeline across assistant,
 proposal, medication, and adherence activity.
 
 The event log and read models are stored locally in SQLite via Drift on native

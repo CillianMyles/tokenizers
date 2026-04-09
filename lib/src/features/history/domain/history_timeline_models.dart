@@ -19,7 +19,6 @@ class HistoryTimelineItem {
     required this.kind,
     required this.occurredAt,
     required this.title,
-    this.threadId,
   });
 
   /// Secondary detail text.
@@ -30,9 +29,6 @@ class HistoryTimelineItem {
 
   /// When the activity occurred.
   final DateTime occurredAt;
-
-  /// Optional thread id for drill-in.
-  final String? threadId;
 
   /// Primary label.
   final String title;
@@ -84,20 +80,17 @@ HistoryTimelineItem? historyTimelineItemFromEvent(
   EventEnvelope<DomainEvent> event,
 ) {
   final payload = event.event.payload;
-  final threadId = payload['thread_id'] as String?;
   return switch (event.event.type) {
     'thread_started' => HistoryTimelineItem(
-      description: payload['title'] as String? ?? 'Conversation',
+      description: payload['title'] as String? ?? 'Assistant activity',
       kind: HistoryTimelineItemKind.chat,
       occurredAt: event.occurredAt,
-      threadId: payload['thread_id'] as String?,
-      title: 'Conversation started',
+      title: 'Assistant session started',
     ),
     'message_added' => HistoryTimelineItem(
       description: payload['text'] as String? ?? 'Message sent.',
       kind: HistoryTimelineItemKind.chat,
       occurredAt: event.occurredAt,
-      threadId: threadId,
       title: 'Message sent',
     ),
     'model_turn_recorded' => HistoryTimelineItem(
@@ -105,14 +98,12 @@ HistoryTimelineItem? historyTimelineItemFromEvent(
           payload['assistant_text'] as String? ?? 'Assistant created a reply.',
       kind: HistoryTimelineItemKind.chat,
       occurredAt: event.occurredAt,
-      threadId: threadId,
       title: 'Assistant replied',
     ),
     'proposal_created' => HistoryTimelineItem(
       description: payload['summary'] as String? ?? 'Pending draft created.',
       kind: HistoryTimelineItemKind.proposal,
       occurredAt: event.occurredAt,
-      threadId: threadId,
       title: 'Draft created',
     ),
     'proposal_confirmed' => HistoryTimelineItem(
@@ -121,35 +112,30 @@ HistoryTimelineItem? historyTimelineItemFromEvent(
           'Medication changes were accepted.',
       kind: HistoryTimelineItemKind.proposal,
       occurredAt: event.occurredAt,
-      threadId: threadId,
       title: 'Draft accepted',
     ),
     'proposal_cancelled' => HistoryTimelineItem(
       description: 'Pending draft was discarded.',
       kind: HistoryTimelineItemKind.proposal,
       occurredAt: event.occurredAt,
-      threadId: threadId,
       title: 'Draft cancelled',
     ),
     'proposal_superseded' => HistoryTimelineItem(
       description: 'Pending draft was replaced by a newer one.',
       kind: HistoryTimelineItemKind.proposal,
       occurredAt: event.occurredAt,
-      threadId: threadId,
       title: 'Draft replaced',
     ),
     'medication_schedule_added' => HistoryTimelineItem(
       description: _scheduleSummary(payload),
       kind: HistoryTimelineItemKind.medication,
       occurredAt: event.occurredAt,
-      threadId: threadId,
       title: 'Medication added',
     ),
     'medication_schedule_updated' => HistoryTimelineItem(
       description: _scheduleSummary(payload),
       kind: HistoryTimelineItemKind.medication,
       occurredAt: event.occurredAt,
-      threadId: threadId,
       title: 'Medication updated',
     ),
     'medication_schedule_stopped' => HistoryTimelineItem(
@@ -158,14 +144,12 @@ HistoryTimelineItem? historyTimelineItemFromEvent(
           'Medication schedule was removed.',
       kind: HistoryTimelineItemKind.medication,
       occurredAt: event.occurredAt,
-      threadId: threadId,
       title: 'Medication removed',
     ),
     'medication_taken' => HistoryTimelineItem(
       description: _takenSummary(payload),
       kind: HistoryTimelineItemKind.adherence,
       occurredAt: event.occurredAt,
-      threadId: threadId,
       title: 'Medication taken',
     ),
     'medication_reminder_scheduled' => HistoryTimelineItem(
@@ -174,7 +158,6 @@ HistoryTimelineItem? historyTimelineItemFromEvent(
           'Medication reminder queued.',
       kind: HistoryTimelineItemKind.reminder,
       occurredAt: event.occurredAt,
-      threadId: threadId,
       title: 'Reminder scheduled',
     ),
     'medication_reminder_sent' => HistoryTimelineItem(
@@ -183,7 +166,6 @@ HistoryTimelineItem? historyTimelineItemFromEvent(
           'Medication reminder was delivered.',
       kind: HistoryTimelineItemKind.reminder,
       occurredAt: event.occurredAt,
-      threadId: threadId,
       title: 'Reminder sent',
     ),
     'medication_reminder_acknowledged' => HistoryTimelineItem(
@@ -191,7 +173,6 @@ HistoryTimelineItem? historyTimelineItemFromEvent(
           payload['medication_name'] as String? ?? 'Reminder was acknowledged.',
       kind: HistoryTimelineItemKind.reminder,
       occurredAt: event.occurredAt,
-      threadId: threadId,
       title: 'Reminder acknowledged',
     ),
     'medication_reminder_skipped' => HistoryTimelineItem(
@@ -199,7 +180,6 @@ HistoryTimelineItem? historyTimelineItemFromEvent(
           payload['medication_name'] as String? ?? 'Reminder was skipped.',
       kind: HistoryTimelineItemKind.reminder,
       occurredAt: event.occurredAt,
-      threadId: threadId,
       title: 'Reminder skipped',
     ),
     _ => null,
