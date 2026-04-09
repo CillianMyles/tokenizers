@@ -231,26 +231,6 @@ class ChatCoordinator {
       ),
     ];
 
-    if (pendingProposal != null) {
-      initialEvents.add(
-        EventEnvelope<DomainEvent>(
-          eventId: _id('event'),
-          aggregateType: 'proposal',
-          aggregateId: pendingProposal.proposalId,
-          actorType: EventActorType.system,
-          correlationId: correlationId,
-          event: DomainEvent(
-            type: 'proposal_superseded',
-            payload: <String, Object?>{
-              'proposal_id': pendingProposal.proposalId,
-              'thread_id': threadId,
-            },
-          ),
-          occurredAt: now,
-        ),
-      );
-    }
-
     await _eventStore.append(initialEvents);
 
     final responseConversation = <ConversationMessageView>[
@@ -263,6 +243,25 @@ class ChatCoordinator {
         threadId: threadId,
       ),
     ];
+
+    final directAdherenceResult = _tryHandleTakenMessage(
+      activeSchedules: activeSchedules,
+      correlationId: correlationId,
+      now: now,
+      text: trimmed,
+      threadId: threadId,
+    );
+    if (directAdherenceResult != null) {
+      await _eventStore.append(
+        _assistantResponseEvents(
+          assistantText: directAdherenceResult.assistantText,
+          correlationId: correlationId,
+          extraEvents: directAdherenceResult.events,
+          threadId: threadId,
+        ),
+      );
+      return;
+    }
 
     late final ModelResponseContract response;
     try {
@@ -286,25 +285,38 @@ class ChatCoordinator {
       );
     }
 
-    final responseEvents = <EventEnvelope<DomainEvent>>[
-      EventEnvelope<DomainEvent>(
-        eventId: _id('event'),
-        aggregateType: 'conversation',
-        aggregateId: threadId,
-        actorType: EventActorType.model,
+    final responseEvents = <EventEnvelope<DomainEvent>>[];
+
+    if (response.actions.isNotEmpty) {
+      if (pendingProposal != null) {
+        responseEvents.add(
+          EventEnvelope<DomainEvent>(
+            eventId: _id('event'),
+            aggregateType: 'proposal',
+            aggregateId: pendingProposal.proposalId,
+            actorType: EventActorType.system,
+            correlationId: correlationId,
+            event: DomainEvent(
+              type: 'proposal_superseded',
+              payload: <String, Object?>{
+                'proposal_id': pendingProposal.proposalId,
+                'thread_id': threadId,
+              },
+            ),
+            occurredAt: now,
+          ),
+        );
+      }
+    }
+
+    responseEvents.addAll(
+      _assistantResponseEvents(
+        assistantText: response.assistantText,
         correlationId: correlationId,
-        event: DomainEvent(
-          type: 'model_turn_recorded',
-          payload: <String, Object?>{
-            'assistant_text': response.assistantText,
-            'message_id': _id('message'),
-            'raw_payload': response.rawPayload,
-            'thread_id': threadId,
-          },
-        ),
-        occurredAt: DateTime.now(),
+        rawPayload: response.rawPayload,
+        threadId: threadId,
       ),
-    ];
+    );
 
     if (response.actions.isNotEmpty) {
       final proposalId = _id('proposal');
@@ -356,6 +368,36 @@ class ChatCoordinator {
           'update_medication_schedule',
       },
     };
+  }
+
+  List<EventEnvelope<DomainEvent>> _assistantResponseEvents({
+    required String assistantText,
+    required String correlationId,
+    required String threadId,
+    Map<String, Object?> rawPayload = const <String, Object?>{},
+    List<EventEnvelope<DomainEvent>> extraEvents =
+        const <EventEnvelope<DomainEvent>>[],
+  }) {
+    return <EventEnvelope<DomainEvent>>[
+      EventEnvelope<DomainEvent>(
+        eventId: _id('event'),
+        aggregateType: 'conversation',
+        aggregateId: threadId,
+        actorType: EventActorType.model,
+        correlationId: correlationId,
+        event: DomainEvent(
+          type: 'model_turn_recorded',
+          payload: <String, Object?>{
+            'assistant_text': assistantText,
+            'message_id': _id('message'),
+            'raw_payload': rawPayload,
+            'thread_id': threadId,
+          },
+        ),
+        occurredAt: DateTime.now(),
+      ),
+      ...extraEvents,
+    ];
   }
 
   List<EventEnvelope<DomainEvent>> _addScheduleEvents({
@@ -544,4 +586,141 @@ class ChatCoordinator {
     }
     return message;
   }
+
+  _TakenMessageResult? _tryHandleTakenMessage({
+    required List<MedicationScheduleView> activeSchedules,
+    required String correlationId,
+    required DateTime now,
+    required String text,
+    required String threadId,
+  }) {
+    final normalizedText = text.toLowerCase();
+    final explicitTakenPattern = RegExp(
+      r'\b(i\s+(already\s+)?took|already\s+took|i\s+have\s+taken|have\s+taken|i\s+took|took)\b',
+    );
+    if (!explicitTakenPattern.hasMatch(normalizedText)) {
+      return null;
+    }
+
+    final matchedSchedules = activeSchedules
+        .where((schedule) {
+          return normalizedText.contains(schedule.medicationName.toLowerCase());
+        })
+        .toList(growable: false);
+
+    MedicationScheduleView? schedule;
+    if (matchedSchedules.length == 1) {
+      schedule = matchedSchedules.single;
+    } else if (matchedSchedules.isEmpty && activeSchedules.length == 1) {
+      schedule = activeSchedules.single;
+    }
+
+    if (schedule == null) {
+      return const _TakenMessageResult(
+        assistantText:
+            'I can record that, but tell me which medication you took.',
+      );
+    }
+
+    final takenAt = _parseReportedTime(text, now) ?? now;
+    final scheduledFor = _resolveScheduledFor(
+      schedule: schedule,
+      referenceTime: takenAt,
+    );
+    final event = EventEnvelope<DomainEvent>(
+      eventId: _id('event'),
+      aggregateType: 'medication',
+      aggregateId: schedule.scheduleId,
+      actorType: EventActorType.user,
+      correlationId: correlationId,
+      event: DomainEvent(
+        type: 'medication_taken',
+        payload: <String, Object?>{
+          'medication_name': schedule.medicationName,
+          'schedule_id': schedule.scheduleId,
+          'scheduled_for': scheduledFor.toIso8601String(),
+          'source_proposal_id': schedule.sourceProposalId,
+          'taken_at': takenAt.toIso8601String(),
+          'thread_id': schedule.threadId ?? threadId,
+        },
+      ),
+      occurredAt: takenAt,
+    );
+
+    return _TakenMessageResult(
+      assistantText:
+          'Recorded ${schedule.medicationName} as taken at '
+          '${_timeLabel(takenAt)}.',
+      events: <EventEnvelope<DomainEvent>>[event],
+    );
+  }
+
+  DateTime? _parseReportedTime(String text, DateTime now) {
+    final match = RegExp(
+      r'\bat\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b',
+      caseSensitive: false,
+    ).firstMatch(text);
+    if (match == null) {
+      return null;
+    }
+    var hour = int.parse(match.group(1)!);
+    final minute = int.parse(match.group(2) ?? '0');
+    final meridiem = match.group(3)?.toLowerCase();
+    if (meridiem == 'pm' && hour < 12) {
+      hour += 12;
+    } else if (meridiem == 'am' && hour == 12) {
+      hour = 0;
+    }
+    return DateTime(now.year, now.month, now.day, hour, minute);
+  }
+
+  DateTime _resolveScheduledFor({
+    required MedicationScheduleView schedule,
+    required DateTime referenceTime,
+  }) {
+    if (schedule.times.isEmpty) {
+      return DateTime(
+        referenceTime.year,
+        referenceTime.month,
+        referenceTime.day,
+        referenceTime.hour,
+        referenceTime.minute,
+      );
+    }
+
+    DateTime? bestMatch;
+    Duration? bestDifference;
+    for (final time in schedule.times) {
+      final parts = time.split(':');
+      final scheduledTime = DateTime(
+        referenceTime.year,
+        referenceTime.month,
+        referenceTime.day,
+        int.parse(parts[0]),
+        int.parse(parts[1]),
+      );
+      final difference = scheduledTime.difference(referenceTime).abs();
+      if (bestDifference == null || difference < bestDifference) {
+        bestDifference = difference;
+        bestMatch = scheduledTime;
+      }
+    }
+    return bestMatch!;
+  }
+
+  String _timeLabel(DateTime value) {
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+}
+
+class _TakenMessageResult {
+  const _TakenMessageResult({
+    required this.assistantText,
+    this.events = const <EventEnvelope<DomainEvent>>[],
+  });
+
+  final String assistantText;
+  final List<EventEnvelope<DomainEvent>> events;
 }

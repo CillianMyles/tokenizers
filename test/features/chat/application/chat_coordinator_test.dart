@@ -328,6 +328,126 @@ void main() {
         );
       },
     );
+
+    test(
+      'submitText records taken medication directly without replacing drafts',
+      () async {
+        final eventStore = _FakeEventStore();
+        final modelProvider = _FakeModelProvider();
+        final coordinator = ChatCoordinator(
+          conversationRepository: _FakeConversationRepository(
+            pendingProposal: ProposalView(
+              actions: const <ProposalActionView>[
+                ProposalActionView(
+                  actionId: 'action-1',
+                  type: ProposalActionType.addMedicationSchedule,
+                ),
+              ],
+              assistantText: 'Old pending proposal.',
+              createdAt: DateTime(2026, 4, 5, 7, 56),
+              proposalId: 'proposal-old',
+              status: ProposalStatus.pending,
+              summary: 'Old proposal',
+              threadId: 'thread-1',
+            ),
+          ),
+          eventStore: eventStore,
+          medicationRepository: _FakeMedicationRepository(
+            activeSchedules: <MedicationScheduleView>[
+              MedicationScheduleView(
+                doseAmount: '1000',
+                doseUnit: 'IU',
+                medicationName: 'Vitamin D',
+                scheduleId: 'schedule-1',
+                sourceProposalId: 'proposal-source',
+                startDate: DateTime(2026, 4, 1),
+                threadId: 'thread-1',
+                times: const <String>['09:00'],
+              ),
+            ],
+          ),
+          modelProvider: modelProvider,
+        );
+
+        await coordinator.submitText('thread-1', 'I took vitamin d at 9:05');
+
+        final eventTypes = eventStore.events
+            .map((event) => event.event.type)
+            .toList();
+        final takenEvent = eventStore.events.singleWhere(
+          (event) => event.event.type == 'medication_taken',
+        );
+        final assistantTurn = eventStore.events.singleWhere(
+          (event) => event.event.type == 'model_turn_recorded',
+        );
+
+        expect(eventTypes, <String>[
+          'message_added',
+          'model_turn_recorded',
+          'medication_taken',
+        ]);
+        expect(modelProvider.lastUserText, isNull);
+        expect(takenEvent.event.payload['schedule_id'], 'schedule-1');
+        expect(
+          takenEvent.event.payload['source_proposal_id'],
+          'proposal-source',
+        );
+        expect(
+          takenEvent.event.payload['scheduled_for'],
+          '2026-04-09T09:00:00.000',
+        );
+        expect(takenEvent.event.payload['taken_at'], '2026-04-09T09:05:00.000');
+        expect(
+          assistantTurn.event.payload['assistant_text'],
+          'Recorded Vitamin D as taken at 09:05.',
+        );
+      },
+    );
+
+    test(
+      'submitText asks for clarification when a taken message is ambiguous',
+      () async {
+        final eventStore = _FakeEventStore();
+        final modelProvider = _FakeModelProvider();
+        final coordinator = ChatCoordinator(
+          conversationRepository: _FakeConversationRepository(),
+          eventStore: eventStore,
+          medicationRepository: _FakeMedicationRepository(
+            activeSchedules: <MedicationScheduleView>[
+              MedicationScheduleView(
+                medicationName: 'Vitamin D',
+                scheduleId: 'schedule-1',
+                startDate: DateTime(2026, 4, 1),
+                times: const <String>['09:00'],
+              ),
+              MedicationScheduleView(
+                medicationName: 'Magnesium',
+                scheduleId: 'schedule-2',
+                startDate: DateTime(2026, 4, 1),
+                times: const <String>['21:00'],
+              ),
+            ],
+          ),
+          modelProvider: modelProvider,
+        );
+
+        await coordinator.submitText('thread-1', 'I already took it');
+
+        final eventTypes = eventStore.events
+            .map((event) => event.event.type)
+            .toList();
+        final assistantTurn = eventStore.events.singleWhere(
+          (event) => event.event.type == 'model_turn_recorded',
+        );
+
+        expect(eventTypes, <String>['message_added', 'model_turn_recorded']);
+        expect(modelProvider.lastUserText, isNull);
+        expect(
+          assistantTurn.event.payload['assistant_text'],
+          'I can record that, but tell me which medication you took.',
+        );
+      },
+    );
   });
 }
 

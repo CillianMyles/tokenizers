@@ -10,7 +10,7 @@ local data model.
 
 ## Current Status
 
-- Routed app shell with `Chat`, `Calendar`, and `History` surfaces
+- Routed app shell with `Home`, `Calendar`, and `History` surfaces
 - Pure-Dart event and proposal types for the v0 workflow
 - Drift-backed `event_log` plus projection tables across native and web
 - Gemini-backed `ModelProvider` available in the new shell when
@@ -20,6 +20,8 @@ local data model.
 - Direct manual medication add, edit, and remove flows in the calendar screen
 - Day-grouped activity history built from the event log
 - Medication taken events recorded from the daily schedule view
+- Home reminders derived from today's confirmed medication schedule
+- Direct "I took it" style Home chat logging for explicit adherence updates
 - Unit tests covering projection rebuilds and chat command orchestration
 - GitHub Actions CI running format, analyze, and test checks on pushes and PRs
 - Pending proposals remain separate from confirmed medication schedules
@@ -51,11 +53,16 @@ flutter run -d chrome
 ```
 
 The current default experience is a Gemini-backed medication capture flow.
-Type a medication change in chat, tap the pending draft above the composer,
-edit it if needed, and accept it to project the schedule into the calendar.
+Type a medication change in Home chat, tap the pending draft above the
+composer, edit it if needed, and accept it to project the schedule into the
+calendar.
 
 Confirmed schedules can also be managed directly from the calendar screen
 without going through chat.
+
+The Home surface also shows reminder cards for today's doses and can record
+explicit adherence messages such as `I took vitamin D at 9:05` directly into
+the event log without mutating pending drafts.
 
 The History tab now shows a day-grouped event timeline across assistant,
 proposal, medication, and adherence activity.
@@ -111,8 +118,8 @@ make rules-generate
 
 1. Add widget and integration coverage for the new draft editor and manual
    medication flows.
-2. Add reminder scheduling and delivery events on top of the new activity
-   timeline and adherence model.
+2. Add reminder scheduling and delivery events on top of the current
+   reminder-card and adherence model.
 3. Turn the visible photo and voice affordances into full event-sourced input
    pipelines.
 4. Add explicit maintenance docs for the bundled web Drift worker assets.
