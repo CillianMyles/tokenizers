@@ -105,6 +105,30 @@ void main() {
         );
       },
     );
+
+    test('recordMedicationTaken emits a medication_taken event', () async {
+      final eventStore = _FakeEventStore();
+      final service = MedicationCommandService(eventStore: eventStore);
+
+      await service.recordMedicationTaken(
+        actorType: EventActorType.user,
+        entry: MedicationCalendarEntry(
+          dateTime: DateTime(2026, 4, 9, 9),
+          doseLabel: '1000 IU',
+          medicationName: 'Vitamin D',
+          scheduleId: 'schedule-1',
+          threadId: 'thread-1',
+        ),
+        takenAt: DateTime(2026, 4, 9, 9, 3),
+      );
+
+      expect(
+        eventStore.events.map((event) => event.event.type).toList(),
+        <String>['medication_taken'],
+      );
+      expect(eventStore.events.single.event.payload['scheduled_for'], '09:00');
+      expect(eventStore.events.single.event.payload['taken_at'], '09:03');
+    });
   });
 }
 

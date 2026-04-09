@@ -92,7 +92,25 @@ class _MedicationCalendarScreenState extends State<MedicationCalendarScreen> {
                           final entries =
                               snapshot.data ??
                               const <MedicationCalendarEntry>[];
-                          return _CalendarEntriesSection(entries: entries);
+                          return _CalendarEntriesSection(
+                            entries: entries,
+                            onMarkTaken: (entry) async {
+                              await bootstrap.medicationCommandService
+                                  .recordMedicationTaken(
+                                    actorType: EventActorType.user,
+                                    entry: entry,
+                                  );
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Recorded ${entry.medicationName} as taken.',
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                          );
                         },
                       ),
                       const SizedBox(height: 20),
@@ -307,9 +325,13 @@ class _ActiveSchedulesSection extends StatelessWidget {
 }
 
 class _CalendarEntriesSection extends StatelessWidget {
-  const _CalendarEntriesSection({required this.entries});
+  const _CalendarEntriesSection({
+    required this.entries,
+    required this.onMarkTaken,
+  });
 
   final List<MedicationCalendarEntry> entries;
+  final Future<void> Function(MedicationCalendarEntry entry) onMarkTaken;
 
   @override
   Widget build(BuildContext context) {
@@ -348,19 +370,37 @@ class _CalendarEntriesSection extends StatelessWidget {
                       color: Theme.of(context).colorScheme.surfaceContainerLow,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.all(16),
-                      title: Text(entry.medicationName),
-                      subtitle: Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Text(
-                          '${formatTime(entry.dateTime)} • ${entry.doseLabel}\n'
-                          '${entry.notes ?? 'No notes'}',
-                        ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            entry.medicationName,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${formatTime(entry.dateTime)} • ${entry.doseLabel}\n'
+                            '${entry.notes ?? 'No notes'}',
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: <Widget>[
+                              FilledButton.tonalIcon(
+                                onPressed: () => onMarkTaken(entry),
+                                icon: const Icon(Icons.check_circle_outline),
+                                label: const Text('Taken'),
+                              ),
+                              if (entry.threadId
+                                  case final threadId?) ...<Widget>[
+                                const SizedBox(width: 12),
+                                Chip(label: Text(threadId)),
+                              ],
+                            ],
+                          ),
+                        ],
                       ),
-                      trailing: entry.threadId == null
-                          ? null
-                          : Chip(label: Text(entry.threadId!)),
                     ),
                   );
                 },

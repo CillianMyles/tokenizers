@@ -92,8 +92,11 @@ class MedicationCommandService {
         event: DomainEvent(
           type: 'medication_schedule_stopped',
           payload: <String, Object?>{
+            'medication_name': existingSchedule.medicationName,
             'schedule_id': existingSchedule.scheduleId,
             'end_date': _date(endDate ?? DateTime.now()),
+            'source_proposal_id': existingSchedule.sourceProposalId,
+            'thread_id': existingSchedule.threadId,
           },
         ),
         occurredAt: occurredAt,
@@ -163,8 +166,46 @@ class MedicationCommandService {
     ]);
   }
 
+  /// Records that a medication dose was taken.
+  Future<void> recordMedicationTaken({
+    required MedicationCalendarEntry entry,
+    required EventActorType actorType,
+    DateTime? takenAt,
+    String? correlationId,
+  }) async {
+    final writeCorrelationId = correlationId ?? _id('corr');
+    final occurredAt = takenAt ?? DateTime.now();
+    await _eventStore.append(<EventEnvelope<DomainEvent>>[
+      EventEnvelope<DomainEvent>(
+        eventId: _id('event'),
+        aggregateType: 'medication',
+        aggregateId: entry.scheduleId,
+        actorType: actorType,
+        correlationId: writeCorrelationId,
+        event: DomainEvent(
+          type: 'medication_taken',
+          payload: <String, Object?>{
+            'medication_name': entry.medicationName,
+            'schedule_id': entry.scheduleId,
+            'scheduled_for': _time(entry.dateTime),
+            'source_proposal_id': entry.sourceProposalId,
+            'taken_at': _time(occurredAt),
+            'thread_id': entry.threadId,
+          },
+        ),
+        occurredAt: occurredAt,
+      ),
+    ]);
+  }
+
   String? _date(DateTime? value) {
     return value?.toIso8601String().split('T').first;
+  }
+
+  String _time(DateTime value) {
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
   }
 
   String _id(String prefix) {

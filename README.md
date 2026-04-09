@@ -18,6 +18,8 @@ local data model.
 - Mobile-first draft review launched from the chat composer instead of a
   disconnected side panel
 - Direct manual medication add, edit, and remove flows in the calendar screen
+- Day-grouped activity history built from the event log
+- Medication taken events recorded from the daily schedule view
 - Unit tests covering projection rebuilds and chat command orchestration
 - GitHub Actions CI running format, analyze, and test checks on pushes and PRs
 - Pending proposals remain separate from confirmed medication schedules
@@ -54,6 +56,9 @@ edit it if needed, and accept it to project the schedule into the calendar.
 
 Confirmed schedules can also be managed directly from the calendar screen
 without going through chat.
+
+The History tab now shows a day-grouped event timeline across conversation,
+proposal, medication, and adherence activity.
 
 The event log and read models are stored locally in SQLite via Drift on native
 platforms and on the web via the bundled Drift worker + `sqlite3.wasm` assets.
@@ -106,6 +111,8 @@ make rules-generate
 
 1. Add widget and integration coverage for the new draft editor and manual
    medication flows.
-2. Turn the visible photo and voice affordances into full event-sourced input
+2. Add reminder scheduling and delivery events on top of the new activity
+   timeline and adherence model.
+3. Turn the visible photo and voice affordances into full event-sourced input
    pipelines.
-3. Add explicit maintenance docs for the bundled web Drift worker assets.
+4. Add explicit maintenance docs for the bundled web Drift worker assets.
