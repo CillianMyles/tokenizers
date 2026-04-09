@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tokenizers/src/app/app_scope.dart';
 import 'package:tokenizers/src/core/presentation/date_formatters.dart';
+import 'package:tokenizers/src/core/presentation/expandable_text.dart';
 import 'package:tokenizers/src/features/history/domain/history_timeline_models.dart';
 
 /// Day-grouped activity history built from the immutable event log.
@@ -25,17 +26,6 @@ class ConversationHistoryScreen extends StatelessWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(
-                    'Activity History',
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'A day-grouped timeline of medication, proposal, '
-                    'assistant, and adherence events.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 20),
                   Expanded(
                     child: groups.isEmpty
                         ? const _EmptyHistoryState()
@@ -111,18 +101,40 @@ class _HistoryEventCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Card(
-        child: ListTile(
-          contentPadding: const EdgeInsets.all(16),
-          leading: CircleAvatar(
-            backgroundColor: Theme.of(
-              context,
-            ).colorScheme.surfaceContainerHighest,
-            child: Icon(_iconForKind(item.kind)),
-          ),
-          title: Text(item.title),
-          subtitle: Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text('${item.description}\n${formatTime(item.occurredAt)}'),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: CircleAvatar(
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest,
+                  child: Icon(_iconForKind(item.kind)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(item.title),
+                    const SizedBox(height: 6),
+                    ExpandableText(
+                      item.description,
+                      maxLines: 3,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    Text(
+                      formatTime(item.occurredAt),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),

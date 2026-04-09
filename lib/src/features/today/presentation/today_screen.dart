@@ -5,6 +5,7 @@ import 'package:tokenizers/src/app/app_scope.dart';
 import 'package:tokenizers/src/core/domain/domain_event.dart';
 import 'package:tokenizers/src/core/domain/event_envelope.dart';
 import 'package:tokenizers/src/core/presentation/date_formatters.dart';
+import 'package:tokenizers/src/core/presentation/expandable_text.dart';
 import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
 import 'package:tokenizers/src/features/history/domain/history_timeline_models.dart';
 import 'package:tokenizers/src/features/home/domain/medication_reminder_models.dart';
@@ -62,16 +63,6 @@ class TodayScreen extends StatelessWidget {
 
                       return ListView(
                         children: <Widget>[
-                          Text(
-                            'Today',
-                            style: Theme.of(context).textTheme.headlineMedium,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            formatLongDate(today),
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          const SizedBox(height: 20),
                           _TodaySummaryCard(summary: summary),
                           const SizedBox(height: 16),
                           _ReminderSectionCard(
@@ -142,9 +133,9 @@ class TodayScreen extends StatelessWidget {
                             title: 'Up next',
                           ),
                           const SizedBox(height: 16),
-                          const _QuickActionsCard(),
-                          const SizedBox(height: 16),
                           _RecentActivityCard(items: historyItems),
+                          const SizedBox(height: 16),
+                          const _QuickActionsCard(),
                         ],
                       );
                     },
@@ -350,43 +341,75 @@ class _ReminderTile extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    reminder.entry.medicationName,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '${formatTime(reminder.entry.dateTime)} • '
-                    '${reminder.entry.doseLabel}',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ],
+            Text(
+              reminder.entry.medicationName,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '${formatTime(reminder.entry.dateTime)} • '
+              '${reminder.entry.doseLabel}',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 10),
+            _ReminderStatusBadge(reminder: reminder),
+            if (reminder.status != MedicationReminderStatus.taken) ...<Widget>[
+              const SizedBox(height: 12),
+              FilledButton.tonalIcon(
+                onPressed: () => onMarkTaken(reminder.entry),
+                icon: const Icon(Icons.check_circle_outline),
+                label: const Text('Mark taken'),
               ),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: <Widget>[
-                Chip(label: Text(_statusLabel(reminder))),
-                if (reminder.status !=
-                    MedicationReminderStatus.taken) ...<Widget>[
-                  const SizedBox(height: 8),
-                  FilledButton.tonalIcon(
-                    onPressed: () => onMarkTaken(reminder.entry),
-                    icon: const Icon(Icons.check_circle_outline),
-                    label: const Text('Taken'),
-                  ),
-                ],
-              ],
-            ),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReminderStatusBadge extends StatelessWidget {
+  const _ReminderStatusBadge({required this.reminder});
+
+  final MedicationReminderView reminder;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final (backgroundColor, foregroundColor) = switch (reminder.status) {
+      MedicationReminderStatus.overdue => (
+        colorScheme.errorContainer,
+        colorScheme.onErrorContainer,
+      ),
+      MedicationReminderStatus.dueNow => (
+        colorScheme.secondaryContainer,
+        colorScheme.onSecondaryContainer,
+      ),
+      MedicationReminderStatus.upcoming => (
+        colorScheme.surfaceContainerHighest,
+        colorScheme.onSurfaceVariant,
+      ),
+      MedicationReminderStatus.taken => (
+        colorScheme.primaryContainer,
+        colorScheme.onPrimaryContainer,
+      ),
+    };
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Text(
+          _statusLabel(reminder),
+          style: Theme.of(
+            context,
+          ).textTheme.labelMedium?.copyWith(color: foregroundColor),
         ),
       ),
     );
@@ -395,14 +418,14 @@ class _ReminderTile extends StatelessWidget {
   String _statusLabel(MedicationReminderView reminder) {
     if (reminder.status == MedicationReminderStatus.taken) {
       if (reminder.takenAt != null) {
-        return 'Taken ${formatTime(reminder.takenAt!)}';
+        return 'Taken at ${formatTime(reminder.takenAt!)}';
       }
       return 'Taken';
     }
     return switch (reminder.status) {
       MedicationReminderStatus.overdue => 'Overdue',
       MedicationReminderStatus.dueNow => 'Due now',
-      MedicationReminderStatus.upcoming => 'Upcoming',
+      MedicationReminderStatus.upcoming => 'Up next',
       MedicationReminderStatus.taken => 'Taken',
     };
   }
@@ -426,8 +449,9 @@ class _PendingReviewCard extends StatelessWidget {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
-            Text(
+            ExpandableText(
               proposal.summary,
+              maxLines: 3,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 12),
@@ -530,18 +554,38 @@ class _RecentActivityCard extends StatelessWidget {
               ...items.map(
                 (item) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: CircleAvatar(
-                      backgroundColor: Theme.of(
-                        context,
-                      ).colorScheme.surfaceContainerHighest,
-                      child: Icon(_iconForKind(item.kind)),
-                    ),
-                    title: Text(item.title),
-                    subtitle: Text(
-                      '${item.description}\n${formatTime(item.occurredAt)}',
-                    ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: CircleAvatar(
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
+                          child: Icon(_iconForKind(item.kind)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(item.title),
+                            const SizedBox(height: 4),
+                            ExpandableText(
+                              item.description,
+                              maxLines: 2,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            Text(
+                              formatTime(item.occurredAt),
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:tokenizers/src/app/app_scope.dart';
+import 'package:tokenizers/src/app/app_theme.dart';
 
 /// Shared scaffold with the primary app navigation.
 class AppShell extends StatelessWidget {
@@ -13,11 +14,15 @@ class AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final configurationError = AppScope.of(context).configurationError;
+    final shellPalette = Theme.of(context).extension<AppShellPalette>();
     return Scaffold(
       body: DecoratedBox(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: <Color>[Color(0xFFF4F7F3), Color(0xFFE9F0EA)],
+            colors: <Color>[
+              shellPalette?.gradientStart ?? const Color(0xFFF4F8F5),
+              shellPalette?.gradientEnd ?? const Color(0xFFE5EEE8),
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),

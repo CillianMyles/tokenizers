@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tokenizers/src/app/app_scope.dart';
 import 'package:tokenizers/src/bootstrap/demo_app_bootstrap.dart';
 import 'package:tokenizers/src/core/presentation/date_formatters.dart';
+import 'package:tokenizers/src/core/presentation/expandable_text.dart';
 import 'package:tokenizers/src/features/chat/domain/conversation_models.dart';
 import 'package:tokenizers/src/features/proposals/domain/proposal_models.dart';
 import 'package:tokenizers/src/features/proposals/presentation/proposal_draft_sheet.dart';
@@ -31,46 +32,60 @@ class _AssistantScreenState extends State<AssistantScreen> {
     final bootstrap = AppScope.of(context);
     final threadId = bootstrap.activityStreamId;
 
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 760),
-          child: Column(
-            children: <Widget>[
-              Expanded(
-                child: _AssistantConversationPane(
-                  onCancelProposal: () {
-                    return bootstrap.chatCoordinator.cancelPendingProposal(
-                      threadId,
-                    );
-                  },
-                  onReviewProposal: (proposal) {
-                    return _openDraftEditor(
-                      context,
-                      bootstrap: bootstrap,
-                      proposal: proposal,
-                      threadId: threadId,
-                    );
-                  },
-                  threadId: threadId,
+    return StreamBuilder<ProposalView?>(
+      stream: bootstrap.conversationRepository.watchPendingProposal(threadId),
+      builder: (context, proposalSnapshot) {
+        final proposal = proposalSnapshot.data;
+        return StreamBuilder<List<ConversationMessageView>>(
+          stream: bootstrap.conversationRepository.watchMessages(threadId),
+          builder: (context, snapshot) {
+            final messages = snapshot.data ?? const <ConversationMessageView>[];
+
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 760),
+                  child: Column(
+                    children: <Widget>[
+                      Expanded(
+                        child: _AssistantConversationPane(
+                          messages: messages,
+                          onCancelProposal: () {
+                            return bootstrap.chatCoordinator
+                                .cancelPendingProposal(threadId);
+                          },
+                          onReviewProposal: (proposal) {
+                            return _openDraftEditor(
+                              context,
+                              bootstrap: bootstrap,
+                              proposal: proposal,
+                              threadId: threadId,
+                            );
+                          },
+                          proposal: proposal,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _AssistantComposer(
+                        controller: _composerController,
+                        isSubmitting: _isSubmitting,
+                        onSend: () {
+                          return _submitMessage(
+                            bootstrap: bootstrap,
+                            threadId: threadId,
+                          );
+                        },
+                        showSuggestions: proposal == null && messages.isEmpty,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 8),
-              _AssistantComposer(
-                controller: _composerController,
-                isSubmitting: _isSubmitting,
-                onSend: () {
-                  return _submitMessage(
-                    bootstrap: bootstrap,
-                    threadId: threadId,
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -125,60 +140,48 @@ class _AssistantScreenState extends State<AssistantScreen> {
 
 class _AssistantConversationPane extends StatelessWidget {
   const _AssistantConversationPane({
+    required this.messages,
     required this.onCancelProposal,
     required this.onReviewProposal,
-    required this.threadId,
+    required this.proposal,
   });
 
+  final List<ConversationMessageView> messages;
   final Future<void> Function() onCancelProposal;
   final Future<void> Function(ProposalView proposal) onReviewProposal;
-  final String threadId;
+  final ProposalView? proposal;
 
   @override
   Widget build(BuildContext context) {
-    final bootstrap = AppScope.of(context);
-    return StreamBuilder<ProposalView?>(
-      stream: bootstrap.conversationRepository.watchPendingProposal(threadId),
-      builder: (context, proposalSnapshot) {
-        final proposal = proposalSnapshot.data;
+    final hasContent = proposal != null || messages.isNotEmpty;
 
-        return StreamBuilder<List<ConversationMessageView>>(
-          stream: bootstrap.conversationRepository.watchMessages(threadId),
-          builder: (context, snapshot) {
-            final messages = snapshot.data ?? const <ConversationMessageView>[];
-            final hasContent = proposal != null || messages.isNotEmpty;
+    if (!hasContent) {
+      return const _EmptyAssistantState();
+    }
 
-            if (!hasContent) {
-              return const _EmptyAssistantState();
-            }
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: messages.length + (proposal == null ? 0 : 1),
+      itemBuilder: (context, index) {
+        if (proposal != null && index == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: _PendingProposalBanner(
+              onCancelProposal: onCancelProposal,
+              onReviewProposal: () => onReviewProposal(proposal!),
+              proposal: proposal!,
+            ),
+          );
+        }
 
-            return ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: messages.length + (proposal == null ? 0 : 1),
-              itemBuilder: (context, index) {
-                if (proposal != null && index == 0) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: _PendingProposalBanner(
-                      onCancelProposal: onCancelProposal,
-                      onReviewProposal: () => onReviewProposal(proposal),
-                      proposal: proposal,
-                    ),
-                  );
-                }
+        final messageIndex = proposal == null ? index : index - 1;
+        final message = messages[messageIndex];
+        final isLast =
+            index == messages.length - 1 + (proposal == null ? 0 : 1);
 
-                final messageIndex = proposal == null ? index : index - 1;
-                final message = messages[messageIndex];
-                final isLast =
-                    index == messages.length - 1 + (proposal == null ? 0 : 1);
-
-                return Padding(
-                  padding: EdgeInsets.only(bottom: isLast ? 0 : 14),
-                  child: _ConversationBubble(message: message),
-                );
-              },
-            );
-          },
+        return Padding(
+          padding: EdgeInsets.only(bottom: isLast ? 0 : 14),
+          child: _ConversationBubble(message: message),
         );
       },
     );
@@ -190,11 +193,13 @@ class _AssistantComposer extends StatelessWidget {
     required this.controller,
     required this.isSubmitting,
     required this.onSend,
+    required this.showSuggestions,
   });
 
   final TextEditingController controller;
   final bool isSubmitting;
   final Future<void> Function() onSend;
+  final bool showSuggestions;
 
   @override
   Widget build(BuildContext context) {
@@ -212,28 +217,30 @@ class _AssistantComposer extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: suggestions
-                  .map((suggestion) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ActionChip(
-                        label: Text(suggestion),
-                        onPressed: () {
-                          controller.text = suggestion;
-                          controller.selection = TextSelection.fromPosition(
-                            TextPosition(offset: controller.text.length),
-                          );
-                        },
-                      ),
-                    );
-                  })
-                  .toList(growable: false),
+          if (showSuggestions) ...<Widget>[
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: suggestions
+                    .map((suggestion) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: _SuggestionPromptChip(
+                          label: suggestion,
+                          onPressed: () {
+                            controller.text = suggestion;
+                            controller.selection = TextSelection.fromPosition(
+                              TextPosition(offset: controller.text.length),
+                            );
+                          },
+                        ),
+                      );
+                    })
+                    .toList(growable: false),
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
+            const SizedBox(height: 10),
+          ],
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: controller,
             builder: (context, value, child) {
@@ -311,6 +318,31 @@ class _AssistantComposer extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _SuggestionPromptChip extends StatelessWidget {
+  const _SuggestionPromptChip({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return ActionChip(
+      avatar: Icon(
+        Icons.auto_awesome_outlined,
+        size: 16,
+        color: colorScheme.primary,
+      ),
+      backgroundColor: colorScheme.secondaryContainer.withValues(alpha: 0.9),
+      label: Text(label),
+      onPressed: onPressed,
+      side: BorderSide.none,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
     );
   }
 }
@@ -429,10 +461,15 @@ class _PendingProposalBanner extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Text(proposal.summary, style: Theme.of(context).textTheme.bodyMedium),
+          ExpandableText(
+            proposal.summary,
+            maxLines: 3,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
           const SizedBox(height: 8),
-          Text(
+          ExpandableText(
             proposal.assistantText,
+            maxLines: 4,
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 14),
@@ -493,7 +530,11 @@ class _ConversationBubble extends StatelessWidget {
                   ).textTheme.labelLarge?.copyWith(color: colorScheme.primary),
                 ),
                 const SizedBox(height: 6),
-                Text(message.text),
+                ExpandableText(
+                  message.text,
+                  maxLines: 8,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
                 const SizedBox(height: 10),
                 Text(
                   formatTime(message.createdAt),

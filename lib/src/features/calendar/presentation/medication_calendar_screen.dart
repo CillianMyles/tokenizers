@@ -30,20 +30,10 @@ class _MedicationCalendarScreenState extends State<MedicationCalendarScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(
-                'Medication Calendar',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Confirmed schedules live here. You can add, edit, or remove '
-                'medications directly, while chat stays proposal-driven.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 20),
               Row(
                 children: <Widget>[
-                  OutlinedButton.icon(
+                  IconButton.outlined(
+                    tooltip: 'Previous day',
                     onPressed: () {
                       setState(() {
                         _selectedDay = _selectedDay.subtract(
@@ -52,7 +42,6 @@ class _MedicationCalendarScreenState extends State<MedicationCalendarScreen> {
                       });
                     },
                     icon: const Icon(Icons.chevron_left),
-                    label: const Text('Previous'),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -66,7 +55,8 @@ class _MedicationCalendarScreenState extends State<MedicationCalendarScreen> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  OutlinedButton.icon(
+                  IconButton.outlined(
+                    tooltip: 'Next day',
                     onPressed: () {
                       setState(() {
                         _selectedDay = _selectedDay.add(
@@ -75,7 +65,6 @@ class _MedicationCalendarScreenState extends State<MedicationCalendarScreen> {
                       });
                     },
                     icon: const Icon(Icons.chevron_right),
-                    label: const Text('Next'),
                   ),
                 ],
               ),
