@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:tokenizers/src/app/app_scope.dart';
 import 'package:tokenizers/src/bootstrap/demo_app_bootstrap.dart';
+import 'package:tokenizers/src/core/domain/domain_event.dart';
+import 'package:tokenizers/src/core/domain/event_envelope.dart';
 import 'package:tokenizers/src/core/presentation/date_formatters.dart';
+import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
 import 'package:tokenizers/src/features/chat/domain/conversation_models.dart';
+import 'package:tokenizers/src/features/home/domain/medication_reminder_models.dart';
 import 'package:tokenizers/src/features/proposals/domain/proposal_models.dart';
 import 'package:tokenizers/src/features/proposals/presentation/proposal_draft_sheet.dart';
 
@@ -37,6 +41,16 @@ class _ChatScreenState extends State<ChatScreen> {
           child: Column(
             children: <Widget>[
               const _AssistantHeaderCard(),
+              const SizedBox(height: 16),
+              _TodayReminderPanel(
+                onMarkTaken: (entry) {
+                  return bootstrap.medicationCommandService
+                      .recordMedicationTaken(
+                        actorType: EventActorType.user,
+                        entry: entry,
+                      );
+                },
+              ),
               const SizedBox(height: 16),
               Expanded(
                 child: _ChatColumn(
@@ -305,6 +319,154 @@ class _ChatColumn extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class _TodayReminderPanel extends StatelessWidget {
+  const _TodayReminderPanel({required this.onMarkTaken});
+
+  final Future<void> Function(MedicationCalendarEntry entry) onMarkTaken;
+
+  @override
+  Widget build(BuildContext context) {
+    final bootstrap = AppScope.of(context);
+    final today = DateTime.now();
+    return StreamBuilder<List<MedicationCalendarEntry>>(
+      stream: bootstrap.medicationRepository.watchCalendarEntriesForDay(today),
+      builder: (context, entrySnapshot) {
+        final entries = entrySnapshot.data ?? const <MedicationCalendarEntry>[];
+        return StreamBuilder<List<EventEnvelope<DomainEvent>>>(
+          stream: bootstrap.eventStore.watchAll(),
+          builder: (context, eventSnapshot) {
+            final reminders = buildMedicationReminders(
+              entries: entries,
+              events:
+                  eventSnapshot.data ?? const <EventEnvelope<DomainEvent>>[],
+              now: today,
+            );
+            return Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: Text(
+                            'Today\'s reminders',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                        ),
+                        Text(
+                          formatShortDate(today),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      reminders.isEmpty
+                          ? 'No medication reminders scheduled today.'
+                          : 'See what is due now, upcoming, overdue, or already taken.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    if (reminders.isNotEmpty) ...<Widget>[
+                      const SizedBox(height: 16),
+                      ...reminders
+                          .take(3)
+                          .map(
+                            (reminder) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _ReminderCard(
+                                onMarkTaken: onMarkTaken,
+                                reminder: reminder,
+                              ),
+                            ),
+                          ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _ReminderCard extends StatelessWidget {
+  const _ReminderCard({required this.onMarkTaken, required this.reminder});
+
+  final Future<void> Function(MedicationCalendarEntry entry) onMarkTaken;
+  final MedicationReminderView reminder;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    reminder.entry.medicationName,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${formatTime(reminder.entry.dateTime)} • '
+                    '${reminder.entry.doseLabel}',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            if (reminder.status == MedicationReminderStatus.taken)
+              Chip(
+                avatar: const Icon(Icons.check_circle_outline, size: 18),
+                label: Text(
+                  reminder.takenAt == null
+                      ? 'Taken'
+                      : 'Taken ${formatTime(reminder.takenAt!)}',
+                ),
+              )
+            else
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: <Widget>[
+                  Chip(label: Text(_labelForStatus(reminder.status))),
+                  const SizedBox(height: 8),
+                  FilledButton.tonalIcon(
+                    onPressed: () => onMarkTaken(reminder.entry),
+                    icon: const Icon(Icons.check_circle_outline),
+                    label: const Text('Taken'),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _labelForStatus(MedicationReminderStatus status) {
+    return switch (status) {
+      MedicationReminderStatus.overdue => 'Overdue',
+      MedicationReminderStatus.dueNow => 'Due now',
+      MedicationReminderStatus.upcoming => 'Upcoming',
+      MedicationReminderStatus.taken => 'Taken',
+    };
   }
 }
 

@@ -209,8 +209,18 @@ String _takenSummary(Map<String, Object?> payload) {
   final parts = <String>[
     medicationName ?? 'Medication',
     if (scheduledFor != null && scheduledFor.isNotEmpty)
-      'scheduled $scheduledFor',
-    if (takenAt != null && takenAt.isNotEmpty) 'taken $takenAt',
+      'scheduled ${_displayTime(scheduledFor)}',
+    if (takenAt != null && takenAt.isNotEmpty) 'taken ${_displayTime(takenAt)}',
   ];
   return parts.join(' • ');
+}
+
+String _displayTime(String raw) {
+  final parsed = DateTime.tryParse(raw);
+  if (parsed == null) {
+    return raw;
+  }
+  final hour = parsed.hour.toString().padLeft(2, '0');
+  final minute = parsed.minute.toString().padLeft(2, '0');
+  return '$hour:$minute';
 }

@@ -187,9 +187,9 @@ class MedicationCommandService {
           payload: <String, Object?>{
             'medication_name': entry.medicationName,
             'schedule_id': entry.scheduleId,
-            'scheduled_for': _time(entry.dateTime),
+            'scheduled_for': entry.dateTime.toIso8601String(),
             'source_proposal_id': entry.sourceProposalId,
-            'taken_at': _time(occurredAt),
+            'taken_at': occurredAt.toIso8601String(),
             'thread_id': entry.threadId,
           },
         ),
@@ -200,12 +200,6 @@ class MedicationCommandService {
 
   String? _date(DateTime? value) {
     return value?.toIso8601String().split('T').first;
-  }
-
-  String _time(DateTime value) {
-    final hour = value.hour.toString().padLeft(2, '0');
-    final minute = value.minute.toString().padLeft(2, '0');
-    return '$hour:$minute';
   }
 
   String _id(String prefix) {

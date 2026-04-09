@@ -126,8 +126,14 @@ void main() {
         eventStore.events.map((event) => event.event.type).toList(),
         <String>['medication_taken'],
       );
-      expect(eventStore.events.single.event.payload['scheduled_for'], '09:00');
-      expect(eventStore.events.single.event.payload['taken_at'], '09:03');
+      expect(
+        eventStore.events.single.event.payload['scheduled_for'],
+        '2026-04-09T09:00:00.000',
+      );
+      expect(
+        eventStore.events.single.event.payload['taken_at'],
+        '2026-04-09T09:03:00.000',
+      );
     });
   });
 }
