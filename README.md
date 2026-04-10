@@ -153,8 +153,80 @@ Regenerate repo rules:
 make rules-generate
 ```
 
+## Hackathon Demo
+
+### Value Proposition
+
+Tokenizers is a privacy-first medication companion that helps people turn messy real-world instructions into a trustworthy daily medication plan.
+
+The pitch is simple:
+- people think and speak in plain language, not rigid forms
+- medication changes are high-stakes and need reviewable structure
+- the app keeps the assistant useful without letting it silently mutate schedules
+- local-first storage keeps the core experience private, fast, and resilient
+
+In one line:
+**chat naturally, review carefully, track reliably.**
+
+### Demo Checklist
+
+#### Medication plan setup and schedule management
+- [ ] create medications with dosages and times
+- [ ] support schedule start and end dates
+- [ ] update dosage or timing for an existing medication
+- [ ] stop or remove a medication cleanly
+- [ ] show that proposed changes stay in draft until manually accepted
+
+#### Today view / adherence loop
+- [ ] mark medicines as taken
+- [ ] today view clearly shows overdue, due now, upcoming, and taken items
+- [ ] show what happens when a dose is recorded late or corrected later
+- [ ] confirm that accepted schedule changes are reflected in Today
+
+#### Calendar and history
+- [ ] calendar shows medications for a given day
+- [ ] calendar supports direct manual edits for confirmed schedules
+- [ ] history shows important events such as:
+  - medication started
+  - medication taken
+  - medication stopped
+  - dosage updated
+  - taken time corrected
+
+#### Assistant workflow
+- [ ] chat with the assistant in plain language
+- [ ] assistant returns proposed draft events rather than directly changing schedules
+- [ ] manually edit proposals before accepting them
+- [ ] accept the proposal and show it reflected in Today / Calendar / History
+
+#### Multimodal inputs
+- [ ] record a voice note with medication changes
+- [ ] take a picture of a prescription to propose changes
+- [ ] keep both as proposal-generation inputs, not auto-apply flows
+
+### Admin / Hackathon Readiness
+- [ ] pull in all latest files and dependency/runtime versions
+- [ ] refresh generated rules and repo conventions
+- [ ] verify the end-to-end happy path before polishing edge cases
+- [ ] prepare a crisp value proposition for judges/users
+- [ ] prepare demo deliverables and fallback assets
+
+### Demo Deliverables
+- [ ] live demo path with one clean “magic” scenario
+- [ ] README-level feature checklist and narrative
+- [ ] short verbal pitch / value proposition
+- [ ] screenshots or screen recording backup in case live demo gods are cruel
+- [ ] sample prescription / voice-note examples for repeatable demos
+- [ ] clear statement of what is already working vs what is stretch
+
+### Stretch Goals
+- [ ] integrate a local Gemma 4 model for a fully offline, privacy-first assistant path
+- [ ] expand multimodal intake quality for voice and prescription-image parsing
+- [ ] tighten proposal UX so review feels like a natural continuation of chat, not admin paperwork
+
 ## Current Focus
 
 - tighten temporal modeling around scheduled, taken, and recorded times
 - keep history readable while preserving a correct event log
 - improve assistant/media input flows without bypassing review
+- sharpen the hackathon demo around one end-to-end magical loop
