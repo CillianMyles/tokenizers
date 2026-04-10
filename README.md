@@ -1,6 +1,6 @@
-# CarePal
+# Tokenizers
 
-CarePal is a Flutter medication tracker with a local event-sourced data
+Tokenizers is a Flutter medication tracker with a local event-sourced data
 model, an assistant-driven schedule workflow, and explicit review before any
 assistant-proposed medication change is applied.
 

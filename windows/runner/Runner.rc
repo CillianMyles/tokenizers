@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.cillianmyles" "\0"
-            VALUE "FileDescription", "CarePal" "\0"
+            VALUE "FileDescription", "tokenizers" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "carepal" "\0"
+            VALUE "InternalName", "tokenizers" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.cillianmyles. All rights reserved." "\0"
-            VALUE "OriginalFilename", "carepal.exe" "\0"
-            VALUE "ProductName", "CarePal" "\0"
+            VALUE "OriginalFilename", "tokenizers.exe" "\0"
+            VALUE "ProductName", "tokenizers" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

@@ -1,6 +1,6 @@
 {
-    "name": "CarePal",
-    "short_name": "CarePal",
+    "name": "tokenizers",
+    "short_name": "tokenizers",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
