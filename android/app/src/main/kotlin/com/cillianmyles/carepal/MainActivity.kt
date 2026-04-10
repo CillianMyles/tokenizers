@@ -1,4 +1,4 @@
-package com.cillianmyles.tokenizers
+package com.cillianmyles.carepal
 
 import io.flutter.embedding.android.FlutterActivity
 
