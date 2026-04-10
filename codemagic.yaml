@@ -21,21 +21,21 @@ workflows:
         distribution_type: app_store
         bundle_identifier: com.cillianmyles.tokenizers
 
-      vars:
-        # Reserved for the Android release flow when keystore signing is added.
-        # CM_KEYSTORE_PATH: "/tmp/keystore.keystore"
-        #
-        # Secrets expected in Codemagic:
-        #  APP_STORE_CONNECT_KEY_IDENTIFIER
-        #  APP_STORE_CONNECT_ISSUER_ID
-        #  APP_STORE_CONNECT_PRIVATE_KEY
-        #
-        # Android-only secrets kept here for parity with sibling apps:
-        #  CM_KEYSTORE_PASSWORD
-        #  CM_KEY_ALIAS
-        #  CM_KEY_PASSWORD
-        #  CM_KEYSTORE
-        #  GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+      # vars:
+      #   Reserved for the Android release flow when keystore signing is added.
+      #   CM_KEYSTORE_PATH: "/tmp/keystore.keystore"
+      #   #
+      #   Secrets expected in Codemagic:
+      #    APP_STORE_CONNECT_KEY_IDENTIFIER
+      #    APP_STORE_CONNECT_ISSUER_ID
+      #    APP_STORE_CONNECT_PRIVATE_KEY
+      #   #
+      #   Android-only secrets kept here for parity with sibling apps:
+      #    CM_KEYSTORE_PASSWORD
+      #    CM_KEY_ALIAS
+      #    CM_KEY_PASSWORD
+      #    CM_KEYSTORE
+      #    GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
 
       java: 17
       xcode: 16.4
