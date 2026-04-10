@@ -1,0 +1,13 @@
+{
+  "releaseType": "dart",
+  "packageName": "tokenizers",
+  "bumpMinorPreMajor": true,
+  "types": [
+    {
+      "type": "chore",
+      "section": "Chores",
+      "hidden": false,
+      "releaseType": "patch"
+    }
+  ]
+}

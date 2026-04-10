@@ -1,0 +1,111 @@
+---
+workflows:
+  mobile-workflow:
+    name: Mobile Workflow
+    instance_type: mac_mini_m1
+    max_build_duration: 60
+
+    integrations:
+      # Assumes the Codemagic App Store Connect integration follows the
+      # sibling-app naming convention. Rename if the integration label differs.
+      app_store_connect: tokenizers.p8
+
+    environment:
+      groups:
+        - appstore_credentials
+        # Android release is not configured yet.
+        # - keystore_credentials
+        # - google_play_credentials
+
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.cillianmyles.tokenizers
+
+      vars:
+        # Reserved for the Android release flow when keystore signing is added.
+        # CM_KEYSTORE_PATH: "/tmp/keystore.keystore"
+        #
+        # Secrets expected in Codemagic:
+        #  APP_STORE_CONNECT_KEY_IDENTIFIER
+        #  APP_STORE_CONNECT_ISSUER_ID
+        #  APP_STORE_CONNECT_PRIVATE_KEY
+        #
+        # Android-only secrets kept here for parity with sibling apps:
+        #  CM_KEYSTORE_PASSWORD
+        #  CM_KEY_ALIAS
+        #  CM_KEY_PASSWORD
+        #  CM_KEYSTORE
+        #  GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+
+      java: 17
+      xcode: 16.4
+      cocoapods: 1.16.2
+
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
+        - $HOME/.gradle/caches
+        - $HOME/Library/Caches/CocoaPods
+
+    triggering:
+      events:
+        - tag
+      cancel_previous_builds: true
+
+    scripts:
+      - name: 🐦 Set up Flutter
+        script: |
+          flutter doctor
+
+      - name: 📦 Get Dependencies
+        script: |
+          pod repo update
+          flutter pub get
+
+      - name: 🔑 Setup iOS Signing
+        script: |
+          xcode-project use-profiles --project $FCI_BUILD_DIR/ios/Runner.xcodeproj
+
+      - name: 🍎 Build iOS App
+        script: |
+          flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
+
+      # Android release is not configured yet.
+      # - name: 🔑 Setup Android Signing
+      #   script: |
+      #     echo "flutter.sdk=$FLUTTER_ROOT" > "$FCI_BUILD_DIR/android/local.properties"
+      #     echo $CM_KEYSTORE | base64 --decode > $CM_KEYSTORE_PATH
+      #
+      # - name: 🤖 Build Android App
+      #   script: |
+      #     flutter build appbundle --release
+      #     android-app-bundle build-universal-apk \
+      #       --bundle build/**/outputs/**/*.aab \
+      #       --ks $CM_KEYSTORE_PATH \
+      #       --ks-pass $CM_KEYSTORE_PASSWORD \
+      #       --ks-key-alias $CM_KEY_ALIAS \
+      #       --key-pass $CM_KEY_PASSWORD
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - "/tmp/xcodebuild_logs/*.log"
+      - flutter_drive.log
+      # Android release is not configured yet.
+      # - build/**/outputs/**/*.aab
+      # - build/**/outputs/**/*.apk
+      # - build/**/outputs/**/mapping.txt
+
+    publishing:
+      email:
+        recipients:
+          - myles.cillian@gmail.com
+
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+
+      # Android release is not configured yet.
+      # google_play:
+      #   credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+      #   track: internal
+      #   submit_as_draft: false

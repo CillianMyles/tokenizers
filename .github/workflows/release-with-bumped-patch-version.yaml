@@ -1,0 +1,37 @@
+---
+name: Release with Bumped Patch Version
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PLEASE_COMMIT_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "Cillian Myles"
+          git config --global user.email "myles.cillian@gmail.com"
+
+      - name: Make release script executable
+        run: chmod +x bin/release-with-bumped-patch-version.sh bin/release-as.sh
+
+      - name: Run release script
+        run: |
+          echo "=== RUNNING RELEASE SCRIPT ==="
+          ./bin/release-with-bumped-patch-version.sh
+
+      - name: Push changes
+        run: |
+          echo "=== PUSHING CHANGES ==="
+          git push origin main

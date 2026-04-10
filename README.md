@@ -141,6 +141,25 @@ Run tests:
 flutter test
 ```
 
+Codemagic CD:
+
+- tag builds run the Codemagic `mobile-workflow`
+- iOS builds/signing/TestFlight publishing are enabled
+- Android release steps are intentionally commented out until signing and Play
+  credentials exist
+- the Codemagic App Store Connect integration is assumed to be named
+  `tokenizers.p8`
+
+Release Please:
+
+- `.github/workflows/release_please.yml` runs on pushes to `main` and on manual
+  dispatch
+- it uses `release_please_config.json` with the Dart releaser for the
+  `tokenizers` package
+- `.github/workflows/release-with-bumped-patch-version.yaml` provides the same
+  manual patch-bump release entrypoint as the sibling apps
+- both workflows require the `RELEASE_PLEASE_COMMIT_TOKEN` GitHub secret
+
 Regenerate generated database code after schema changes:
 
 ```bash
