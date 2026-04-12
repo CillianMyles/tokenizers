@@ -127,7 +127,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 keyboardType: TextInputType.visiblePassword,
                                 obscureText: _obscureApiKey,
                                 decoration: InputDecoration(
-                                  labelText: 'Gemini API key',
+                                  labelText: 'Gemini API Key',
                                   hintText: settings.hasApiKey
                                       ? 'Leave blank to keep the current key'
                                       : 'Paste your Gemini API key',
@@ -271,8 +271,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _helperText(AiSettings settings) {
     return switch (settings.apiKeySource) {
       ApiKeySource.none => 'No Gemini key is configured yet.',
-      ApiKeySource.stored => 'A Gemini key is already saved on this device.',
-      ApiKeySource.debugEnv => 'A Gemini key is already available.',
+      ApiKeySource.stored => 'An API key is already available.',
+      ApiKeySource.debugEnv => 'An API key is already available.',
     };
   }
 
