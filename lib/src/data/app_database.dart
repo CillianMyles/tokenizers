@@ -254,6 +254,20 @@ class AppDatabase extends _$AppDatabase {
   /// Opens the application database.
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
+  /// Deletes every persisted row managed by the application database.
+  Future<void> clearAllData() async {
+    await transaction(() async {
+      await delete(medicationScheduleTimesTable).go();
+      await delete(medicationSchedulesTable).go();
+      await delete(medicationsTable).go();
+      await delete(proposalActionsTable).go();
+      await delete(proposalsTable).go();
+      await delete(messagesTable).go();
+      await delete(conversationThreadsTable).go();
+      await delete(eventLog).go();
+    });
+  }
+
   @override
   int get schemaVersion => 1;
 }

@@ -128,6 +128,8 @@ All app data is stored locally.
 - non-sensitive AI settings use shared preferences
 - Gemini API keys use secure storage where supported, with shared-preferences
   fallback on unsupported platforms
+- `Settings` includes a `Danger Zone` action that clears local schedules,
+  history, conversations, and saved AI settings from the current device
 - installs are no longer pre-seeded with sample medications, chat messages, or history
 
 ## Development

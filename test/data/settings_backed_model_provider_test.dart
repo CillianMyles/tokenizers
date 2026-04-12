@@ -104,6 +104,12 @@ class _FakeAiSettingsRepository implements AiSettingsRepository {
   AiSettings _settings;
 
   @override
+  Future<void> clearAll() async {
+    _apiKeyRecord = null;
+    _settings = const AiSettings();
+  }
+
+  @override
   Future<void> clearGeminiApiKey() async {
     _apiKeyRecord = null;
   }

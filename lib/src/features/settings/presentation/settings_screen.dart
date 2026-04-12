@@ -17,6 +17,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   static final Uri _geminiAboutUri = Uri.parse('https://gemini.google/about/');
   final TextEditingController _apiKeyController = TextEditingController();
+  bool _isDeletingData = false;
   bool _obscureApiKey = true;
   GeminiModel? _selectedModel;
 
@@ -251,6 +252,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 16),
+                      _DangerZoneCard(
+                        isDeletingData: _isDeletingData,
+                        onDeletePressed: () {
+                          _deleteLocalData(context);
+                        },
+                      ),
                     ],
                   ),
                 ),
@@ -313,6 +321,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('AI settings saved.')));
+  }
+
+  Future<void> _deleteLocalData(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => const _DeleteDataDialog(),
+    );
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+
+    final bootstrap = AppScope.of(context);
+    setState(() {
+      _isDeletingData = true;
+    });
+
+    try {
+      await bootstrap.localDataResetService.deleteAllLocalData();
+      await bootstrap.aiSettingsController.load();
+      _apiKeyController.clear();
+      _selectedModel = null;
+
+      if (!context.mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('All local data has been deleted.')),
+      );
+    } catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not delete local data. ${error.toString()}'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDeletingData = false;
+        });
+      }
+    }
   }
 
   Future<void> _openGeminiLearnMore() async {
@@ -380,6 +434,139 @@ class _SettingsInfoNote extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _DangerZoneCard extends StatelessWidget {
+  const _DangerZoneCard({
+    required this.isDeletingData,
+    required this.onDeletePressed,
+  });
+
+  final bool isDeletingData;
+  final VoidCallback onDeletePressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              'Danger Zone',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(color: colorScheme.error),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Delete all local data from this device. This cannot be undone.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: isDeletingData ? null : onDeletePressed,
+              style: FilledButton.styleFrom(
+                backgroundColor: colorScheme.error,
+                foregroundColor: colorScheme.onError,
+              ),
+              icon: isDeletingData
+                  ? SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(
+                        color: colorScheme.onError,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.delete_forever_outlined),
+              label: const Text('Delete Data'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DeleteDataDialog extends StatefulWidget {
+  const _DeleteDataDialog();
+
+  @override
+  State<_DeleteDataDialog> createState() => _DeleteDataDialogState();
+}
+
+class _DeleteDataDialogState extends State<_DeleteDataDialog> {
+  final TextEditingController _confirmationController = TextEditingController();
+
+  @override
+  void dispose() {
+    _confirmationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return AlertDialog(
+      title: const Text('Delete all local data?'),
+      content: ValueListenableBuilder<TextEditingValue>(
+        valueListenable: _confirmationController,
+        builder: (context, value, child) {
+          final canDelete = value.text.trim() == 'delete';
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                'This will permanently remove your saved medications, '
+                'history, conversations, and local AI settings. This '
+                'action cannot be recovered.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _confirmationController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Type delete to confirm',
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: <Widget>[
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(false);
+                    },
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 12),
+                  FilledButton(
+                    onPressed: canDelete
+                        ? () {
+                            Navigator.of(context).pop(true);
+                          }
+                        : null,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: colorScheme.error,
+                      foregroundColor: colorScheme.onError,
+                    ),
+                    child: const Text('Delete Data'),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }

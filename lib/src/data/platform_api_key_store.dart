@@ -63,6 +63,10 @@ class SharedPreferencesApiKeyStore implements ApiKeyStore {
 
   @override
   Future<void> delete() async {
+    if (!_preferences.containsKey(_geminiApiKeyStorageKey)) {
+      return;
+    }
+
     final removed = await _preferences.remove(_geminiApiKeyStorageKey);
     if (!removed) {
       throw StateError('Could not remove the Gemini API key from storage.');
