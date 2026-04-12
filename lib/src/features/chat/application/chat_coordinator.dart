@@ -1,4 +1,5 @@
 import 'package:tokenizers/src/core/application/event_store.dart';
+import 'package:tokenizers/src/core/application/local_data_reset_guard.dart';
 import 'package:tokenizers/src/core/domain/domain_event.dart';
 import 'package:tokenizers/src/core/domain/event_envelope.dart';
 import 'package:tokenizers/src/core/domain/medication_dose_schedule.dart';
@@ -11,7 +12,7 @@ import 'package:tokenizers/src/features/chat/domain/conversation_models.dart';
 import 'package:tokenizers/src/features/proposals/domain/proposal_models.dart';
 
 /// Orchestrates the chat-to-proposal-to-confirmation workflow.
-class ChatCoordinator {
+class ChatCoordinator implements LocalDataResetGuard {
   /// Creates a chat coordinator.
   ChatCoordinator({
     required ConversationRepository conversationRepository,
@@ -28,15 +29,26 @@ class ChatCoordinator {
   final MedicationRepository _medicationRepository;
   final ModelProvider _modelProvider;
   int _idCounter = 0;
+  int _writeGeneration = 0;
+
+  @override
+  void beginLocalDataReset() {
+    _writeGeneration += 1;
+  }
 
   /// Cancels the current pending proposal for the active thread.
   Future<void> cancelPendingProposal(String threadId) async {
+    final writeGeneration = _writeGeneration;
     final proposal = await _conversationRepository.getPendingProposal(threadId);
-    if (proposal == null) {
+    if (!_isWriteCurrent(writeGeneration) || proposal == null) {
       return;
     }
 
     final correlationId = _id('corr');
+    if (!_isWriteCurrent(writeGeneration)) {
+      return;
+    }
+
     await _eventStore.append(<EventEnvelope<DomainEvent>>[
       EventEnvelope<DomainEvent>(
         eventId: _id('event'),
@@ -61,9 +73,11 @@ class ChatCoordinator {
     String threadId, {
     List<ProposalActionView>? editedActions,
   }) async {
+    final writeGeneration = _writeGeneration;
     final proposal = await _conversationRepository.getPendingProposal(threadId);
     final confirmedActions = editedActions ?? proposal?.actions;
-    if (proposal == null ||
+    if (!_isWriteCurrent(writeGeneration) ||
+        proposal == null ||
         confirmedActions == null ||
         confirmedActions.isEmpty ||
         !_canConfirmActions(confirmedActions)) {
@@ -73,6 +87,10 @@ class ChatCoordinator {
     final occurredAt = DateTime.now();
     final correlationId = _id('corr');
     final activeSchedules = await _medicationRepository.getActiveSchedules();
+    if (!_isWriteCurrent(writeGeneration)) {
+      return;
+    }
+
     final events = <EventEnvelope<DomainEvent>>[
       EventEnvelope<DomainEvent>(
         eventId: _id('event'),
@@ -195,13 +213,18 @@ class ChatCoordinator {
       }
     }
 
+    if (!_isWriteCurrent(writeGeneration)) {
+      return;
+    }
+
     await _eventStore.append(events);
   }
 
   /// Sends a new text message through the local chat workflow.
   Future<void> submitText(String threadId, String text) async {
+    final writeGeneration = _writeGeneration;
     final trimmed = text.trim();
-    if (trimmed.isEmpty) {
+    if (trimmed.isEmpty || !_isWriteCurrent(writeGeneration)) {
       return;
     }
 
@@ -210,10 +233,22 @@ class ChatCoordinator {
     final existingMessages = await _conversationRepository.getMessages(
       threadId,
     );
+    if (!_isWriteCurrent(writeGeneration)) {
+      return;
+    }
+
     final pendingProposal = await _conversationRepository.getPendingProposal(
       threadId,
     );
+    if (!_isWriteCurrent(writeGeneration)) {
+      return;
+    }
+
     final activeSchedules = await _medicationRepository.getActiveSchedules();
+    if (!_isWriteCurrent(writeGeneration)) {
+      return;
+    }
+
     final messageId = _id('message');
 
     final initialEvents = <EventEnvelope<DomainEvent>>[
@@ -234,6 +269,10 @@ class ChatCoordinator {
         occurredAt: now,
       ),
     ];
+
+    if (!_isWriteCurrent(writeGeneration)) {
+      return;
+    }
 
     await _eventStore.append(initialEvents);
 
@@ -256,6 +295,10 @@ class ChatCoordinator {
       threadId: threadId,
     );
     if (directAdherenceResult != null) {
+      if (!_isWriteCurrent(writeGeneration)) {
+        return;
+      }
+
       await _eventStore.append(
         _assistantResponseEvents(
           assistantText: directAdherenceResult.assistantText,
@@ -287,6 +330,10 @@ class ChatCoordinator {
           'stack_trace': stackTrace.toString(),
         },
       );
+    }
+
+    if (!_isWriteCurrent(writeGeneration)) {
+      return;
     }
 
     final responseEvents = <EventEnvelope<DomainEvent>>[];
@@ -346,8 +393,14 @@ class ChatCoordinator {
       );
     }
 
+    if (!_isWriteCurrent(writeGeneration)) {
+      return;
+    }
+
     await _eventStore.append(responseEvents);
   }
+
+  bool _isWriteCurrent(int generation) => generation == _writeGeneration;
 
   Map<String, Object?> _actionToJson(ModelProposalAction action) {
     return <String, Object?>{

@@ -19,6 +19,13 @@ class LocalAiSettingsRepository implements AiSettingsRepository {
   final SharedPreferences _preferences;
 
   @override
+  Future<void> clearAll() async {
+    await _removePreference(_providerPreferenceKey);
+    await _removePreference(_geminiModelPreferenceKey);
+    await _apiKeyStore.delete();
+  }
+
+  @override
   Future<void> clearGeminiApiKey() => _apiKeyStore.delete();
 
   @override
@@ -78,5 +85,16 @@ class LocalAiSettingsRepository implements AiSettingsRepository {
       (model) => model.wireValue == wireValue,
       orElse: () => GeminiModel.gemini25Flash,
     );
+  }
+
+  Future<void> _removePreference(String key) async {
+    if (!_preferences.containsKey(key)) {
+      return;
+    }
+
+    final removed = await _preferences.remove(key);
+    if (!removed) {
+      throw StateError('Could not remove the AI setting "$key".');
+    }
   }
 }
