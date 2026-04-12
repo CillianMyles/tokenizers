@@ -1,5 +1,5 @@
-import 'package:tokenizers/src/data/app_database.dart';
 import 'package:tokenizers/src/core/application/local_data_reset_guard.dart';
+import 'package:tokenizers/src/data/app_database.dart';
 import 'package:tokenizers/src/features/settings/application/ai_settings_repository.dart';
 import 'package:tokenizers/src/features/settings/application/local_data_reset_service.dart';
 

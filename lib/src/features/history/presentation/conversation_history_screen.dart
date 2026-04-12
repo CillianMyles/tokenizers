@@ -9,9 +9,17 @@ import 'package:tokenizers/src/features/calendar/presentation/medication_taken_e
 import 'package:tokenizers/src/features/history/domain/history_timeline_models.dart';
 
 /// Day-grouped activity history built from the immutable event log.
-class ConversationHistoryScreen extends StatelessWidget {
+class ConversationHistoryScreen extends StatefulWidget {
   /// Creates the conversation history screen.
   const ConversationHistoryScreen({super.key});
+
+  @override
+  State<ConversationHistoryScreen> createState() =>
+      _ConversationHistoryScreenState();
+}
+
+class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
+  _HistoryFilter _selectedFilter = _HistoryFilter.all;
 
   @override
   Widget build(BuildContext context) {
@@ -26,18 +34,33 @@ class ConversationHistoryScreen extends StatelessWidget {
             builder: (context, snapshot) {
               final events = snapshot.data ?? const [];
               final groups = buildHistoryTimeline(events);
+              final filteredGroups = _filterGroups(
+                groups,
+                filter: _selectedFilter,
+              );
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
+                  _HistoryFilterBar(
+                    selectedFilter: _selectedFilter,
+                    onFilterSelected: (filter) {
+                      setState(() {
+                        _selectedFilter = filter;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
                   Expanded(
-                    child: groups.isEmpty
-                        ? const _EmptyHistoryState()
+                    child: filteredGroups.isEmpty
+                        ? _EmptyHistoryState(filter: _selectedFilter)
                         : ListView.separated(
-                            itemCount: groups.length,
+                            itemCount: filteredGroups.length,
                             separatorBuilder: (context, index) =>
                                 const SizedBox(height: 20),
                             itemBuilder: (context, index) {
-                              return _HistoryDaySection(group: groups[index]);
+                              return _HistoryDaySection(
+                                group: filteredGroups[index],
+                              );
                             },
                           ),
                   ),
@@ -51,8 +74,48 @@ class ConversationHistoryScreen extends StatelessWidget {
   }
 }
 
+enum _HistoryFilter { all, assistant, medication, adherence }
+
+class _HistoryFilterBar extends StatelessWidget {
+  const _HistoryFilterBar({
+    required this.onFilterSelected,
+    required this.selectedFilter,
+  });
+
+  final ValueChanged<_HistoryFilter> onFilterSelected;
+  final _HistoryFilter selectedFilter;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: _HistoryFilter.values
+          .map((filter) {
+            return ChoiceChip(
+              label: Text(_labelForFilter(filter)),
+              selected: selectedFilter == filter,
+              onSelected: (_) => onFilterSelected(filter),
+            );
+          })
+          .toList(growable: false),
+    );
+  }
+
+  String _labelForFilter(_HistoryFilter filter) {
+    return switch (filter) {
+      _HistoryFilter.all => 'All',
+      _HistoryFilter.assistant => 'Assistant',
+      _HistoryFilter.medication => 'Medication',
+      _HistoryFilter.adherence => 'Adherence',
+    };
+  }
+}
+
 class _EmptyHistoryState extends StatelessWidget {
-  const _EmptyHistoryState();
+  const _EmptyHistoryState({required this.filter});
+
+  final _HistoryFilter filter;
 
   @override
   Widget build(BuildContext context) {
@@ -60,11 +123,20 @@ class _EmptyHistoryState extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Text(
-          'No activity yet.',
+          _messageForFilter(filter),
           style: Theme.of(context).textTheme.titleMedium,
         ),
       ),
     );
+  }
+
+  String _messageForFilter(_HistoryFilter filter) {
+    return switch (filter) {
+      _HistoryFilter.all => 'No activity yet.',
+      _HistoryFilter.assistant => 'No assistant activity yet.',
+      _HistoryFilter.medication => 'No medication changes yet.',
+      _HistoryFilter.adherence => 'No adherence activity yet.',
+    };
   }
 }
 
@@ -90,6 +162,44 @@ class _HistoryDaySection extends StatelessWidget {
       ],
     );
   }
+}
+
+List<HistoryTimelineDayGroup> _filterGroups(
+  List<HistoryTimelineDayGroup> groups, {
+  required _HistoryFilter filter,
+}) {
+  if (filter == _HistoryFilter.all) {
+    return groups;
+  }
+
+  final filtered = <HistoryTimelineDayGroup>[];
+  for (final group in groups) {
+    final items = group.items
+        .where((item) {
+          return _matchesFilter(item.kind, filter: filter);
+        })
+        .toList(growable: false);
+    if (items.isEmpty) {
+      continue;
+    }
+    filtered.add(HistoryTimelineDayGroup(day: group.day, items: items));
+  }
+  return filtered;
+}
+
+bool _matchesFilter(
+  HistoryTimelineItemKind kind, {
+  required _HistoryFilter filter,
+}) {
+  return switch (filter) {
+    _HistoryFilter.all => true,
+    _HistoryFilter.assistant =>
+      kind == HistoryTimelineItemKind.chat ||
+          kind == HistoryTimelineItemKind.proposal ||
+          kind == HistoryTimelineItemKind.system,
+    _HistoryFilter.medication => kind == HistoryTimelineItemKind.medication,
+    _HistoryFilter.adherence => kind == HistoryTimelineItemKind.adherence,
+  };
 }
 
 class _HistoryEventCard extends StatelessWidget {
