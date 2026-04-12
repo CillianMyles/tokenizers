@@ -136,24 +136,25 @@ class _DesktopNavigationRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final titleStyle = Theme.of(context).textTheme.titleMedium?.copyWith(
-      color: colorScheme.onSurface,
-      fontWeight: FontWeight.w700,
-    );
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: colorScheme.surface.withValues(alpha: isDark ? 0.82 : 0.9),
+        color: Theme.of(
+          context,
+        ).colorScheme.surface.withValues(alpha: isDark ? 0.82 : 0.9),
         border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.85),
+          color: Theme.of(
+            context,
+          ).colorScheme.outlineVariant.withValues(alpha: 0.85),
         ),
         borderRadius: BorderRadius.circular(28),
         boxShadow: <BoxShadow>[
           BoxShadow(
             blurRadius: 30,
-            color: colorScheme.shadow.withValues(alpha: isDark ? 0.2 : 0.08),
+            color: Theme.of(
+              context,
+            ).colorScheme.shadow.withValues(alpha: isDark ? 0.2 : 0.08),
             offset: const Offset(0, 18),
           ),
         ],
@@ -174,38 +175,6 @@ class _DesktopNavigationRail extends StatelessWidget {
               );
             })
             .toList(growable: false),
-        leading: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 16, 24),
-          child: SizedBox(
-            width: 168,
-            child: Row(
-              children: <Widget>[
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Icon(
-                      Icons.space_dashboard_outlined,
-                      color: colorScheme.onPrimaryContainer,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Tokenizers',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: titleStyle,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
