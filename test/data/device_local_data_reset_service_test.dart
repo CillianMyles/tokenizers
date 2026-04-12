@@ -1,6 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tokenizers/src/core/application/local_data_reset_guard.dart';
 import 'package:tokenizers/src/core/domain/domain_event.dart';
 import 'package:tokenizers/src/core/domain/event_envelope.dart';
 import 'package:tokenizers/src/data/api_key_store.dart';
@@ -29,10 +30,12 @@ void main() {
         preferences: preferences,
       );
       final controller = AiSettingsController(repository: repository);
+      final resetGuard = _RecordingLocalDataResetGuard();
       final database = AppDatabase(NativeDatabase.memory());
       final eventStore = DriftEventStore(database: database);
       final service = DeviceLocalDataResetService(
         database: database,
+        resetGuard: resetGuard,
         settingsRepository: repository,
       );
 
@@ -71,6 +74,7 @@ void main() {
       await service.deleteAllLocalData();
       await controller.load();
 
+      expect(resetGuard.beginResetCalls, 1);
       expect(await eventStore.loadAll(), isEmpty);
       expect(
         await database.select(database.conversationThreadsTable).get(),
@@ -110,5 +114,14 @@ class _InMemoryApiKeyStore implements ApiKeyStore {
   @override
   Future<void> write(String value) async {
     _value = value;
+  }
+}
+
+class _RecordingLocalDataResetGuard implements LocalDataResetGuard {
+  int beginResetCalls = 0;
+
+  @override
+  void beginLocalDataReset() {
+    beginResetCalls += 1;
   }
 }

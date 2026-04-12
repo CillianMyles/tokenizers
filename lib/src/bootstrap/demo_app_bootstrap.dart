@@ -77,20 +77,22 @@ Future<AppBootstrap> createDemoAppBootstrap() async {
   );
   final workspace = DriftWorkspace(database: database, eventStore: eventStore);
   await workspace.rebuild();
+  final chatCoordinator = ChatCoordinator(
+    conversationRepository: workspace,
+    eventStore: eventStore,
+    medicationRepository: workspace,
+    modelProvider: modelProvider,
+  );
 
   return AppBootstrap(
     activityStreamId: activityStreamId,
     aiSettingsController: aiSettingsController,
-    chatCoordinator: ChatCoordinator(
-      conversationRepository: workspace,
-      eventStore: eventStore,
-      medicationRepository: workspace,
-      modelProvider: modelProvider,
-    ),
+    chatCoordinator: chatCoordinator,
     conversationRepository: workspace,
     eventStore: eventStore,
     localDataResetService: DeviceLocalDataResetService(
       database: database,
+      resetGuard: chatCoordinator,
       settingsRepository: aiSettingsRepository,
     ),
     medicationCommandService: medicationCommandService,
