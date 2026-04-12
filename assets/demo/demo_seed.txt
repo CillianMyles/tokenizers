@@ -1,0 +1,15 @@
+# Demo seed data
+# One record per line, fields separated by `|`, values as `key=value`.
+# Dates are relative to the day the seeder runs via `*_offset_days`.
+
+THREAD|thread_id=thread-current|title=Medication review|at=09:00
+MESSAGE|actor=user|at=09:02|text=I take Metformin, Vitamin D, and Tacrolimus. Can you help me organize everything?
+MESSAGE|actor=model|at=09:02:08|text=I pulled your current medications into the tracker and drafted one possible addition for review.
+PROPOSAL|proposal_id=seed-proposal-magnesium|at=09:02:10|summary=Add magnesium glycinate 200 mg at bedtime.|assistant_text=I drafted magnesium glycinate at bedtime for you to review before anything is applied.|medication_name=Magnesium glycinate|dose_amount=200|dose_unit=mg|start_offset_days=1|times=21:00|notes=Draft only for hackathon demo.
+SCHEDULE|medication_name=Metformin|dose_amount=500|dose_unit=mg|start_offset_days=-30|times=08:00,20:00|notes=Take with meals.
+SCHEDULE|medication_name=Vitamin D|dose_amount=1000|dose_unit=IU|start_offset_days=-14|times=09:00|notes=Morning supplement.
+SCHEDULE|medication_name=Tacrolimus|dose_amount=1|dose_unit=mg|start_offset_days=-60|times=08:00,20:00|notes=Transplant medication.
+RETIRED_SCHEDULE|medication_name=Omeprazole|dose_amount=20|dose_unit=mg|start_offset_days=-45|stop_offset_days=-2|times=08:00|notes=Stopped this week after symptoms improved.
+TAKEN|medication_name=Metformin|scheduled_time=08:00|taken_time=08:06|recorded_time=08:06|dose_label=500 mg
+TAKEN|medication_name=Vitamin D|scheduled_time=09:00|taken_time=09:12|recorded_time=09:12|dose_label=1000 IU
+CORRECTED_TAKEN|medication_name=Vitamin D|scheduled_time=09:00|previous_taken_time=09:12|taken_time=09:20|recorded_time=09:20|dose_label=1000 IU

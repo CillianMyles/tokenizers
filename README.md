@@ -109,6 +109,24 @@ Or:
 flutter run -d chrome
 ```
 
+Optional: seed demo data for the same local app target before launching the
+main app. The demo dataset lives in [assets/demo/demo_seed.txt](assets/demo/demo_seed.txt),
+so you can add or tweak records there without changing Dart code:
+
+```bash
+flutter run -d chrome -t lib/seed_demo_main.dart
+```
+
+If local data already exists, the seed entrypoint stops without changing it.
+To replace the current local data with the demo dataset:
+
+```bash
+flutter run -d chrome -t lib/seed_demo_main.dart --dart-define=RESET_DEMO_DATA=true
+```
+
+After the seed entrypoint reports success, stop it and launch the normal app
+again on the same target.
+
 If `GEMINI_API_KEY` is missing, the assistant remains visible but live
 assistant submission is disabled. Manual calendar and adherence flows still
 work.
