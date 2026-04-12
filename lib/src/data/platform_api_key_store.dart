@@ -10,8 +10,11 @@ const _geminiApiKeyStorageKey = 'ai_settings.gemini_api_key';
 ApiKeyStore createPlatformApiKeyStore({
   required SharedPreferences preferences,
   FlutterSecureStorage? secureStorage,
+  TargetPlatform? targetPlatform,
 }) {
-  if (kIsWeb) {
+  final platform = targetPlatform ?? defaultTargetPlatform;
+
+  if (kIsWeb || platform == TargetPlatform.macOS) {
     return SharedPreferencesApiKeyStore(preferences: preferences);
   }
 
