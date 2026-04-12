@@ -1,24 +1,27 @@
 import 'package:tokenizers/env/env.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tokenizers/src/core/application/event_store.dart';
 import 'package:tokenizers/src/core/application/projection_runner.dart';
 import 'package:tokenizers/src/core/model/model_provider.dart';
-import 'package:tokenizers/src/core/model/model_response_contract.dart';
 import 'package:tokenizers/src/data/app_database.dart';
+import 'package:tokenizers/src/data/local_ai_settings_repository.dart';
+import 'package:tokenizers/src/data/platform_api_key_store.dart';
 import 'package:tokenizers/src/data/drift_event_store.dart';
 import 'package:tokenizers/src/data/drift_workspace.dart';
-import 'package:tokenizers/src/data/gemini_model_provider.dart';
+import 'package:tokenizers/src/data/settings_backed_model_provider.dart';
 import 'package:tokenizers/src/features/calendar/application/medication_command_service.dart';
 import 'package:tokenizers/src/features/calendar/application/medication_repository.dart';
 import 'package:tokenizers/src/features/chat/application/chat_coordinator.dart';
 import 'package:tokenizers/src/features/chat/application/conversation_repository.dart';
+import 'package:tokenizers/src/features/settings/application/ai_settings_controller.dart';
 
 /// Bundles the app's core services and repositories.
 class AppBootstrap {
   /// Creates an app bootstrap.
   const AppBootstrap({
     required this.activityStreamId,
+    required this.aiSettingsController,
     required this.chatCoordinator,
-    required this.configurationError,
     required this.conversationRepository,
     required this.eventStore,
     required this.medicationCommandService,
@@ -28,21 +31,36 @@ class AppBootstrap {
   });
 
   final String activityStreamId;
+  final AiSettingsController aiSettingsController;
   final ChatCoordinator chatCoordinator;
-  final String? configurationError;
   final ConversationRepository conversationRepository;
   final EventStore eventStore;
   final MedicationCommandService medicationCommandService;
   final MedicationRepository medicationRepository;
   final ModelProvider modelProvider;
   final ProjectionRunner projectionRunner;
+
+  /// Explains why live assistant requests are unavailable.
+  String? get configurationError => aiSettingsController.configurationError;
 }
 
 /// Creates the application bootstrap used by the v0 shell.
 Future<AppBootstrap> createDemoAppBootstrap() async {
   const activityStreamId = 'thread-current';
-  final configurationError = _configurationError();
-  final modelProvider = _createModelProvider(configurationError);
+  final sharedPreferences = await SharedPreferences.getInstance();
+  final aiSettingsController = AiSettingsController(
+    repository: LocalAiSettingsRepository(
+      apiKeyStore: FallbackApiKeyStore(
+        fallback: DebugApiKeyStore(readValue: () => Env.geminiApiKey),
+        primary: createPlatformApiKeyStore(preferences: sharedPreferences),
+      ),
+      preferences: sharedPreferences,
+    ),
+  );
+  await aiSettingsController.load();
+  final modelProvider = SettingsBackedModelProvider(
+    settingsController: aiSettingsController,
+  );
 
   final database = AppDatabase();
   final eventStore = DriftEventStore(database: database);
@@ -54,13 +72,13 @@ Future<AppBootstrap> createDemoAppBootstrap() async {
 
   return AppBootstrap(
     activityStreamId: activityStreamId,
+    aiSettingsController: aiSettingsController,
     chatCoordinator: ChatCoordinator(
       conversationRepository: workspace,
       eventStore: eventStore,
       medicationRepository: workspace,
       modelProvider: modelProvider,
     ),
-    configurationError: configurationError,
     conversationRepository: workspace,
     eventStore: eventStore,
     medicationCommandService: medicationCommandService,
@@ -68,35 +86,4 @@ Future<AppBootstrap> createDemoAppBootstrap() async {
     modelProvider: modelProvider,
     projectionRunner: workspace,
   );
-}
-
-String? _configurationError() {
-  if (Env.geminiApiKey.isNotEmpty) {
-    return null;
-  }
-  return 'Missing GEMINI_API_KEY in your local .env. Copy .env.example to '
-      '.env, add your Gemini key, and relaunch the app.';
-}
-
-ModelProvider _createModelProvider(String? configurationError) {
-  if (configurationError != null) {
-    return _MissingConfigurationModelProvider(message: configurationError);
-  }
-  return GeminiModelProvider(apiKey: Env.geminiApiKey);
-}
-
-final class _MissingConfigurationModelProvider implements ModelProvider {
-  const _MissingConfigurationModelProvider({required this.message});
-
-  final String message;
-
-  @override
-  Future<ModelResponseContract> generateResponse({
-    required List activeSchedules,
-    required List conversation,
-    required String threadId,
-    required String userText,
-  }) {
-    throw StateError(message);
-  }
 }

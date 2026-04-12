@@ -226,120 +226,135 @@ class _AssistantComposer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final configurationError = AppScope.of(context).configurationError;
+    final settingsController = AppScope.of(context).aiSettingsController;
     final colorScheme = Theme.of(context).colorScheme;
     const suggestions = <({String label, String text})>[
       (label: 'Vit D', text: 'Add vitamin D 1000 IU at 9am'),
       (label: 'Amox', text: 'Add amoxicillin 500 mg at 8am and 8pm'),
     ];
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          if (showSuggestions) ...<Widget>[
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: suggestions
-                    .map((suggestion) {
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: _SuggestionPromptChip(
-                          label: suggestion.label,
-                          onPressed: () {
-                            controller.text = suggestion.text;
-                            controller.selection = TextSelection.fromPosition(
-                              TextPosition(offset: controller.text.length),
-                            );
-                          },
-                        ),
-                      );
-                    })
-                    .toList(growable: false),
-              ),
-            ),
-            const SizedBox(height: 10),
-          ],
-          ValueListenableBuilder<TextEditingValue>(
-            valueListenable: controller,
-            builder: (context, value, child) {
-              final hasText = value.text.trim().isNotEmpty;
-              return TextField(
-                controller: controller,
-                enabled: !isSubmitting && configurationError == null,
-                minLines: 1,
-                maxLines: 5,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) {
-                  if (hasText) {
-                    onSend();
-                  }
-                },
-                decoration: InputDecoration(
-                  hintText: configurationError == null
-                      ? 'Describe a medication change...'
-                      : 'Add GEMINI_API_KEY to .env before sending updates.',
-                  suffixIcon: Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 160),
-                      child: isSubmitting
-                          ? const SizedBox.square(
-                              key: ValueKey('sending'),
-                              dimension: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : hasText
-                          ? IconButton(
-                              key: const ValueKey('send'),
-                              onPressed: configurationError != null
-                                  ? null
-                                  : onSend,
-                              style: IconButton.styleFrom(
-                                backgroundColor: colorScheme.primaryContainer,
-                                foregroundColor: colorScheme.primary,
-                                minimumSize: const Size.square(40),
-                                maximumSize: const Size.square(40),
-                                padding: EdgeInsets.zero,
-                                visualDensity: VisualDensity.compact,
-                              ),
-                              icon: const Icon(Icons.arrow_upward, size: 18),
-                            )
-                          : _ComposerActionMenu(
-                              key: const ValueKey('plus'),
-                              onSelected: (action) {
-                                final label = switch (action) {
-                                  _ComposerInputAction.recordAudio =>
-                                    'Record audio',
-                                  _ComposerInputAction.takePhoto =>
-                                    'Take photo',
-                                  _ComposerInputAction.chooseImage =>
-                                    'Choose image',
-                                  _ComposerInputAction.chooseFile =>
-                                    'Choose file',
-                                };
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('$label is not wired yet.'),
-                                  ),
+    return ListenableBuilder(
+      listenable: settingsController,
+      builder: (context, child) {
+        final configurationError = settingsController.configurationError;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              if (showSuggestions) ...<Widget>[
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: suggestions
+                        .map((suggestion) {
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: _SuggestionPromptChip(
+                              label: suggestion.label,
+                              onPressed: () {
+                                controller.text = suggestion.text;
+                                controller
+                                    .selection = TextSelection.fromPosition(
+                                  TextPosition(offset: controller.text.length),
                                 );
                               },
                             ),
-                    ),
-                  ),
-                  suffixIconConstraints: const BoxConstraints(
-                    minHeight: 44,
-                    minWidth: 52,
+                          );
+                        })
+                        .toList(growable: false),
                   ),
                 ),
-              );
-            },
+                const SizedBox(height: 10),
+              ],
+              ValueListenableBuilder<TextEditingValue>(
+                valueListenable: controller,
+                builder: (context, value, child) {
+                  final hasText = value.text.trim().isNotEmpty;
+                  return TextField(
+                    controller: controller,
+                    enabled: !isSubmitting && configurationError == null,
+                    minLines: 1,
+                    maxLines: 5,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) {
+                      if (hasText) {
+                        onSend();
+                      }
+                    },
+                    decoration: InputDecoration(
+                      hintText: configurationError == null
+                          ? 'Describe a medication change...'
+                          : 'Add a Gemini API key in Settings before sending.',
+                      suffixIcon: Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 160),
+                          child: isSubmitting
+                              ? const SizedBox.square(
+                                  key: ValueKey('sending'),
+                                  dimension: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : hasText
+                              ? IconButton(
+                                  key: const ValueKey('send'),
+                                  onPressed: configurationError != null
+                                      ? null
+                                      : onSend,
+                                  style: IconButton.styleFrom(
+                                    backgroundColor:
+                                        colorScheme.primaryContainer,
+                                    foregroundColor: colorScheme.primary,
+                                    minimumSize: const Size.square(40),
+                                    maximumSize: const Size.square(40),
+                                    padding: EdgeInsets.zero,
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  icon: const Icon(
+                                    Icons.arrow_upward,
+                                    size: 18,
+                                  ),
+                                )
+                              : _ComposerActionMenu(
+                                  key: const ValueKey('plus'),
+                                  onSelected: (action) {
+                                    final label = switch (action) {
+                                      _ComposerInputAction.recordAudio =>
+                                        'Record audio',
+                                      _ComposerInputAction.takePhoto =>
+                                        'Take photo',
+                                      _ComposerInputAction.chooseImage =>
+                                        'Choose image',
+                                      _ComposerInputAction.chooseFile =>
+                                        'Choose file',
+                                    };
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          '$label is not wired yet.',
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                        ),
+                      ),
+                      suffixIconConstraints: const BoxConstraints(
+                        minHeight: 44,
+                        minWidth: 52,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

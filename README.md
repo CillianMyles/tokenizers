@@ -74,6 +74,7 @@ lib/
         ├── history/
         ├── home/
         ├── proposals/
+        ├── settings/
         └── today/
 ```
 
@@ -97,6 +98,11 @@ Set:
 GEMINI_API_KEY=your_key_here
 ```
 
+This is optional. The app now supports a BYO-AI flow in `Settings`, where
+users can save their own Gemini API key and choose the Gemini model used for
+assistant requests. During desktop development, `.env` can still provide a
+debug fallback key if no user key has been saved yet.
+
 Run the app:
 
 ```bash
@@ -109,9 +115,9 @@ Or:
 flutter run -d chrome
 ```
 
-If `GEMINI_API_KEY` is missing, the assistant remains visible but live
-assistant submission is disabled. Manual calendar and adherence flows still
-work.
+If neither a saved Gemini key nor a `.env` debug key is available, the
+assistant remains visible but live assistant submission is disabled. Manual
+calendar and adherence flows still work.
 
 ## Local Data
 
@@ -119,6 +125,9 @@ All app data is stored locally.
 
 - native platforms use Drift on SQLite
 - web uses Drift with the bundled SQLite worker/wasm assets
+- non-sensitive AI settings use shared preferences
+- Gemini API keys use secure storage where supported, with shared-preferences
+  fallback on unsupported platforms
 - installs are no longer pre-seeded with sample medications, chat messages, or history
 
 ## Development
