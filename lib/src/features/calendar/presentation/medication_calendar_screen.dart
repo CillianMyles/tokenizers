@@ -7,10 +7,17 @@ import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
 import 'package:tokenizers/src/features/calendar/presentation/medication_schedule_editor.dart';
 import 'package:tokenizers/src/features/calendar/presentation/medication_taken_editor.dart';
 
+DateTime _defaultCurrentDate() => DateUtils.dateOnly(DateTime.now());
+
 /// Day-based calendar view for confirmed medication schedules.
 class MedicationCalendarScreen extends StatefulWidget {
   /// Creates the medication calendar screen.
-  const MedicationCalendarScreen({super.key});
+  const MedicationCalendarScreen({
+    this.currentDate = _defaultCurrentDate,
+    super.key,
+  });
+
+  final DateTime Function() currentDate;
 
   @override
   State<MedicationCalendarScreen> createState() =>
@@ -18,7 +25,13 @@ class MedicationCalendarScreen extends StatefulWidget {
 }
 
 class _MedicationCalendarScreenState extends State<MedicationCalendarScreen> {
-  DateTime _selectedDay = DateTime(2026, 4, 5);
+  late DateTime _selectedDay;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDay = DateUtils.dateOnly(widget.currentDate());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +62,9 @@ class _MedicationCalendarScreenState extends State<MedicationCalendarScreen> {
                     child: FilledButton.tonal(
                       onPressed: () {
                         setState(() {
-                          _selectedDay = DateTime(2026, 4, 5);
+                          _selectedDay = DateUtils.dateOnly(
+                            widget.currentDate(),
+                          );
                         });
                       },
                       child: Text(formatLongDate(_selectedDay)),
