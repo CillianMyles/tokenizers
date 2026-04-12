@@ -1,13 +1,13 @@
-import 'package:tokenizers/env/env.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tokenizers/env/env.dart';
 import 'package:tokenizers/src/core/application/event_store.dart';
 import 'package:tokenizers/src/core/application/projection_runner.dart';
 import 'package:tokenizers/src/core/model/model_provider.dart';
 import 'package:tokenizers/src/data/app_database.dart';
-import 'package:tokenizers/src/data/local_ai_settings_repository.dart';
-import 'package:tokenizers/src/data/platform_api_key_store.dart';
 import 'package:tokenizers/src/data/drift_event_store.dart';
 import 'package:tokenizers/src/data/drift_workspace.dart';
+import 'package:tokenizers/src/data/local_ai_settings_repository.dart';
+import 'package:tokenizers/src/data/platform_api_key_store.dart';
 import 'package:tokenizers/src/data/settings_backed_model_provider.dart';
 import 'package:tokenizers/src/features/calendar/application/medication_command_service.dart';
 import 'package:tokenizers/src/features/calendar/application/medication_repository.dart';

@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
-
 import 'package:tokenizers/src/app/app_scope.dart';
 import 'package:tokenizers/src/app/app_theme.dart';
 import 'package:tokenizers/src/features/settings/application/ai_settings_controller.dart';
 import 'package:tokenizers/src/features/settings/domain/ai_settings.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// User-configurable AI provider settings.
 class SettingsScreen extends StatefulWidget {
