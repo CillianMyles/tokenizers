@@ -19,6 +19,7 @@ import 'package:tokenizers/src/features/chat/domain/conversation_models.dart';
 import 'package:tokenizers/src/features/proposals/domain/proposal_models.dart';
 import 'package:tokenizers/src/features/settings/application/ai_settings_controller.dart';
 import 'package:tokenizers/src/features/settings/application/ai_settings_repository.dart';
+import 'package:tokenizers/src/features/settings/application/local_data_reset_service.dart';
 import 'package:tokenizers/src/features/settings/domain/ai_settings.dart';
 import 'package:tokenizers/src/features/today/presentation/today_screen.dart';
 
@@ -108,6 +109,7 @@ AppBootstrap _buildBootstrap({
     ),
     conversationRepository: conversationRepository,
     eventStore: eventStore,
+    localDataResetService: const _FakeLocalDataResetService(),
     medicationCommandService: MedicationCommandService(eventStore: eventStore),
     medicationRepository: medicationRepository,
     modelProvider: modelProvider,
@@ -117,6 +119,9 @@ AppBootstrap _buildBootstrap({
 
 class _FakeAiSettingsRepository implements AiSettingsRepository {
   const _FakeAiSettingsRepository();
+
+  @override
+  Future<void> clearAll() async {}
 
   @override
   Future<void> clearGeminiApiKey() async {}
@@ -135,6 +140,13 @@ class _FakeAiSettingsRepository implements AiSettingsRepository {
 
   @override
   Future<void> saveGeminiApiKey(String apiKey) async {}
+}
+
+class _FakeLocalDataResetService implements LocalDataResetService {
+  const _FakeLocalDataResetService();
+
+  @override
+  Future<void> deleteAllLocalData() async {}
 }
 
 class _FakeMedicationRepository implements MedicationRepository {
