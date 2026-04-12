@@ -74,6 +74,7 @@ lib/
         ├── history/
         ├── home/
         ├── proposals/
+        ├── settings/
         └── today/
 ```
 
@@ -96,6 +97,11 @@ Set:
 ```bash
 GEMINI_API_KEY=your_key_here
 ```
+
+This is optional. The app now supports a BYO-AI flow in `Settings`, where
+users can save their own Gemini API key and choose the Gemini model used for
+assistant requests. During desktop development, `.env` can still provide a
+debug fallback key if no user key has been saved yet.
 
 Run the app:
 
@@ -127,9 +133,27 @@ flutter run -d chrome -t lib/seed_demo_main.dart --dart-define=RESET_DEMO_DATA=t
 After the seed entrypoint reports success, stop it and launch the normal app
 again on the same target.
 
-If `GEMINI_API_KEY` is missing, the assistant remains visible but live
-assistant submission is disabled. Manual calendar and adherence flows still
-work.
+If neither a saved Gemini key nor a `.env` debug key is available, the
+assistant remains visible but live assistant submission is disabled. Manual
+calendar and adherence flows still work.
+
+Optional: seed demo data for the same local app target before launching the
+main app. The demo dataset lives in [assets/demo/demo_seed.txt](assets/demo/demo_seed.txt),
+so you can add or tweak records there without changing Dart code:
+
+```bash
+flutter run -d chrome -t lib/seed_demo_main.dart
+```
+
+If local data already exists, the seed entrypoint stops without changing it.
+To replace the current local data with the demo dataset:
+
+```bash
+flutter run -d chrome -t lib/seed_demo_main.dart --dart-define=RESET_DEMO_DATA=true
+```
+
+After the seed entrypoint reports success, stop it and launch the normal app
+again on the same target.
 
 ## Local Data
 
@@ -137,6 +161,9 @@ All app data is stored locally.
 
 - native platforms use Drift on SQLite
 - web uses Drift with the bundled SQLite worker/wasm assets
+- non-sensitive AI settings use shared preferences
+- Gemini API keys use secure storage where supported, with shared-preferences
+  fallback on unsupported platforms
 - installs are no longer pre-seeded with sample medications, chat messages, or history
 
 ## Development
