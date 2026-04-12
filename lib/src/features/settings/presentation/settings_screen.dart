@@ -38,6 +38,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final controller = bootstrap.aiSettingsController;
         final settings = controller.settings;
         final selectedModel = _selectedModel ?? settings.geminiModel;
+        final hasSavedApiKey = settings.apiKeySource == ApiKeySource.stored;
 
         return DecoratedBox(
           decoration: BoxDecoration(
@@ -90,36 +91,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 child: const Text('Learn more'),
                               ),
                               const SizedBox(height: 20),
-                              Text(
-                                'Model',
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              const SizedBox(height: 10),
-                              SegmentedButton<GeminiModel>(
-                                selected: <GeminiModel>{selectedModel},
-                                showSelectedIcon: false,
-                                onSelectionChanged: controller.isSaving
-                                    ? null
-                                    : (selection) {
-                                        setState(() {
-                                          _selectedModel = selection.first;
-                                        });
-                                      },
-                                segments: GeminiModel.values
-                                    .map((model) {
-                                      return ButtonSegment<GeminiModel>(
-                                        value: model,
-                                        label: Text(model.label),
-                                      );
-                                    })
-                                    .toList(growable: false),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                selectedModel.description,
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                              const SizedBox(height: 20),
                               TextField(
                                 controller: _apiKeyController,
                                 autocorrect: false,
@@ -152,9 +123,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   final hasPendingApiKey = value.text
                                       .trim()
                                       .isNotEmpty;
-                                  final hasSavedApiKey =
-                                      settings.apiKeySource ==
-                                      ApiKeySource.stored;
 
                                   return Column(
                                     crossAxisAlignment:
@@ -186,7 +154,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                         children: <Widget>[
                                           FilledButton.icon(
                                             onPressed:
-                                                controller.isSaving ||
+                                                controller.isSavingApiKey ||
                                                     !hasPendingApiKey
                                                 ? null
                                                 : () {
@@ -197,7 +165,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                                           selectedModel,
                                                     );
                                                   },
-                                            icon: controller.isSaving
+                                            icon: controller.isSavingApiKey
                                                 ? const SizedBox.square(
                                                     dimension: 16,
                                                     child:
@@ -208,11 +176,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                                 : const Icon(
                                                     Icons.save_outlined,
                                                   ),
-                                            label: const Text('Save settings'),
+                                            label: const Text('Save key'),
                                           ),
                                           OutlinedButton.icon(
                                             onPressed:
-                                                controller.isSaving ||
+                                                controller.isSavingApiKey ||
                                                     !hasSavedApiKey
                                                 ? null
                                                 : () {
@@ -224,15 +192,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                             icon: const Icon(
                                               Icons.delete_outline,
                                             ),
-                                            label: const Text(
-                                              'Clear saved key',
-                                            ),
+                                            label: const Text('Remove key'),
                                           ),
                                         ],
                                       ),
                                     ],
                                   );
                                 },
+                              ),
+                              const SizedBox(height: 20),
+                              Text(
+                                'Model',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              const SizedBox(height: 10),
+                              SegmentedButton<GeminiModel>(
+                                selected: <GeminiModel>{selectedModel},
+                                showSelectedIcon: false,
+                                onSelectionChanged: controller.isSavingModel
+                                    ? null
+                                    : (selection) async {
+                                        final nextModel = selection.first;
+                                        setState(() {
+                                          _selectedModel = nextModel;
+                                        });
+                                        await controller.saveGeminiModel(
+                                          nextModel,
+                                        );
+                                        if (!context.mounted) {
+                                          return;
+                                        }
+                                        if (controller.errorMessage != null) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                controller.errorMessage!,
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                segments: GeminiModel.values
+                                    .map((model) {
+                                      return ButtonSegment<GeminiModel>(
+                                        value: model,
+                                        label: Text(model.label),
+                                      );
+                                    })
+                                    .toList(growable: false),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                selectedModel.description,
+                                style: Theme.of(context).textTheme.bodySmall,
                               ),
                             ],
                           ),

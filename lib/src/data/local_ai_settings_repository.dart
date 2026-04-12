@@ -49,14 +49,17 @@ class LocalAiSettingsRepository implements AiSettingsRepository {
 
   @override
   Future<AiSettings> save(AiSettings settings) async {
-    await _preferences.setString(
+    final providerSaved = await _preferences.setString(
       _providerPreferenceKey,
       settings.provider.wireValue,
     );
-    await _preferences.setString(
+    final modelSaved = await _preferences.setString(
       _geminiModelPreferenceKey,
       settings.geminiModel.wireValue,
     );
+    if (!providerSaved || !modelSaved) {
+      throw StateError('Could not persist the AI settings.');
+    }
     return settings.copyWith(apiKeyStorage: _apiKeyStore.kind);
   }
 

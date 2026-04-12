@@ -13,7 +13,8 @@ class AiSettingsController extends ChangeNotifier {
   AiSettings _settings = const AiSettings();
   String? _geminiApiKey;
   bool _isLoaded = false;
-  bool _isSaving = false;
+  bool _isSavingApiKey = false;
+  bool _isSavingModel = false;
   String? _errorMessage;
 
   /// The current AI settings snapshot.
@@ -23,7 +24,10 @@ class AiSettingsController extends ChangeNotifier {
   bool get isLoaded => _isLoaded;
 
   /// Whether a settings write is currently in progress.
-  bool get isSaving => _isSaving;
+  bool get isSavingApiKey => _isSavingApiKey;
+
+  /// Whether the model selection is currently being persisted.
+  bool get isSavingModel => _isSavingModel;
 
   /// The loaded Gemini API key, if present.
   String? get geminiApiKey => _geminiApiKey;
@@ -59,29 +63,35 @@ class AiSettingsController extends ChangeNotifier {
     required GeminiModel geminiModel,
     String replacementApiKey = '',
   }) async {
-    await _save(() async {
-      final trimmedApiKey = replacementApiKey.trim();
-      var nextSettings = await _repository.save(
+    await saveGeminiModel(geminiModel);
+    final trimmedApiKey = replacementApiKey.trim();
+    if (trimmedApiKey.isEmpty) {
+      return;
+    }
+    await saveGeminiApiKey(trimmedApiKey);
+  }
+
+  /// Persists the selected Gemini model.
+  Future<void> saveGeminiModel(GeminiModel geminiModel) async {
+    await _saveModel(() async {
+      _settings = await _repository.save(
         _settings.copyWith(geminiModel: geminiModel),
       );
+    });
+  }
 
-      if (trimmedApiKey.isNotEmpty) {
-        await _repository.saveGeminiApiKey(trimmedApiKey);
-        _geminiApiKey = trimmedApiKey;
-        nextSettings = nextSettings.copyWith(apiKeySource: ApiKeySource.stored);
-      } else {
-        nextSettings = nextSettings.copyWith(
-          apiKeySource: _settings.apiKeySource,
-        );
-      }
-
-      _settings = nextSettings;
+  /// Persists the Gemini API key without changing the selected model.
+  Future<void> saveGeminiApiKey(String apiKey) async {
+    await _saveApiKey(() async {
+      await _repository.saveGeminiApiKey(apiKey);
+      _geminiApiKey = apiKey;
+      _settings = _settings.copyWith(apiKeySource: ApiKeySource.stored);
     });
   }
 
   /// Clears the stored Gemini API key.
   Future<void> clearGeminiApiKey() async {
-    await _save(() async {
+    await _saveApiKey(() async {
       await _repository.clearGeminiApiKey();
       final apiKeyRecord = await _repository.loadGeminiApiKeyRecord();
       _geminiApiKey = apiKeyRecord?.value;
@@ -91,8 +101,8 @@ class AiSettingsController extends ChangeNotifier {
     });
   }
 
-  Future<void> _save(Future<void> Function() action) async {
-    _isSaving = true;
+  Future<void> _saveApiKey(Future<void> Function() action) async {
+    _isSavingApiKey = true;
     _errorMessage = null;
     notifyListeners();
 
@@ -101,7 +111,22 @@ class AiSettingsController extends ChangeNotifier {
     } catch (error) {
       _errorMessage = 'Could not save AI settings. ${error.toString()}';
     } finally {
-      _isSaving = false;
+      _isSavingApiKey = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _saveModel(Future<void> Function() action) async {
+    _isSavingModel = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await action();
+    } catch (error) {
+      _errorMessage = 'Could not save AI settings. ${error.toString()}';
+    } finally {
+      _isSavingModel = false;
       notifyListeners();
     }
   }

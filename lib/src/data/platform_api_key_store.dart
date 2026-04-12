@@ -63,7 +63,10 @@ class SharedPreferencesApiKeyStore implements ApiKeyStore {
 
   @override
   Future<void> delete() async {
-    await _preferences.remove(_geminiApiKeyStorageKey);
+    final removed = await _preferences.remove(_geminiApiKeyStorageKey);
+    if (!removed) {
+      throw StateError('Could not remove the Gemini API key from storage.');
+    }
   }
 
   @override
@@ -77,7 +80,13 @@ class SharedPreferencesApiKeyStore implements ApiKeyStore {
 
   @override
   Future<void> write(String value) async {
-    await _preferences.setString(_geminiApiKeyStorageKey, value.trim());
+    final saved = await _preferences.setString(
+      _geminiApiKeyStorageKey,
+      value.trim(),
+    );
+    if (!saved) {
+      throw StateError('Could not persist the Gemini API key.');
+    }
   }
 }
 
