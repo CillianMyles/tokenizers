@@ -9,6 +9,7 @@ import 'package:tokenizers/src/core/domain/domain_event.dart';
 import 'package:tokenizers/src/core/domain/event_envelope.dart';
 import 'package:tokenizers/src/core/model/model_provider.dart';
 import 'package:tokenizers/src/core/model/model_response_contract.dart';
+import 'package:tokenizers/src/data/api_key_store.dart';
 import 'package:tokenizers/src/features/calendar/application/medication_command_service.dart';
 import 'package:tokenizers/src/features/calendar/application/medication_repository.dart';
 import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
@@ -17,10 +18,14 @@ import 'package:tokenizers/src/features/chat/application/chat_coordinator.dart';
 import 'package:tokenizers/src/features/chat/application/conversation_repository.dart';
 import 'package:tokenizers/src/features/chat/domain/conversation_models.dart';
 import 'package:tokenizers/src/features/proposals/domain/proposal_models.dart';
+import 'package:tokenizers/src/features/settings/application/ai_settings_controller.dart';
+import 'package:tokenizers/src/features/settings/application/ai_settings_repository.dart';
+import 'package:tokenizers/src/features/settings/domain/ai_settings.dart';
 
 void main() {
   testWidgets(
-    'MedicationCalendarScreen uses the injected current date for initial and reset state',
+    'MedicationCalendarScreen uses the injected current date for initial and '
+    'reset state',
     (tester) async {
       final repository = _FakeMedicationRepository();
       final bootstrap = _buildBootstrap(repository);
@@ -74,13 +79,15 @@ AppBootstrap _buildBootstrap(_FakeMedicationRepository medicationRepository) {
 
   return AppBootstrap(
     activityStreamId: 'thread-current',
+    aiSettingsController: AiSettingsController(
+      repository: const _FakeAiSettingsRepository(),
+    ),
     chatCoordinator: ChatCoordinator(
       conversationRepository: conversationRepository,
       eventStore: eventStore,
       medicationRepository: medicationRepository,
       modelProvider: modelProvider,
     ),
-    configurationError: null,
     conversationRepository: conversationRepository,
     eventStore: eventStore,
     medicationCommandService: MedicationCommandService(eventStore: eventStore),
@@ -88,6 +95,28 @@ AppBootstrap _buildBootstrap(_FakeMedicationRepository medicationRepository) {
     modelProvider: modelProvider,
     projectionRunner: const _FakeProjectionRunner(),
   );
+}
+
+class _FakeAiSettingsRepository implements AiSettingsRepository {
+  const _FakeAiSettingsRepository();
+
+  @override
+  Future<void> clearGeminiApiKey() async {}
+
+  @override
+  Future<AiSettings> load() async => const AiSettings();
+
+  @override
+  Future<String?> loadGeminiApiKey() async => null;
+
+  @override
+  Future<ApiKeyRecord?> loadGeminiApiKeyRecord() async => null;
+
+  @override
+  Future<AiSettings> save(AiSettings settings) async => settings;
+
+  @override
+  Future<void> saveGeminiApiKey(String apiKey) async {}
 }
 
 class _FakeMedicationRepository implements MedicationRepository {
