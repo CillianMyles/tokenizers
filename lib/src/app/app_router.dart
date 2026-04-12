@@ -3,6 +3,7 @@ import 'package:tokenizers/src/app/app_shell.dart';
 import 'package:tokenizers/src/features/assistant/presentation/assistant_screen.dart';
 import 'package:tokenizers/src/features/calendar/presentation/medication_calendar_screen.dart';
 import 'package:tokenizers/src/features/history/presentation/conversation_history_screen.dart';
+import 'package:tokenizers/src/features/settings/presentation/settings_screen.dart';
 import 'package:tokenizers/src/features/today/presentation/today_screen.dart';
 
 /// Creates the application's top-level router.
@@ -55,6 +56,16 @@ GoRouter createAppRouter() {
                   return const NoTransitionPage<void>(
                     child: ConversationHistoryScreen(),
                   );
+                },
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: <RouteBase>[
+              GoRoute(
+                path: '/settings',
+                pageBuilder: (context, state) {
+                  return const NoTransitionPage<void>(child: SettingsScreen());
                 },
               ),
             ],
