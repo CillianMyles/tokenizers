@@ -115,13 +115,6 @@ Or:
 flutter run -d chrome
 ```
 
-```bash
-flutter run -d chrome -t lib/seed_demo_main.dart --dart-define=RESET_DEMO_DATA=true
-```
-
-After the seed entrypoint reports success, stop it and launch the normal app
-again on the same target.
-
 If neither a saved Gemini key nor a `.env` debug key is available, the
 assistant remains visible but live assistant submission is disabled. Manual
 calendar and adherence flows still work.
