@@ -67,7 +67,7 @@ extension ApiKeySourceMetadata on ApiKeySource {
   String get label => switch (this) {
     ApiKeySource.none => 'No key stored',
     ApiKeySource.stored => 'Saved on this device',
-    ApiKeySource.debugEnv => 'Loaded from .env',
+    ApiKeySource.debugEnv => 'Loaded from debug .env',
   };
 }
 
