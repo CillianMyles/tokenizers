@@ -30,6 +30,10 @@
 	<string>Allow Tokenizers to listen locally and turn speech into text on this device.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Allow Tokenizers to transcribe speech on this device before sending the text you approve.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Take a photo of a prescription so Tokenizers can draft medication changes for your review.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Select a prescription photo so Tokenizers can draft medication changes for your review.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
