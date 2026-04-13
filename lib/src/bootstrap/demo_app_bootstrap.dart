@@ -14,6 +14,7 @@ import 'package:tokenizers/src/features/calendar/application/medication_command_
 import 'package:tokenizers/src/features/calendar/application/medication_repository.dart';
 import 'package:tokenizers/src/features/chat/application/chat_coordinator.dart';
 import 'package:tokenizers/src/features/chat/application/conversation_repository.dart';
+import 'package:tokenizers/src/app/theme_mode_controller.dart';
 import 'package:tokenizers/src/features/settings/application/ai_settings_controller.dart';
 import 'package:tokenizers/src/features/settings/application/local_data_reset_service.dart';
 
@@ -31,6 +32,7 @@ class AppBootstrap {
     required this.medicationRepository,
     required this.modelProvider,
     required this.projectionRunner,
+    required this.themeModeController,
   });
 
   final String activityStreamId;
@@ -43,6 +45,7 @@ class AppBootstrap {
   final MedicationRepository medicationRepository;
   final ModelProvider modelProvider;
   final ProjectionRunner projectionRunner;
+  final ThemeModeController themeModeController;
 
   /// Explains why live assistant requests are unavailable.
   String? get configurationError => aiSettingsController.configurationError;
@@ -60,6 +63,9 @@ Future<AppBootstrap> createDemoAppBootstrap() async {
       fallback: DebugApiKeyStore(readValue: () => Env.geminiApiKey),
       primary: writableApiKeyStore,
     ),
+    preferences: sharedPreferences,
+  );
+  final themeModeController = ThemeModeController(
     preferences: sharedPreferences,
   );
   final aiSettingsController = AiSettingsController(
@@ -99,5 +105,6 @@ Future<AppBootstrap> createDemoAppBootstrap() async {
     medicationRepository: workspace,
     modelProvider: modelProvider,
     projectionRunner: workspace,
+    themeModeController: themeModeController,
   );
 }
