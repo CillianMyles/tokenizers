@@ -95,6 +95,9 @@ List<MedicationDayPart> inferMedicationDayParts(String userText) {
 /// Infers a simple daily dose count from user text when stated explicitly.
 int? inferDailyDoseCount(String userText) {
   final normalized = userText.toLowerCase();
+  if (_matchesUnsupportedDailyFrequency(normalized)) {
+    return null;
+  }
   if (_matches(
     normalized,
     r'\b(twice (daily|a day)|two times? (daily|a day)|2x (daily|a day)|bid|every 12 hours?)\b',
@@ -201,6 +204,14 @@ bool _isOnlyTimeMissing(List<String> missingFields) {
 
 bool _matches(String input, String pattern) {
   return RegExp(pattern, caseSensitive: false).hasMatch(input);
+}
+
+bool _matchesUnsupportedDailyFrequency(String input) {
+  return _matches(
+        input,
+        r'\b((four|five|six|seven|eight|nine|\d+)\s+times?\s+(daily|a day)|[4-9]x\s+(daily|a day))\b',
+      ) ||
+      _matches(input, r'\b(every\s+(4|5|6|7|9|10|11)\s+hours?)\b');
 }
 
 MedicationScheduleView? _findTargetSchedule(

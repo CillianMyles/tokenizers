@@ -145,7 +145,7 @@ void main() {
       final provider = GeminiModelProvider(apiKey: 'test-key', client: client);
 
       final response = await provider.generateResponse(
-        activeSchedules: <MedicationScheduleView>[
+        confirmedSchedules: <MedicationScheduleView>[
           MedicationScheduleView(
             medicationName: 'Tacrolimus',
             scheduleId: 'schedule-1',

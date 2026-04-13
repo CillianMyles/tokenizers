@@ -94,5 +94,13 @@ void main() {
       expect(action.type, ModelProposalActionType.updateMedicationSchedule);
       expect(action.times, <String>['08:00', '20:00']);
     });
+
+    test('does not treat four times daily as once-daily', () {
+      expect(inferDailyDoseCount('Take prednisone four times daily'), isNull);
+      expect(
+        inferMedicationDayParts('Take prednisone four times daily'),
+        isEmpty,
+      );
+    });
   });
 }

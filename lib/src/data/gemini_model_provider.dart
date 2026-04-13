@@ -98,7 +98,7 @@ class GeminiModelProvider implements ModelProvider {
     return _parseStructuredResponse(
       structured,
       apiPayload,
-      activeSchedules: activeSchedules,
+      activeSchedules: confirmedSchedules,
       userText: userText,
     );
   }
