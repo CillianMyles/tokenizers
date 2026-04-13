@@ -4,6 +4,7 @@ import 'package:tokenizers/src/app/app_scope.dart';
 import 'package:tokenizers/src/bootstrap/demo_app_bootstrap.dart';
 import 'package:tokenizers/src/core/presentation/date_formatters.dart';
 import 'package:tokenizers/src/core/presentation/expandable_text.dart';
+import 'package:tokenizers/src/features/assistant/presentation/assistant_voice_input_sheet.dart';
 import 'package:tokenizers/src/features/chat/domain/conversation_models.dart';
 import 'package:tokenizers/src/features/proposals/domain/proposal_models.dart';
 import 'package:tokenizers/src/features/proposals/presentation/proposal_draft_sheet.dart';
@@ -80,6 +81,12 @@ class _AssistantScreenState extends State<AssistantScreen> {
                       _AssistantComposer(
                         controller: _composerController,
                         isSubmitting: _isSubmitting,
+                        onInputActionSelected: (action) {
+                          return _handleComposerInputAction(
+                            action,
+                            bootstrap: bootstrap,
+                          );
+                        },
                         onSend: () {
                           return _submitMessage(
                             bootstrap: bootstrap,
@@ -124,6 +131,45 @@ class _AssistantScreenState extends State<AssistantScreen> {
     setState(() {
       _isSubmitting = false;
     });
+  }
+
+  Future<void> _handleComposerInputAction(
+    _ComposerInputAction action, {
+    required AppBootstrap bootstrap,
+  }) async {
+    switch (action) {
+      case _ComposerInputAction.recordAudio:
+        final transcript = await showAssistantVoiceInputSheet(
+          context,
+          speechToTextService: bootstrap.speechToTextService,
+        );
+        if (!mounted || transcript == null || transcript.trim().isEmpty) {
+          return;
+        }
+        _insertTranscript(transcript.trim());
+      case _ComposerInputAction.takePhoto:
+      case _ComposerInputAction.chooseImage:
+      case _ComposerInputAction.chooseFile:
+        final label = switch (action) {
+          _ComposerInputAction.recordAudio => 'Record audio',
+          _ComposerInputAction.takePhoto => 'Take photo',
+          _ComposerInputAction.chooseImage => 'Choose image',
+          _ComposerInputAction.chooseFile => 'Choose file',
+        };
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$label is not wired yet.')));
+    }
+  }
+
+  void _insertTranscript(String transcript) {
+    final existingText = _composerController.text.trimRight();
+    _composerController.text = existingText.isEmpty
+        ? transcript
+        : '$existingText\n$transcript';
+    _composerController.selection = TextSelection.fromPosition(
+      TextPosition(offset: _composerController.text.length),
+    );
   }
 
   Future<void> _openDraftEditor(
@@ -215,12 +261,15 @@ class _AssistantComposer extends StatelessWidget {
   const _AssistantComposer({
     required this.controller,
     required this.isSubmitting,
+    required this.onInputActionSelected,
     required this.onSend,
     required this.showSuggestions,
   });
 
   final TextEditingController controller;
   final bool isSubmitting;
+  final Future<void> Function(_ComposerInputAction action)
+  onInputActionSelected;
   final Future<void> Function() onSend;
   final bool showSuggestions;
 
@@ -321,25 +370,10 @@ class _AssistantComposer extends StatelessWidget {
                                 )
                               : _ComposerActionMenu(
                                   key: const ValueKey('plus'),
-                                  onSelected: (action) {
-                                    final label = switch (action) {
-                                      _ComposerInputAction.recordAudio =>
-                                        'Record audio',
-                                      _ComposerInputAction.takePhoto =>
-                                        'Take photo',
-                                      _ComposerInputAction.chooseImage =>
-                                        'Choose image',
-                                      _ComposerInputAction.chooseFile =>
-                                        'Choose file',
-                                    };
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          '$label is not wired yet.',
-                                        ),
-                                      ),
-                                    );
-                                  },
+                                  enabled:
+                                      !isSubmitting &&
+                                      configurationError == null,
+                                  onSelected: onInputActionSelected,
                                 ),
                         ),
                       ),
@@ -387,8 +421,13 @@ class _SuggestionPromptChip extends StatelessWidget {
 enum _ComposerInputAction { recordAudio, takePhoto, chooseImage, chooseFile }
 
 class _ComposerActionMenu extends StatelessWidget {
-  const _ComposerActionMenu({required this.onSelected, super.key});
+  const _ComposerActionMenu({
+    required this.enabled,
+    required this.onSelected,
+    super.key,
+  });
 
+  final bool enabled;
   final ValueChanged<_ComposerInputAction> onSelected;
 
   @override
@@ -397,6 +436,7 @@ class _ComposerActionMenu extends StatelessWidget {
 
     return PopupMenuButton<_ComposerInputAction>(
       tooltip: 'More input options',
+      enabled: enabled,
       onSelected: onSelected,
       color: colorScheme.surface,
       elevation: 6,

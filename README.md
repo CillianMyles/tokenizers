@@ -15,6 +15,7 @@ The app currently has four top-level surfaces:
   - pending review card when the assistant has prepared a draft
 - `Assistant`
   - chat-first interface for proposing medication changes
+  - optional voice input that transcribes speech locally on-device before inserting text into the composer
   - pending draft review launched from the conversation area
 - `Calendar`
   - direct manual add, edit, and remove for confirmed medication schedules
@@ -156,6 +157,7 @@ All app data is stored locally.
 - non-sensitive AI settings use shared preferences
 - Gemini API keys use secure storage where supported, with shared-preferences
   fallback on unsupported platforms
+- assistant voice input keeps raw audio on-device and only sends the user-reviewed transcript to Gemini
 - `Settings` includes a `Danger Zone` action that clears local schedules,
   history, conversations, and saved AI settings from the current device
 - installs are no longer pre-seeded with sample medications, chat messages, or history

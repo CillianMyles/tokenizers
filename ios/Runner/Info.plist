@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Allow Tokenizers to listen locally and turn speech into text on this device.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Allow Tokenizers to transcribe speech on this device before sending the text you approve.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
