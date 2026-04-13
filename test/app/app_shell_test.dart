@@ -61,9 +61,8 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(700, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(
-      TokenizersApp(bootstrap: _buildBootstrap(_FakeMedicationRepository())),
-    );
+    final bootstrap = await _buildBootstrap(_FakeMedicationRepository());
+    await tester.pumpWidget(TokenizersApp(bootstrap: bootstrap));
     await tester.pumpAndSettle();
 
     expect(
@@ -86,9 +85,8 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(700, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(
-      TokenizersApp(bootstrap: _buildBootstrap(_FakeMedicationRepository())),
-    );
+    final bootstrap = await _buildBootstrap(_FakeMedicationRepository());
+    await tester.pumpWidget(TokenizersApp(bootstrap: bootstrap));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Assistant'));
