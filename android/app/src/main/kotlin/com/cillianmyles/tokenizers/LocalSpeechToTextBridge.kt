@@ -5,6 +5,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.speech.RecognitionSupport
+import android.speech.RecognitionSupportCallback
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -70,22 +72,23 @@ class LocalSpeechToTextBridge(
         }
 
         val result = pendingPrepareResult ?: return true
+        val localeIds = pendingLocaleIds
         pendingPrepareResult = null
+        pendingLocaleIds = emptyList()
         if (grantResults.isNotEmpty() &&
             grantResults[0] == PackageManager.PERMISSION_GRANTED
         ) {
-            result.success(availableResult(pendingLocaleIds))
+            finishPrepare(result, localeIds)
         } else {
             result.success(
-                mapOf(
-                    "message" to
+                unavailableResult(
+                    message =
                         "Microphone permission was denied, so local speech recognition cannot start.",
-                    "resolvedLocaleId" to pendingLocaleIds.firstOrNull(),
-                    "status" to "permissionDenied",
+                    resolvedLocaleId = requestedLocaleIds(localeIds).firstOrNull(),
+                    status = "permissionDenied",
                 ),
             )
         }
-        pendingLocaleIds = emptyList()
         return true
     }
 
@@ -97,13 +100,14 @@ class LocalSpeechToTextBridge(
 
     private fun prepare(call: MethodCall, result: MethodChannel.Result) {
         val localeIds = call.argument<List<String>>("localeIds").orEmpty()
+        val requestedLocaleId = requestedLocaleIds(localeIds).firstOrNull()
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             result.success(
-                mapOf(
-                    "message" to
+                unavailableResult(
+                    message =
                         "On-device speech recognition requires Android 12 or newer.",
-                    "resolvedLocaleId" to localeIds.firstOrNull(),
-                    "status" to "unsupported",
+                    resolvedLocaleId = requestedLocaleId,
+                    status = "unsupported",
                 ),
             )
             return
@@ -111,11 +115,11 @@ class LocalSpeechToTextBridge(
 
         if (!SpeechRecognizer.isRecognitionAvailable(activity)) {
             result.success(
-                mapOf(
-                    "message" to
+                unavailableResult(
+                    message =
                         "Speech recognition is unavailable on this Android device.",
-                    "resolvedLocaleId" to localeIds.firstOrNull(),
-                    "status" to "unsupported",
+                    resolvedLocaleId = requestedLocaleId,
+                    status = "unsupported",
                 ),
             )
             return
@@ -123,11 +127,11 @@ class LocalSpeechToTextBridge(
 
         if (!SpeechRecognizer.isOnDeviceRecognitionAvailable(activity)) {
             result.success(
-                mapOf(
-                    "message" to
+                unavailableResult(
+                    message =
                         "On-device speech recognition is unavailable on this Android device.",
-                    "resolvedLocaleId" to localeIds.firstOrNull(),
-                    "status" to "onDeviceUnavailable",
+                    resolvedLocaleId = requestedLocaleId,
+                    status = "onDeviceUnavailable",
                 ),
             )
             return
@@ -138,7 +142,7 @@ class LocalSpeechToTextBridge(
                 Manifest.permission.RECORD_AUDIO,
             ) == PackageManager.PERMISSION_GRANTED
         ) {
-            result.success(availableResult(localeIds))
+            finishPrepare(result, localeIds)
             return
         }
 
@@ -183,7 +187,7 @@ class LocalSpeechToTextBridge(
 
         val localeId =
             call.argument<String>("localeId")
-                ?: activity.resources.configuration.locales[0].toLanguageTag()
+                ?: defaultLocaleId()
 
         cancelActiveRecognition()
         isCancelling = false
@@ -214,13 +218,123 @@ class LocalSpeechToTextBridge(
         speechRecognizer = null
     }
 
-    private fun availableResult(localeIds: List<String>): Map<String, Any?> {
+    private fun finishPrepare(
+        result: MethodChannel.Result,
+        localeIds: List<String>,
+    ) {
+        resolveSupportedLocaleId(localeIds) { localeId, hasDownloadableModel ->
+            val requestedLocaleId = requestedLocaleIds(localeIds).firstOrNull()
+            val payload =
+                when {
+                    localeId != null -> availableResult(localeId)
+                    hasDownloadableModel ->
+                        unavailableResult(
+                            message =
+                                "Android supports this language, but its on-device speech model is not installed yet.",
+                            resolvedLocaleId = requestedLocaleId,
+                            status = "localeUnavailable",
+                        )
+                    else ->
+                        unavailableResult(
+                            message =
+                                "On-device speech recognition is unavailable for the current language on this Android device.",
+                            resolvedLocaleId = requestedLocaleId,
+                            status = "localeUnavailable",
+                        )
+                }
+            result.success(payload)
+        }
+    }
+
+    private fun resolveSupportedLocaleId(
+        localeIds: List<String>,
+        onResolved: (String?, Boolean) -> Unit,
+    ) {
+        val candidates = requestedLocaleIds(localeIds).ifEmpty { listOf(defaultLocaleId()) }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            // Android 12 exposes on-device recognition but not per-locale
+            // support checks, so this remains a best-effort fallback.
+            onResolved(candidates.firstOrNull(), false)
+            return
+        }
+
+        val recognizer = SpeechRecognizer.createOnDeviceSpeechRecognizer(activity)
+        var hasDownloadableModel = false
+
+        fun finish(localeId: String?) {
+            recognizer.destroy()
+            onResolved(localeId, hasDownloadableModel)
+        }
+
+        fun checkCandidate(index: Int) {
+            if (index >= candidates.size) {
+                finish(null)
+                return
+            }
+
+            val localeId = candidates[index]
+            recognizer.checkRecognitionSupport(
+                buildRecognizerIntent(localeId),
+                activity.mainExecutor,
+                object : RecognitionSupportCallback {
+                    override fun onSupportResult(recognitionSupport: RecognitionSupport) {
+                        if (recognitionSupport.installedOnDeviceLanguages.contains(localeId)) {
+                            finish(localeId)
+                            return
+                        }
+
+                        if (recognitionSupport.supportedOnDeviceLanguages.contains(localeId) ||
+                            recognitionSupport.pendingOnDeviceLanguages.contains(localeId)
+                        ) {
+                            hasDownloadableModel = true
+                        }
+
+                        checkCandidate(index + 1)
+                    }
+
+                    override fun onError(error: Int) {
+                        when (error) {
+                            SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED,
+                            SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE -> checkCandidate(index + 1)
+                            else -> finish(null)
+                        }
+                    }
+                },
+            )
+        }
+
+        try {
+            checkCandidate(0)
+        } catch (_: Exception) {
+            finish(null)
+        }
+    }
+
+    private fun requestedLocaleIds(localeIds: List<String>): List<String> {
+        return localeIds.map(String::trim).filter(String::isNotEmpty).distinct()
+    }
+
+    private fun defaultLocaleId(): String {
+        return activity.resources.configuration.locales[0].toLanguageTag()
+    }
+
+    private fun availableResult(localeId: String): Map<String, Any?> {
         return mapOf(
             "message" to "Ready for local speech recognition.",
-            "resolvedLocaleId" to
-                (localeIds.firstOrNull()
-                    ?: activity.resources.configuration.locales[0].toLanguageTag()),
+            "resolvedLocaleId" to localeId,
             "status" to "available",
+        )
+    }
+
+    private fun unavailableResult(
+        message: String,
+        resolvedLocaleId: String?,
+        status: String,
+    ): Map<String, Any?> {
+        return mapOf(
+            "message" to message,
+            "resolvedLocaleId" to resolvedLocaleId,
+            "status" to status,
         )
     }
 

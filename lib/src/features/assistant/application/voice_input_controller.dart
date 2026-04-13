@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 import 'package:tokenizers/src/features/assistant/application/speech_to_text_service.dart';
 
@@ -83,9 +84,18 @@ class VoiceInputController extends ChangeNotifier {
     _transcript = '';
     notifyListeners();
 
-    final availability = await _speechToTextService.prepare(
-      localeIds: _localeCandidates,
-    );
+    SpeechAvailability availability;
+    try {
+      availability = await _speechToTextService.prepare(
+        localeIds: _localeCandidates,
+      );
+    } on Object {
+      _errorMessage = 'Could not check local speech recognition.';
+      _helperMessage = 'Try again in a moment.';
+      _isPreparing = false;
+      notifyListeners();
+      return;
+    }
 
     _isPreparing = false;
     if (!availability.isAvailable || availability.resolvedLocaleId == null) {
@@ -99,9 +109,7 @@ class VoiceInputController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _speechToTextService.startListening(
-        localeId: availability.resolvedLocaleId!,
-      );
+      await _startListening(resolvedLocaleId: availability.resolvedLocaleId!);
     } on Object {
       _errorMessage = 'Could not start local speech recognition.';
       _helperMessage = 'Try again in a moment.';
@@ -109,6 +117,45 @@ class VoiceInputController extends ChangeNotifier {
       _isProcessing = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _startListening({required String resolvedLocaleId}) async {
+    Object? lastError;
+    for (final localeId in _startLocaleIds(resolvedLocaleId)) {
+      try {
+        await _speechToTextService.startListening(localeId: localeId);
+        return;
+      } on PlatformException catch (error) {
+        lastError = error;
+        if (_isLocaleError(error.code)) {
+          continue;
+        }
+        rethrow;
+      }
+    }
+
+    if (lastError case Object()) {
+      throw lastError;
+    }
+    throw StateError('No locale candidates were available.');
+  }
+
+  List<String> _startLocaleIds(String resolvedLocaleId) {
+    final localeIds = <String>[resolvedLocaleId];
+    for (final localeId in _localeCandidates) {
+      final trimmed = localeId.trim();
+      if (trimmed.isEmpty || localeIds.contains(trimmed)) {
+        continue;
+      }
+      localeIds.add(trimmed);
+    }
+    return localeIds;
+  }
+
+  bool _isLocaleError(String code) {
+    return code == 'language-not-supported' ||
+        code == 'language-unavailable' ||
+        code == 'on-device-unavailable';
   }
 
   /// Stops listening and waits for the final transcript.

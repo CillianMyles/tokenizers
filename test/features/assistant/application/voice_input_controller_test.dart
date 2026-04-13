@@ -1,19 +1,20 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tokenizers/src/features/assistant/application/speech_to_text_service.dart';
 import 'package:tokenizers/src/features/assistant/application/voice_input_controller.dart';
 
 void main() {
   test(
-    'VoiceInputController starts local recognition and exposes transcript',
+    'VoiceInputController starts local recognition with the resolved locale',
     () async {
       final speechService = _FakeSpeechToTextService(
         prepareResult: const SpeechAvailability.available(localeId: 'en-US'),
       );
       final controller = VoiceInputController(
         speechToTextService: speechService,
-        localeCandidates: const <String>['en-US'],
+        localeCandidates: const <String>['ga-IE', 'en-US'],
       );
       addTearDown(controller.dispose);
 
@@ -71,12 +72,62 @@ void main() {
     expect(controller.isListening, isFalse);
     expect(controller.canInsert, isFalse);
   });
+
+  test('VoiceInputController recovers when prepare throws', () async {
+    final speechService = _FakeSpeechToTextService(
+      prepareError: PlatformException(code: 'channel-error'),
+    );
+    final controller = VoiceInputController(
+      speechToTextService: speechService,
+      localeCandidates: const <String>['en-US'],
+    );
+    addTearDown(controller.dispose);
+
+    await controller.start();
+
+    expect(
+      controller.errorMessage,
+      'Could not check local speech recognition.',
+    );
+    expect(controller.helperMessage, 'Try again in a moment.');
+    expect(controller.isPreparing, isFalse);
+    expect(controller.isBusy, isFalse);
+    expect(controller.isListening, isFalse);
+  });
+
+  test(
+    'VoiceInputController retries fallback locales on language errors',
+    () async {
+      final speechService = _FakeSpeechToTextService(
+        prepareResult: const SpeechAvailability.available(localeId: 'ga-IE'),
+        startErrors: <String, Object>{
+          'ga-IE': PlatformException(code: 'language-not-supported'),
+        },
+      );
+      final controller = VoiceInputController(
+        speechToTextService: speechService,
+        localeCandidates: const <String>['ga-IE', 'en-US'],
+      );
+      addTearDown(controller.dispose);
+
+      await controller.start();
+
+      expect(speechService.startedLocaleIds, <String>['ga-IE', 'en-US']);
+      expect(controller.isListening, isTrue);
+    },
+  );
 }
 
 class _FakeSpeechToTextService implements SpeechToTextService {
-  _FakeSpeechToTextService({required this.prepareResult});
+  _FakeSpeechToTextService({
+    this.prepareResult,
+    this.prepareError,
+    this.startErrors = const <String, Object>{},
+  });
 
-  final SpeechAvailability prepareResult;
+  final SpeechAvailability? prepareResult;
+  final Object? prepareError;
+  final Map<String, Object> startErrors;
   final StreamController<SpeechToTextEvent> _eventsController =
       StreamController<SpeechToTextEvent>.broadcast();
   final List<String> startedLocaleIds = <String>[];
@@ -98,12 +149,19 @@ class _FakeSpeechToTextService implements SpeechToTextService {
 
   @override
   Future<SpeechAvailability> prepare({required List<String> localeIds}) async {
-    return prepareResult;
+    if (prepareError != null) {
+      throw prepareError!;
+    }
+    return prepareResult!;
   }
 
   @override
   Future<void> startListening({required String localeId}) async {
     startedLocaleIds.add(localeId);
+    final startError = startErrors[localeId];
+    if (startError != null) {
+      throw startError;
+    }
     emit(const SpeechToTextStatusEvent(SpeechToTextStatus.listening));
   }
 
