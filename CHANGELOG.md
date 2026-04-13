@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.21.0](https://github.com/CillianMyles/tokenizers/compare/v0.20.0...v0.21.0) (2026-04-13)
+
+
+### Features
+
+* add adherence insights dashboard with heatmap and streaks ([#23](https://github.com/CillianMyles/tokenizers/issues/23)) ([c0f9533](https://github.com/CillianMyles/tokenizers/commit/c0f95338dc53fb9254e74932e5348676bf518ddc))
+* add daily medication progress summary ([#9](https://github.com/CillianMyles/tokenizers/issues/9)) ([4a33127](https://github.com/CillianMyles/tokenizers/commit/4a33127a9f378ce70b3a3530bd15c456a0fe48fb))
+* generate draft medication changes from script photos ([#14](https://github.com/CillianMyles/tokenizers/issues/14)) ([f076aea](https://github.com/CillianMyles/tokenizers/commit/f076aea7828b408af9000ec81c7344fad45e1e93))
+* Local speech to text in assistant mode for browser, iOS and android ([#16](https://github.com/CillianMyles/tokenizers/issues/16)) ([3fd24ee](https://github.com/CillianMyles/tokenizers/commit/3fd24ee99208e87b90c22427afe9437a0725ae1b))
+
+
+### Bug Fixes
+
+* **assistant:** refine config banner and web key setup ([8bdb4eb](https://github.com/CillianMyles/tokenizers/commit/8bdb4eb53fa92b9a4eca598e3ee8686e36812e47))
+* preserve voice transcript across iOS pauses ([#27](https://github.com/CillianMyles/tokenizers/issues/27)) ([05b8b0d](https://github.com/CillianMyles/tokenizers/commit/05b8b0dc3d93c3d2e5b8bce7fe2f66606c62f5e0))
+* single line history filters ([#25](https://github.com/CillianMyles/tokenizers/issues/25)) ([108963d](https://github.com/CillianMyles/tokenizers/commit/108963dcd73cbdcb5585e906b0209ea454025bdc))
+
 ## 0.20.0 (2026-04-12)
 
 
