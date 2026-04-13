@@ -1,5 +1,6 @@
 import 'package:tokenizers/src/core/domain/domain_event.dart';
 import 'package:tokenizers/src/core/domain/event_envelope.dart';
+import 'package:tokenizers/src/core/domain/medication_adherence_events.dart';
 import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
 
 /// Visual status for a medication reminder on the Home surface.
@@ -30,31 +31,9 @@ List<MedicationReminderView> buildMedicationReminders({
   required List<EventEnvelope<DomainEvent>> events,
   required DateTime now,
 }) {
-  final takenByKey = <String, DateTime>{};
-  for (final event in events) {
-    if (event.event.type != 'medication_taken' &&
-        event.event.type != 'medication_taken_corrected') {
-      continue;
-    }
-    final payload = event.event.payload;
-    final scheduleId = payload['schedule_id'] as String?;
-    final scheduledFor = _parseScheduledFor(payload['scheduled_for']);
-    if (scheduleId == null || scheduledFor == null) {
-      continue;
-    }
-    final key = _entryKey(
-      scheduleId: scheduleId,
-      scheduledFor: DateTime(
-        scheduledFor.year,
-        scheduledFor.month,
-        scheduledFor.day,
-        scheduledFor.hour,
-        scheduledFor.minute,
-      ),
-    );
-    final takenAt = _parseDateTime(payload['taken_at']) ?? event.occurredAt;
-    takenByKey[key] = takenAt;
-  }
+  final takenByKey = resolveMedicationTakenByDoseKey(
+    events,
+  ).map((key, value) => MapEntry(key, value.takenAt));
 
   final reminders =
       entries
@@ -66,7 +45,7 @@ List<MedicationReminderView> buildMedicationReminders({
               entry.dateTime.hour,
               entry.dateTime.minute,
             );
-            final key = _entryKey(
+            final key = medicationDoseKey(
               scheduleId: entry.scheduleId,
               scheduledFor: scheduledFor,
             );
@@ -94,38 +73,6 @@ List<MedicationReminderView> buildMedicationReminders({
         });
 
   return reminders;
-}
-
-DateTime? _parseDateTime(Object? value) {
-  if (value is! String || value.isEmpty) {
-    return null;
-  }
-  return DateTime.tryParse(value);
-}
-
-DateTime? _parseScheduledFor(Object? value) {
-  if (value is! String || value.isEmpty) {
-    return null;
-  }
-  if (value.contains('T')) {
-    return DateTime.tryParse(value);
-  }
-  final parts = value.split(':');
-  if (parts.length != 2) {
-    return null;
-  }
-  final now = DateTime.now();
-  return DateTime(
-    now.year,
-    now.month,
-    now.day,
-    int.parse(parts[0]),
-    int.parse(parts[1]),
-  );
-}
-
-String _entryKey({required String scheduleId, required DateTime scheduledFor}) {
-  return '$scheduleId@${scheduledFor.toIso8601String()}';
 }
 
 int _statusPriority(MedicationReminderStatus status) {

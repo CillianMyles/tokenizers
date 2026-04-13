@@ -235,6 +235,7 @@ class MedicationCommandService {
           type: 'medication_taken_corrected',
           payload: <String, Object?>{
             'medication_name': entry.medicationName,
+            'previous_scheduled_for': entry.dateTime.toIso8601String(),
             'previous_taken_at': previousTakenAt.toIso8601String(),
             'recorded_at': effectiveRecordedAt.toIso8601String(),
             'schedule_id': entry.scheduleId,

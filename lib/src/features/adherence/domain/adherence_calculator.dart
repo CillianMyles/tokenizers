@@ -1,5 +1,6 @@
 import 'package:tokenizers/src/core/domain/domain_event.dart';
 import 'package:tokenizers/src/core/domain/event_envelope.dart';
+import 'package:tokenizers/src/core/domain/medication_adherence_events.dart';
 import 'package:tokenizers/src/features/adherence/domain/adherence_models.dart';
 import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
 
@@ -30,7 +31,7 @@ AdherenceSummary calculateAdherence({
     (index) => firstDay.add(Duration(days: index)),
     growable: false,
   );
-  final takenKeys = _takenDoseKeys(events);
+  final takenKeys = resolveMedicationTakenByDoseKey(events).keys.toSet();
   final overallDaily = List<_DailyAccumulator>.generate(
     lookbackDays,
     (_) => _DailyAccumulator(),
@@ -80,7 +81,7 @@ AdherenceSummary calculateAdherence({
         medication.scheduledDoses++;
         overallDay.scheduledDoses++;
 
-        final key = _doseKey(
+        final key = medicationDoseKey(
           scheduleId: schedule.scheduleId,
           scheduledFor: scheduledFor,
         );
@@ -138,28 +139,6 @@ AdherenceSummary calculateAdherence({
   );
 }
 
-Set<String> _takenDoseKeys(List<EventEnvelope<DomainEvent>> events) {
-  final keys = <String>{};
-  for (final envelope in events) {
-    final type = envelope.event.type;
-    if (type != 'medication_taken' && type != 'medication_taken_corrected') {
-      continue;
-    }
-    final payload = envelope.event.payload;
-    final scheduleId = payload['schedule_id'] as String?;
-    final scheduledForRaw = payload['scheduled_for'] as String?;
-    if (scheduleId == null || scheduledForRaw == null) {
-      continue;
-    }
-    final scheduledFor = DateTime.tryParse(scheduledForRaw);
-    if (scheduledFor == null) {
-      continue;
-    }
-    keys.add(_doseKey(scheduleId: scheduleId, scheduledFor: scheduledFor));
-  }
-  return keys;
-}
-
 DateTime _dateOnly(DateTime value) {
   return DateTime(value.year, value.month, value.day);
 }
@@ -178,17 +157,6 @@ int _currentStreak(List<_DailyAccumulator> daily) {
     break;
   }
   return streak;
-}
-
-String _doseKey({required String scheduleId, required DateTime scheduledFor}) {
-  final normalized = DateTime(
-    scheduledFor.year,
-    scheduledFor.month,
-    scheduledFor.day,
-    scheduledFor.hour,
-    scheduledFor.minute,
-  );
-  return '$scheduleId@${normalized.toIso8601String()}';
 }
 
 bool _isUpcomingToday({required DateTime scheduledFor, required DateTime now}) {

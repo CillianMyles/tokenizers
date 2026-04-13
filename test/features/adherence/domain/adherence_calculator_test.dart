@@ -244,4 +244,57 @@ void main() {
     expect(result.totalTakenDoses, 1);
     expect(result.totalScheduledDoses, 1);
   });
+
+  test('does not count superseded scheduled slots after a correction', () {
+    final med = schedule(
+      id: 'sched-1',
+      name: 'Vitamin D',
+      times: const <String>['09:00', '21:00'],
+      startDate: DateTime(2026, 3, 1),
+    );
+
+    final result = calculateAdherence(
+      schedules: <MedicationScheduleView>[med],
+      events: <EventEnvelope<DomainEvent>>[
+        takenEvent(
+          scheduleId: med.scheduleId,
+          scheduledFor: DateTime(2026, 4, 13, 9),
+        ),
+        EventEnvelope<DomainEvent>(
+          eventId: 'event-corrected',
+          aggregateType: 'medication',
+          aggregateId: med.scheduleId,
+          actorType: EventActorType.user,
+          event: DomainEvent(
+            type: 'medication_taken_corrected',
+            payload: <String, Object?>{
+              'previous_scheduled_for': DateTime(
+                2026,
+                4,
+                13,
+                9,
+              ).toIso8601String(),
+              'previous_taken_at': DateTime(
+                2026,
+                4,
+                13,
+                9,
+                5,
+              ).toIso8601String(),
+              'schedule_id': med.scheduleId,
+              'scheduled_for': DateTime(2026, 4, 13, 21).toIso8601String(),
+              'taken_at': DateTime(2026, 4, 13, 21, 10).toIso8601String(),
+            },
+          ),
+          occurredAt: DateTime(2026, 4, 13, 21, 10),
+        ),
+      ],
+      today: DateTime(2026, 4, 13, 23, 59),
+      lookbackDays: 1,
+    );
+
+    expect(result.totalScheduledDoses, 2);
+    expect(result.totalTakenDoses, 1);
+    expect(result.byMedication.single.currentStreak, 0);
+  });
 }
