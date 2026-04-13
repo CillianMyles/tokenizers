@@ -76,7 +76,7 @@ void main() {
 
     expect(
       find.text('Add a Gemini API key in Settings to use the assistant.'),
-      findsOneWidget,
+      findsNWidgets(2),
     );
   });
 

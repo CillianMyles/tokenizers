@@ -7,6 +7,7 @@ import 'package:http/testing.dart';
 import 'package:tokenizers/src/core/model/model_provider.dart';
 import 'package:tokenizers/src/core/model/model_response_contract.dart';
 import 'package:tokenizers/src/data/api_key_store.dart';
+import 'package:tokenizers/src/data/local_gemma_service.dart';
 import 'package:tokenizers/src/data/settings_backed_model_provider.dart';
 import 'package:tokenizers/src/features/settings/application/ai_settings_controller.dart';
 import 'package:tokenizers/src/features/settings/application/ai_settings_repository.dart';
@@ -127,6 +128,37 @@ void main() {
       });
     });
 
+    test(
+      'uses the local Gemma service when the offline provider is selected',
+      () async {
+        final service = _FakeLocalGemmaService();
+        final controller = AiSettingsController(
+          localGemmaService: service,
+          repository: _FakeAiSettingsRepository(
+            settings: const AiSettings(
+              localModel: LocalGemmaModel.gemma4E4bIt,
+              provider: AiProvider.localGemma,
+            ),
+          ),
+        );
+        await controller.load();
+        final provider = SettingsBackedModelProvider(
+          localGemmaService: service,
+          settingsController: controller,
+        );
+
+        final response = await provider.generateResponse(
+          confirmedSchedules: const [],
+          conversation: const [],
+          threadId: 'thread-1',
+          userText: 'Add magnesium at bedtime',
+        );
+
+        expect(service.lastModel, LocalGemmaModel.gemma4E4bIt);
+        expect(response.assistantText, 'Ready for offline review.');
+      },
+    );
+
     test('throws when no Gemini API key is configured', () async {
       final controller = AiSettingsController(
         repository: _FakeAiSettingsRepository(settings: const AiSettings()),
@@ -196,5 +228,44 @@ class _FakeAiSettingsRepository implements AiSettingsRepository {
   @override
   Future<void> saveGeminiApiKey(String apiKey) async {
     _apiKeyRecord = ApiKeyRecord(source: ApiKeySource.stored, value: apiKey);
+  }
+}
+
+class _FakeLocalGemmaService implements LocalGemmaService {
+  LocalGemmaModel? lastModel;
+
+  @override
+  Future<LocalGemmaServiceStatus> deleteModel(LocalGemmaModel model) async {
+    return LocalGemmaServiceStatus(installedModels: {model});
+  }
+
+  @override
+  Future<LocalGemmaServiceStatus> downloadModel(
+    LocalGemmaModel model, {
+    void Function(int progress)? onProgress,
+  }) async {
+    onProgress?.call(100);
+    return LocalGemmaServiceStatus(installedModels: {model});
+  }
+
+  @override
+  Future<String> generateText({
+    required LocalGemmaModel model,
+    required String prompt,
+    required String systemInstruction,
+    int maxTokens = 2048,
+  }) async {
+    lastModel = model;
+    return jsonEncode(<String, Object?>{
+      'assistant_text': 'Ready for offline review.',
+      'actions': const <Object?>[],
+    });
+  }
+
+  @override
+  Future<LocalGemmaServiceStatus> getStatus() async {
+    return const LocalGemmaServiceStatus(
+      installedModels: {LocalGemmaModel.gemma4E4bIt},
+    );
   }
 }

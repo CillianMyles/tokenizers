@@ -24,14 +24,22 @@ void main() {
       );
 
       await repository.save(
-        const AiSettings(geminiModel: GeminiModel.gemini3FlashPreview),
+        const AiSettings(
+          geminiModel: GeminiModel.gemini3FlashPreview,
+          localModel: LocalGemmaModel.gemma4E4bIt,
+          provider: AiProvider.localGemma,
+        ),
       );
 
       expect(
         preferences.getString('ai_settings.gemini_model'),
         'gemini-3-flash-preview',
       );
-      expect(preferences.getString('ai_settings.provider'), 'gemini');
+      expect(
+        preferences.getString('ai_settings.local_model'),
+        'gemma-4-e4b-it',
+      );
+      expect(preferences.getString('ai_settings.provider'), 'local_gemma');
       expect(preferences.containsKey('ai_settings.gemini_api_key'), isFalse);
     });
 

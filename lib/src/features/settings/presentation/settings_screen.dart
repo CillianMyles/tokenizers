@@ -16,10 +16,15 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   static final Uri _geminiAboutUri = Uri.parse('https://gemini.google/about/');
+  static final Uri _googleAiEdgeUri = Uri.parse(
+    'https://ai.google.dev/gemma/docs/integrations/mobile',
+  );
+
   final TextEditingController _apiKeyController = TextEditingController();
   bool _isDeletingData = false;
   bool _obscureApiKey = true;
-  GeminiModel? _selectedModel;
+  GeminiModel? _selectedGeminiModel;
+  LocalGemmaModel? _selectedLocalModel;
 
   @override
   void dispose() {
@@ -37,8 +42,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context, child) {
         final controller = bootstrap.aiSettingsController;
         final settings = controller.settings;
-        final selectedModel = _selectedModel ?? settings.geminiModel;
+        final selectedGeminiModel =
+            _selectedGeminiModel ?? settings.geminiModel;
+        final selectedLocalModel = _selectedLocalModel ?? settings.localModel;
         final hasSavedApiKey = settings.apiKeySource == ApiKeySource.stored;
+        final isLocalModelInstalled = controller.installedLocalModels.contains(
+          selectedLocalModel,
+        );
+        final localDownloadProgress = controller.localModelDownloadProgress;
 
         return DecoratedBox(
           decoration: BoxDecoration(
@@ -61,14 +72,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      _SettingsInfoNote(
+                      const _SettingsInfoNote(
                         title: 'Bring Your Own AI',
                         message:
-                            'Your data is private and stored locally. Opt in '
-                            'to use AI services to interact with your data '
-                            'using natural language, voice, and even images.',
+                            'Your data stays local. Choose between Gemini with '
+                            'your own API key or a Gemma 4 model downloaded '
+                            'directly to this device.',
                       ),
                       const SizedBox(height: 16),
+                      if (controller.errorMessage case final message?)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: _SettingsErrorBanner(message: message),
+                        ),
                       Card(
                         child: Padding(
                           padding: const EdgeInsets.all(20),
@@ -76,180 +92,378 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
                               Text(
-                                'Gemini',
+                                'Assistant Engine',
                                 style: Theme.of(context).textTheme.titleLarge,
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                "Configure Google's Gemini model usage with "
-                                "your API key.",
+                                'Switch the live assistant between cloud Gemini '
+                                'and an offline Gemma 4 model.',
                                 style: Theme.of(context).textTheme.bodyMedium,
                               ),
-                              const SizedBox(height: 4),
-                              TextButton(
-                                onPressed: _openGeminiLearnMore,
-                                child: const Text('Learn more'),
-                              ),
-                              const SizedBox(height: 20),
-                              TextField(
-                                controller: _apiKeyController,
-                                autocorrect: false,
-                                enableSuggestions: false,
-                                keyboardType: TextInputType.visiblePassword,
-                                obscureText: _obscureApiKey,
-                                decoration: InputDecoration(
-                                  labelText: 'Gemini API Key',
-                                  hintText: settings.hasApiKey
-                                      ? 'Leave blank to keep the current key'
-                                      : 'Paste your Gemini API key',
-                                  helperText: _helperText(settings),
-                                  suffixIcon: IconButton(
-                                    onPressed: () {
-                                      setState(() {
-                                        _obscureApiKey = !_obscureApiKey;
-                                      });
-                                    },
-                                    icon: Icon(
-                                      _obscureApiKey
-                                          ? Icons.visibility_off_outlined
-                                          : Icons.visibility_outlined,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              ValueListenableBuilder<TextEditingValue>(
-                                valueListenable: _apiKeyController,
-                                builder: (context, value, child) {
-                                  final hasPendingApiKey = value.text
-                                      .trim()
-                                      .isNotEmpty;
-
-                                  return Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: <Widget>[
-                                      if (controller.errorMessage
-                                          case final message?)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            top: 12,
-                                          ),
-                                          child: Text(
-                                            message,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall
-                                                ?.copyWith(
-                                                  color: Theme.of(
-                                                    context,
-                                                  ).colorScheme.error,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                          ),
-                                        ),
-                                      const SizedBox(height: 20),
-                                      Wrap(
-                                        spacing: 12,
-                                        runSpacing: 12,
-                                        children: <Widget>[
-                                          FilledButton.icon(
-                                            onPressed:
-                                                controller.isSavingApiKey ||
-                                                    !hasPendingApiKey
-                                                ? null
-                                                : () {
-                                                    _saveSettings(
-                                                      context,
-                                                      controller: controller,
-                                                      geminiModel:
-                                                          selectedModel,
-                                                    );
-                                                  },
-                                            icon: controller.isSavingApiKey
-                                                ? const SizedBox.square(
-                                                    dimension: 16,
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                          strokeWidth: 2,
-                                                        ),
-                                                  )
-                                                : const Icon(
-                                                    Icons.save_outlined,
-                                                  ),
-                                            label: const Text('Save key'),
-                                          ),
-                                          OutlinedButton.icon(
-                                            onPressed:
-                                                controller.isSavingApiKey ||
-                                                    !hasSavedApiKey
-                                                ? null
-                                                : () {
-                                                    _clearApiKey(
-                                                      context,
-                                                      controller: controller,
-                                                    );
-                                                  },
-                                            icon: const Icon(
-                                              Icons.delete_outline,
-                                            ),
-                                            label: const Text('Remove key'),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 20),
-                              Text(
-                                'Model',
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              const SizedBox(height: 10),
-                              SegmentedButton<GeminiModel>(
-                                selected: <GeminiModel>{selectedModel},
+                              const SizedBox(height: 16),
+                              SegmentedButton<AiProvider>(
+                                selected: <AiProvider>{settings.provider},
                                 showSelectedIcon: false,
                                 onSelectionChanged: controller.isSavingModel
                                     ? null
-                                    : (selection) async {
-                                        final nextModel = selection.first;
-                                        setState(() {
-                                          _selectedModel = nextModel;
-                                        });
-                                        await controller.saveGeminiModel(
-                                          nextModel,
+                                    : (selection) {
+                                        _saveProvider(
+                                          context,
+                                          controller: controller,
+                                          provider: selection.first,
                                         );
-                                        if (!context.mounted) {
-                                          return;
-                                        }
-                                        if (controller.errorMessage != null) {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                controller.errorMessage!,
-                                              ),
-                                            ),
-                                          );
-                                        }
                                       },
-                                segments: GeminiModel.values
-                                    .map((model) {
-                                      return ButtonSegment<GeminiModel>(
-                                        value: model,
-                                        label: Text(model.label),
+                                segments: AiProvider.values
+                                    .map((provider) {
+                                      return ButtonSegment<AiProvider>(
+                                        value: provider,
+                                        label: Text(provider.label),
                                       );
                                     })
                                     .toList(growable: false),
                               ),
-                              const SizedBox(height: 10),
+                              const SizedBox(height: 12),
                               Text(
-                                selectedModel.description,
+                                settings.provider.description,
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                             ],
                           ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _ProviderCard(
+                        isActive: settings.provider == AiProvider.gemini,
+                        title: 'Gemini',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              "Configure Google's Gemini model usage with your "
+                              'own API key.',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            const SizedBox(height: 4),
+                            TextButton(
+                              onPressed: () {
+                                _openUri(
+                                  context,
+                                  uri: _geminiAboutUri,
+                                  failureMessage:
+                                      'Could not open the Gemini link.',
+                                );
+                              },
+                              child: const Text('Learn more'),
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: _apiKeyController,
+                              autocorrect: false,
+                              enableSuggestions: false,
+                              keyboardType: TextInputType.visiblePassword,
+                              obscureText: _obscureApiKey,
+                              decoration: InputDecoration(
+                                labelText: 'Gemini API Key',
+                                hintText: settings.hasApiKey
+                                    ? 'Leave blank to keep the current key'
+                                    : 'Paste your Gemini API key',
+                                helperText: _helperText(settings),
+                                suffixIcon: IconButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _obscureApiKey = !_obscureApiKey;
+                                    });
+                                  },
+                                  icon: Icon(
+                                    _obscureApiKey
+                                        ? Icons.visibility_off_outlined
+                                        : Icons.visibility_outlined,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            ValueListenableBuilder<TextEditingValue>(
+                              valueListenable: _apiKeyController,
+                              builder: (context, value, child) {
+                                final hasPendingApiKey = value.text
+                                    .trim()
+                                    .isNotEmpty;
+
+                                return Wrap(
+                                  spacing: 12,
+                                  runSpacing: 12,
+                                  children: <Widget>[
+                                    FilledButton.icon(
+                                      onPressed:
+                                          controller.isSavingApiKey ||
+                                              !hasPendingApiKey
+                                          ? null
+                                          : () {
+                                              _saveGeminiSettings(
+                                                context,
+                                                controller: controller,
+                                                geminiModel:
+                                                    selectedGeminiModel,
+                                              );
+                                            },
+                                      icon: controller.isSavingApiKey
+                                          ? const SizedBox.square(
+                                              dimension: 16,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                              ),
+                                            )
+                                          : const Icon(Icons.save_outlined),
+                                      label: const Text('Save key'),
+                                    ),
+                                    OutlinedButton.icon(
+                                      onPressed:
+                                          controller.isSavingApiKey ||
+                                              !hasSavedApiKey
+                                          ? null
+                                          : () {
+                                              _clearApiKey(
+                                                context,
+                                                controller: controller,
+                                              );
+                                            },
+                                      icon: const Icon(Icons.delete_outline),
+                                      label: const Text('Remove key'),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 20),
+                            Text(
+                              'Model',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 10),
+                            SegmentedButton<GeminiModel>(
+                              selected: <GeminiModel>{selectedGeminiModel},
+                              showSelectedIcon: false,
+                              onSelectionChanged: controller.isSavingModel
+                                  ? null
+                                  : (selection) {
+                                      _saveGeminiModelSelection(
+                                        context,
+                                        controller: controller,
+                                        model: selection.first,
+                                      );
+                                    },
+                              segments: GeminiModel.values
+                                  .map((model) {
+                                    return ButtonSegment<GeminiModel>(
+                                      value: model,
+                                      label: Text(model.label),
+                                    );
+                                  })
+                                  .toList(growable: false),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              selectedGeminiModel.description,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _ProviderCard(
+                        isActive: settings.provider == AiProvider.localGemma,
+                        title: 'Offline Gemma 4',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              'Download a Gemma 4 checkpoint from Hugging Face '
+                              'and keep the assistant fully offline on this '
+                              'device. The flow is inspired by Google AI Edge '
+                              'Gallery.',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            const SizedBox(height: 4),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: <Widget>[
+                                TextButton(
+                                  onPressed: () {
+                                    _openUri(
+                                      context,
+                                      uri: _googleAiEdgeUri,
+                                      failureMessage:
+                                          'Could not open the AI Edge Gallery reference.',
+                                    );
+                                  },
+                                  child: const Text('AI Edge Gallery'),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    _openUri(
+                                      context,
+                                      uri: selectedLocalModel.repositoryUri,
+                                      failureMessage:
+                                          'Could not open the Hugging Face repository.',
+                                    );
+                                  },
+                                  child: const Text('Hugging Face'),
+                                ),
+                              ],
+                            ),
+                            if (controller.localGemmaError case final message?)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  message,
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.error,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                ),
+                              ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Model',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 10),
+                            SegmentedButton<LocalGemmaModel>(
+                              selected: <LocalGemmaModel>{selectedLocalModel},
+                              showSelectedIcon: false,
+                              onSelectionChanged: controller.isSavingModel
+                                  ? null
+                                  : (selection) {
+                                      _saveLocalModelSelection(
+                                        context,
+                                        controller: controller,
+                                        model: selection.first,
+                                      );
+                                    },
+                              segments: LocalGemmaModel.values
+                                  .map((model) {
+                                    return ButtonSegment<LocalGemmaModel>(
+                                      value: model,
+                                      label: Text(model.label),
+                                    );
+                                  })
+                                  .toList(growable: false),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              '${selectedLocalModel.description} '
+                              '${selectedLocalModel.sizeLabel}.',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            const SizedBox(height: 16),
+                            _LocalModelStatusRow(
+                              isInstalled: isLocalModelInstalled,
+                              model: selectedLocalModel,
+                            ),
+                            if (controller.isDownloadingLocalModel &&
+                                localDownloadProgress != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Text(
+                                      'Downloading ${selectedLocalModel.label}: '
+                                      '$localDownloadProgress%',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    LinearProgressIndicator(
+                                      value: localDownloadProgress / 100,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            const SizedBox(height: 16),
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              children: <Widget>[
+                                FilledButton.icon(
+                                  onPressed:
+                                      controller.isDownloadingLocalModel ||
+                                          controller.isRemovingLocalModel ||
+                                          controller.localGemmaError != null
+                                      ? null
+                                      : () {
+                                          _downloadLocalModel(
+                                            context,
+                                            controller: controller,
+                                            model: selectedLocalModel,
+                                          );
+                                        },
+                                  icon: controller.isDownloadingLocalModel
+                                      ? const SizedBox.square(
+                                          dimension: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : Icon(
+                                          isLocalModelInstalled
+                                              ? Icons
+                                                    .download_for_offline_outlined
+                                              : Icons.download_outlined,
+                                        ),
+                                  label: Text(
+                                    isLocalModelInstalled
+                                        ? 'Re-download model'
+                                        : 'Download model',
+                                  ),
+                                ),
+                                OutlinedButton.icon(
+                                  onPressed:
+                                      controller.isDownloadingLocalModel ||
+                                          controller.isRemovingLocalModel ||
+                                          !isLocalModelInstalled
+                                      ? null
+                                      : () {
+                                          _deleteLocalModel(
+                                            context,
+                                            controller: controller,
+                                            model: selectedLocalModel,
+                                          );
+                                        },
+                                  icon: controller.isRemovingLocalModel
+                                      ? const SizedBox.square(
+                                          dimension: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Icon(Icons.delete_outline),
+                                  label: const Text('Remove model'),
+                                ),
+                                TextButton.icon(
+                                  onPressed:
+                                      controller.isDownloadingLocalModel ||
+                                          controller.isRemovingLocalModel
+                                      ? null
+                                      : () {
+                                          _refreshLocalModelStatus(
+                                            context,
+                                            controller: controller,
+                                          );
+                                        },
+                                  icon: const Icon(Icons.refresh_outlined),
+                                  label: const Text('Refresh status'),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -289,40 +503,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  String _helperText(AiSettings settings) {
-    return switch (settings.apiKeySource) {
-      ApiKeySource.none => 'No Gemini key is configured yet.',
-      ApiKeySource.stored => 'An API key is already available.',
-      ApiKeySource.debugEnv => 'An API key is already available.',
-    };
-  }
-
-  Future<void> _saveSettings(
-    BuildContext context, {
-    required AiSettingsController controller,
-    required GeminiModel geminiModel,
-  }) async {
-    await controller.saveGeminiSettings(
-      geminiModel: geminiModel,
-      replacementApiKey: _apiKeyController.text,
-    );
-    if (!context.mounted) {
-      return;
-    }
-
-    if (controller.errorMessage != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(controller.errorMessage!)));
-      return;
-    }
-
-    _apiKeyController.clear();
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('AI settings saved.')));
-  }
-
   Future<void> _deleteLocalData(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -341,7 +521,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await bootstrap.localDataResetService.deleteAllLocalData();
       await bootstrap.aiSettingsController.load();
       _apiKeyController.clear();
-      _selectedModel = null;
+      _selectedGeminiModel = null;
+      _selectedLocalModel = null;
 
       if (!context.mounted) {
         return;
@@ -369,17 +550,275 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _openGeminiLearnMore() async {
-    final didLaunch = await launchUrl(
-      _geminiAboutUri,
-      mode: LaunchMode.inAppBrowserView,
-    );
-    if (didLaunch || !mounted) {
+  Future<void> _deleteLocalModel(
+    BuildContext context, {
+    required AiSettingsController controller,
+    required LocalGemmaModel model,
+  }) async {
+    await controller.deleteLocalGemmaModel(model);
+    if (!context.mounted) {
+      return;
+    }
+    if (controller.errorMessage != null) {
       return;
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Could not open the Gemini link.')),
+      SnackBar(content: Text('${model.label} removed from this device.')),
+    );
+  }
+
+  Future<void> _downloadLocalModel(
+    BuildContext context, {
+    required AiSettingsController controller,
+    required LocalGemmaModel model,
+  }) async {
+    await controller.downloadLocalGemmaModel(model);
+    if (!context.mounted) {
+      return;
+    }
+    if (controller.errorMessage != null) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${model.label} is ready for offline use.')),
+    );
+  }
+
+  String _helperText(AiSettings settings) {
+    return switch (settings.apiKeySource) {
+      ApiKeySource.none => 'No Gemini key is configured yet.',
+      ApiKeySource.stored => 'An API key is already available.',
+      ApiKeySource.debugEnv => 'An API key is already available.',
+    };
+  }
+
+  Future<void> _openUri(
+    BuildContext context, {
+    required String failureMessage,
+    required Uri uri,
+  }) async {
+    final didLaunch = await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+    if (didLaunch || !context.mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(failureMessage)));
+  }
+
+  Future<void> _refreshLocalModelStatus(
+    BuildContext context, {
+    required AiSettingsController controller,
+  }) async {
+    await controller.refreshLocalGemmaStatus();
+    if (!context.mounted || controller.errorMessage != null) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Local model status refreshed.')),
+    );
+  }
+
+  Future<void> _saveGeminiModelSelection(
+    BuildContext context, {
+    required AiSettingsController controller,
+    required GeminiModel model,
+  }) async {
+    setState(() {
+      _selectedGeminiModel = model;
+    });
+    await controller.saveGeminiModel(model);
+    if (!context.mounted || controller.errorMessage == null) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(controller.errorMessage!)));
+  }
+
+  Future<void> _saveGeminiSettings(
+    BuildContext context, {
+    required AiSettingsController controller,
+    required GeminiModel geminiModel,
+  }) async {
+    await controller.saveGeminiSettings(
+      geminiModel: geminiModel,
+      replacementApiKey: _apiKeyController.text,
+    );
+    if (!context.mounted) {
+      return;
+    }
+
+    if (controller.errorMessage != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(controller.errorMessage!)));
+      return;
+    }
+
+    _apiKeyController.clear();
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Gemini settings saved.')));
+  }
+
+  Future<void> _saveLocalModelSelection(
+    BuildContext context, {
+    required AiSettingsController controller,
+    required LocalGemmaModel model,
+  }) async {
+    setState(() {
+      _selectedLocalModel = model;
+    });
+    await controller.saveLocalGemmaModel(model);
+    if (!context.mounted || controller.errorMessage == null) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(controller.errorMessage!)));
+  }
+
+  Future<void> _saveProvider(
+    BuildContext context, {
+    required AiProvider provider,
+    required AiSettingsController controller,
+  }) async {
+    await controller.saveProvider(provider);
+    if (!context.mounted || controller.errorMessage == null) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(controller.errorMessage!)));
+  }
+}
+
+class _LocalModelStatusRow extends StatelessWidget {
+  const _LocalModelStatusRow({required this.isInstalled, required this.model});
+
+  final bool isInstalled;
+  final LocalGemmaModel model;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final backgroundColor = isInstalled
+        ? colorScheme.primaryContainer
+        : colorScheme.surfaceContainerHighest;
+    final foregroundColor = isInstalled
+        ? colorScheme.onPrimaryContainer
+        : colorScheme.onSurfaceVariant;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: <Widget>[
+          Icon(
+            isInstalled ? Icons.check_circle_outline : Icons.download_outlined,
+            size: 18,
+            color: foregroundColor,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              isInstalled
+                  ? '${model.label} is downloaded and ready.'
+                  : '${model.label} is not on this device yet.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: foregroundColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProviderCard extends StatelessWidget {
+  const _ProviderCard({
+    required this.child,
+    required this.isActive,
+    required this.title,
+  });
+
+  final Widget child;
+  final bool isActive;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+                if (isActive)
+                  Chip(
+                    avatar: const Icon(Icons.check_circle_outline, size: 18),
+                    label: const Text('Active'),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsErrorBanner extends StatelessWidget {
+  const _SettingsErrorBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Icon(Icons.error_outline, color: colorScheme.onErrorContainer),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onErrorContainer,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

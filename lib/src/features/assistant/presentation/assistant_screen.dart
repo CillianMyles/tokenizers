@@ -432,7 +432,7 @@ class _AssistantComposer extends StatelessWidget {
                           ? attachment == null
                                 ? 'Describe a medication change...'
                                 : 'Add context for this script photo (optional)...'
-                          : 'Add a Gemini API key in Settings before sending.',
+                          : configurationError,
                       suffixIcon: Padding(
                         padding: const EdgeInsets.only(right: 6),
                         child: AnimatedSwitcher(

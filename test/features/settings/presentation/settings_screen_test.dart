@@ -57,7 +57,12 @@ void main() {
 
       expect(find.text('Danger Zone'), findsOneWidget);
 
-      await tester.tap(find.byIcon(Icons.delete_forever_outlined).first);
+      await tester.dragUntilVisible(
+        find.text('Delete Data').first,
+        find.byType(SingleChildScrollView),
+        const Offset(0, -200),
+      );
+      await tester.tap(find.text('Delete Data').first);
       await tester.pumpAndSettle();
 
       final dialog = find.byType(AlertDialog);
