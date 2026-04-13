@@ -1,5 +1,3 @@
-import 'package:tokenizers/src/data/gemini_model_provider.dart';
-
 import 'package:tokenizers/src/core/application/event_store.dart';
 import 'package:tokenizers/src/core/application/local_data_reset_guard.dart';
 import 'package:tokenizers/src/core/domain/domain_event.dart';
@@ -7,6 +5,7 @@ import 'package:tokenizers/src/core/domain/event_envelope.dart';
 import 'package:tokenizers/src/core/domain/medication_dose_schedule.dart';
 import 'package:tokenizers/src/core/model/model_provider.dart';
 import 'package:tokenizers/src/core/model/model_response_contract.dart';
+import 'package:tokenizers/src/data/gemini_model_provider.dart';
 import 'package:tokenizers/src/features/calendar/application/medication_repository.dart';
 import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
 import 'package:tokenizers/src/features/chat/application/conversation_repository.dart';

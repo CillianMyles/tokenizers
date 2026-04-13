@@ -7,7 +7,7 @@ import 'package:tokenizers/src/data/gemini_model_provider.dart';
 
 void main() {
   group('GeminiModelProvider', () {
-    Map<String, Object?> _successBody() => <String, Object?>{
+    Map<String, Object?> successBody() => <String, Object?>{
       'candidates': <Map<String, Object?>>[
         <String, Object?>{
           'content': <String, Object?>{
@@ -36,7 +36,7 @@ void main() {
     test('parses structured JSON responses into the app contract', () async {
       final client = MockClient((request) async {
         expect(request.headers['x-goog-api-key'], 'test-key');
-        return http.Response(jsonEncode(_successBody()), 200);
+        return http.Response(jsonEncode(successBody()), 200);
       });
       final provider = GeminiModelProvider(apiKey: 'test-key', client: client);
 
@@ -63,7 +63,7 @@ void main() {
         if (callCount <= 2) {
           return http.Response('{"error":"unavailable"}', 503);
         }
-        return http.Response(jsonEncode(_successBody()), 200);
+        return http.Response(jsonEncode(successBody()), 200);
       });
       final provider = GeminiModelProvider(apiKey: 'test-key', client: client);
 
