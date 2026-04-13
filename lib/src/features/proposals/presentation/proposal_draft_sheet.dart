@@ -132,7 +132,8 @@ class _EditableProposalAction {
       return switch (field) {
         'start_date' => false, // always has a default
         'end_date' => draft.endDate == null,
-        'times' => draft.times.isEmpty && draft.doseSchedule.isEmpty,
+        'time' || 'times' =>
+          draft.times.isEmpty && draft.doseSchedule.isEmpty,
         'dose_amount' =>
           draft.doseAmount == null || draft.doseAmount!.isEmpty,
         'dose_unit' => draft.doseUnit == null || draft.doseUnit!.isEmpty,

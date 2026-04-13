@@ -105,7 +105,7 @@ String humanReadableFieldLabel(String field) {
   return switch (field) {
     'start_date' => 'Start date',
     'end_date' => 'End date',
-    'times' => 'Dosing times',
+    'time' || 'times' => 'Dosing times',
     'dose_amount' => 'Dose amount',
     'dose_unit' => 'Dose unit',
     'medication_name' => 'Medication name',
