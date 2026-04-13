@@ -61,7 +61,7 @@ void main() {
 
     expect(find.text('Add vitamin D 1000 IU at 9am'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Insert transcript'));
+    await tester.tap(find.text('Insert transcript'));
     await tester.pumpAndSettle();
 
     expect(

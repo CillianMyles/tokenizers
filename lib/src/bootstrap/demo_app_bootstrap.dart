@@ -8,6 +8,7 @@ import 'package:tokenizers/src/data/device_local_data_reset_service.dart';
 import 'package:tokenizers/src/data/drift_event_store.dart';
 import 'package:tokenizers/src/data/drift_workspace.dart';
 import 'package:tokenizers/src/data/local_ai_settings_repository.dart';
+import 'package:tokenizers/src/data/local_gemma_service.dart';
 import 'package:tokenizers/src/data/platform_api_key_store.dart';
 import 'package:tokenizers/src/data/settings_backed_model_provider.dart';
 import 'package:tokenizers/src/features/assistant/application/speech_to_text_service.dart';
@@ -65,11 +66,14 @@ Future<AppBootstrap> createDemoAppBootstrap() async {
     ),
     preferences: sharedPreferences,
   );
+  const localGemmaService = FlutterGemmaLocalService();
   final aiSettingsController = AiSettingsController(
+    localGemmaService: localGemmaService,
     repository: aiSettingsRepository,
   );
   await aiSettingsController.load();
   final modelProvider = SettingsBackedModelProvider(
+    localGemmaService: localGemmaService,
     settingsController: aiSettingsController,
   );
 

@@ -5,6 +5,7 @@ import 'package:tokenizers/src/features/settings/domain/ai_settings.dart';
 
 const _providerPreferenceKey = 'ai_settings.provider';
 const _geminiModelPreferenceKey = 'ai_settings.gemini_model';
+const _localModelPreferenceKey = 'ai_settings.local_model';
 
 /// Shared-preferences-backed repository for user AI settings.
 class LocalAiSettingsRepository implements AiSettingsRepository {
@@ -22,6 +23,7 @@ class LocalAiSettingsRepository implements AiSettingsRepository {
   Future<void> clearAll() async {
     await _removePreference(_providerPreferenceKey);
     await _removePreference(_geminiModelPreferenceKey);
+    await _removePreference(_localModelPreferenceKey);
     await _apiKeyStore.delete();
   }
 
@@ -36,12 +38,16 @@ class LocalAiSettingsRepository implements AiSettingsRepository {
     final geminiModel = _geminiModelFromWireValue(
       _preferences.getString(_geminiModelPreferenceKey),
     );
+    final localModel = _localModelFromWireValue(
+      _preferences.getString(_localModelPreferenceKey),
+    );
     final apiKeyRecord = await loadGeminiApiKeyRecord();
 
     return AiSettings(
       apiKeySource: apiKeyRecord?.source ?? ApiKeySource.none,
       apiKeyStorage: _apiKeyStore.kind,
       geminiModel: geminiModel,
+      localModel: localModel,
       provider: provider,
     );
   }
@@ -64,7 +70,11 @@ class LocalAiSettingsRepository implements AiSettingsRepository {
       _geminiModelPreferenceKey,
       settings.geminiModel.wireValue,
     );
-    if (!providerSaved || !modelSaved) {
+    final localModelSaved = await _preferences.setString(
+      _localModelPreferenceKey,
+      settings.localModel.wireValue,
+    );
+    if (!providerSaved || !modelSaved || !localModelSaved) {
       throw StateError('Could not persist the AI settings.');
     }
     return settings.copyWith(apiKeyStorage: _apiKeyStore.kind);
@@ -84,6 +94,13 @@ class LocalAiSettingsRepository implements AiSettingsRepository {
     return GeminiModel.values.firstWhere(
       (model) => model.wireValue == wireValue,
       orElse: () => GeminiModel.gemini25Flash,
+    );
+  }
+
+  LocalGemmaModel _localModelFromWireValue(String? wireValue) {
+    return LocalGemmaModel.values.firstWhere(
+      (model) => model.wireValue == wireValue,
+      orElse: () => LocalGemmaModel.gemma4E2bIt,
     );
   }
 

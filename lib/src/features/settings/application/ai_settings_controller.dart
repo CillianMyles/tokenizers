@@ -1,18 +1,28 @@
 import 'package:flutter/foundation.dart';
 
+import 'package:tokenizers/src/data/local_gemma_service.dart';
 import 'package:tokenizers/src/features/settings/application/ai_settings_repository.dart';
 import 'package:tokenizers/src/features/settings/domain/ai_settings.dart';
 
 /// Coordinates AI settings persistence and exposes live configuration state.
 class AiSettingsController extends ChangeNotifier {
   /// Creates an AI settings controller.
-  AiSettingsController({required AiSettingsRepository repository})
-    : _repository = repository;
+  AiSettingsController({
+    LocalGemmaService? localGemmaService,
+    required AiSettingsRepository repository,
+  }) : _localGemmaService = localGemmaService,
+       _repository = repository;
 
+  final LocalGemmaService? _localGemmaService;
   final AiSettingsRepository _repository;
   AiSettings _settings = const AiSettings();
+  Set<LocalGemmaModel> _installedLocalModels = const <LocalGemmaModel>{};
   String? _geminiApiKey;
   bool _isLoaded = false;
+  bool _isDownloadingLocalModel = false;
+  bool _isRemovingLocalModel = false;
+  String? _localGemmaError;
+  int? _localModelDownloadProgress;
   bool _isSavingApiKey = false;
   bool _isSavingModel = false;
   String? _errorMessage;
@@ -35,8 +45,36 @@ class AiSettingsController extends ChangeNotifier {
   /// The latest load or save failure shown to the UI.
   String? get errorMessage => _errorMessage;
 
+  /// Whether the selected local model is being downloaded.
+  bool get isDownloadingLocalModel => _isDownloadingLocalModel;
+
+  /// Whether the selected local model is being removed.
+  bool get isRemovingLocalModel => _isRemovingLocalModel;
+
+  /// Progress for the active local-model download.
+  int? get localModelDownloadProgress => _localModelDownloadProgress;
+
+  /// Platform or runtime error for the on-device Gemma workflow.
+  String? get localGemmaError => _localGemmaError;
+
+  /// Installed Gemma presets available on this device.
+  Set<LocalGemmaModel> get installedLocalModels =>
+      Set<LocalGemmaModel>.unmodifiable(_installedLocalModels);
+
   /// Explains why the assistant is unavailable.
-  String? get configurationError => _settings.configurationError;
+  String? get configurationError {
+    if (_settings.provider == AiProvider.gemini) {
+      return _settings.configurationError;
+    }
+    if (_localGemmaError != null) {
+      return _localGemmaError;
+    }
+    if (!_installedLocalModels.contains(_settings.localModel)) {
+      return 'Download ${_settings.localModel.label} in Settings to use the '
+          'offline assistant.';
+    }
+    return null;
+  }
 
   /// Loads the initial settings and cached Gemini key.
   Future<void> load() async {
@@ -50,6 +88,7 @@ class AiSettingsController extends ChangeNotifier {
         apiKeySource: apiKeyRecord?.source ?? ApiKeySource.none,
       );
       _geminiApiKey = apiKeyRecord?.value;
+      await _refreshLocalGemmaStatus();
       _isLoaded = true;
     } catch (error) {
       _errorMessage = 'Could not load AI settings. ${error.toString()}';
@@ -89,6 +128,24 @@ class AiSettingsController extends ChangeNotifier {
     });
   }
 
+  /// Persists the selected AI provider.
+  Future<void> saveProvider(AiProvider provider) async {
+    await _saveModel(() async {
+      _settings = await _repository.save(
+        _settings.copyWith(provider: provider),
+      );
+    });
+  }
+
+  /// Persists the selected local Gemma model.
+  Future<void> saveLocalGemmaModel(LocalGemmaModel localModel) async {
+    await _saveModel(() async {
+      _settings = await _repository.save(
+        _settings.copyWith(localModel: localModel),
+      );
+    });
+  }
+
   /// Clears the stored Gemini API key.
   Future<void> clearGeminiApiKey() async {
     await _saveApiKey(() async {
@@ -99,6 +156,72 @@ class AiSettingsController extends ChangeNotifier {
         apiKeySource: apiKeyRecord?.source ?? ApiKeySource.none,
       );
     });
+  }
+
+  /// Refreshes the current local Gemma status without mutating saved settings.
+  Future<void> refreshLocalGemmaStatus() async {
+    _errorMessage = null;
+    notifyListeners();
+    await _refreshLocalGemmaStatus();
+    notifyListeners();
+  }
+
+  /// Downloads the selected local Gemma model from Hugging Face.
+  Future<void> downloadLocalGemmaModel([LocalGemmaModel? localModel]) async {
+    final service = _localGemmaService;
+    if (service == null) {
+      _errorMessage = 'Offline Gemma is unavailable in this build.';
+      notifyListeners();
+      return;
+    }
+
+    _isDownloadingLocalModel = true;
+    _errorMessage = null;
+    _localModelDownloadProgress = 0;
+    notifyListeners();
+
+    try {
+      final status = await service.downloadModel(
+        localModel ?? _settings.localModel,
+        onProgress: (progress) {
+          _localModelDownloadProgress = progress;
+          notifyListeners();
+        },
+      );
+      _applyLocalGemmaStatus(status);
+    } catch (error) {
+      _errorMessage = 'Could not download the local model. ${error.toString()}';
+    } finally {
+      _isDownloadingLocalModel = false;
+      _localModelDownloadProgress = null;
+      notifyListeners();
+    }
+  }
+
+  /// Deletes the selected local Gemma model from this device.
+  Future<void> deleteLocalGemmaModel([LocalGemmaModel? localModel]) async {
+    final service = _localGemmaService;
+    if (service == null) {
+      _errorMessage = 'Offline Gemma is unavailable in this build.';
+      notifyListeners();
+      return;
+    }
+
+    _isRemovingLocalModel = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final status = await service.deleteModel(
+        localModel ?? _settings.localModel,
+      );
+      _applyLocalGemmaStatus(status);
+    } catch (error) {
+      _errorMessage = 'Could not remove the local model. ${error.toString()}';
+    } finally {
+      _isRemovingLocalModel = false;
+      notifyListeners();
+    }
   }
 
   Future<void> _saveApiKey(Future<void> Function() action) async {
@@ -129,5 +252,28 @@ class AiSettingsController extends ChangeNotifier {
       _isSavingModel = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _refreshLocalGemmaStatus() async {
+    final service = _localGemmaService;
+    if (service == null) {
+      _installedLocalModels = const <LocalGemmaModel>{};
+      _localGemmaError = 'Offline Gemma is unavailable in this build.';
+      return;
+    }
+
+    try {
+      final status = await service.getStatus();
+      _applyLocalGemmaStatus(status);
+    } catch (error) {
+      _installedLocalModels = const <LocalGemmaModel>{};
+      _localGemmaError =
+          'Offline Gemma could not be checked on this device. ${error.toString()}';
+    }
+  }
+
+  void _applyLocalGemmaStatus(LocalGemmaServiceStatus status) {
+    _installedLocalModels = status.installedModels;
+    _localGemmaError = status.errorMessage;
   }
 }
