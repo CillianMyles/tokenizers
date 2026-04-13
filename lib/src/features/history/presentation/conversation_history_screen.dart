@@ -87,18 +87,24 @@ class _HistoryFilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: _HistoryFilter.values
-          .map((filter) {
-            return ChoiceChip(
-              label: Text(_labelForFilter(filter)),
-              selected: selectedFilter == filter,
-              onSelected: (_) => onFilterSelected(filter),
-            );
-          })
-          .toList(growable: false),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: _HistoryFilter.values.indexed
+            .expand((entry) {
+              final (index, filter) = entry;
+              return <Widget>[
+                ChoiceChip(
+                  label: Text(_labelForFilter(filter)),
+                  selected: selectedFilter == filter,
+                  onSelected: (_) => onFilterSelected(filter),
+                ),
+                if (index != _HistoryFilter.values.length - 1)
+                  const SizedBox(width: 8),
+              ];
+            })
+            .toList(growable: false),
+      ),
     );
   }
 

@@ -116,6 +116,42 @@ void main() {
     expect(find.text('Medication taken'), findsOneWidget);
     expect(find.text('Magnesium added'), findsNothing);
   });
+
+  testWidgets(
+    'ConversationHistoryScreen uses horizontally scrollable chips on narrow layouts',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        AppScope(
+          bootstrap: _buildBootstrap(
+            eventStore: _FakeEventStore(events: const []),
+          ),
+          child: MaterialApp(
+            theme: AppTheme.light,
+            home: const Scaffold(body: ConversationHistoryScreen()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('All'), findsOneWidget);
+      expect(find.text('Assistant'), findsOneWidget);
+      expect(find.text('Medication'), findsOneWidget);
+      expect(find.text('Adherence'), findsOneWidget);
+      expect(find.byType(ChoiceChip), findsNWidgets(4));
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is SingleChildScrollView &&
+              widget.scrollDirection == Axis.horizontal,
+        ),
+        findsOneWidget,
+      );
+    },
+  );
 }
 
 AppBootstrap _buildBootstrap({required EventStore eventStore}) {
