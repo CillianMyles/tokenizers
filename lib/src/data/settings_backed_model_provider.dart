@@ -45,6 +45,7 @@ class SettingsBackedModelProvider implements ModelProvider {
       apiKey: geminiApiKey,
       client: _client,
       model: settings.geminiModel.apiModelName,
+      schedulePreferences: settings.medicationSchedulePreferences,
     ).generateResponse(
       confirmedSchedules: confirmedSchedules,
       conversation: conversation,

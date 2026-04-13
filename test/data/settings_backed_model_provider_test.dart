@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:tokenizers/src/core/domain/medication_schedule_preferences.dart';
 import 'package:tokenizers/src/core/model/model_provider.dart';
 import 'package:tokenizers/src/core/model/model_response_contract.dart';
 import 'package:tokenizers/src/data/api_key_store.dart';
@@ -16,8 +17,10 @@ void main() {
   group('SettingsBackedModelProvider', () {
     test('uses the selected Gemini model from saved settings', () async {
       late Uri requestUri;
+      late Map<String, Object?> requestBody;
       final client = MockClient((request) async {
         requestUri = request.url;
+        requestBody = jsonDecode(request.body) as Map<String, Object?>;
         final responseBody = <String, Object?>{
           'candidates': <Map<String, Object?>>[
             <String, Object?>{
@@ -44,6 +47,11 @@ void main() {
           ),
           settings: const AiSettings(
             geminiModel: GeminiModel.gemini31ProPreview,
+            medicationSchedulePreferences: MedicationSchedulePreferences(
+              morningTime: '08:30',
+              lunchTime: '12:45',
+              eveningTime: '19:15',
+            ),
           ),
         ),
       );
@@ -64,6 +72,16 @@ void main() {
         requestUri.toString(),
         contains('models/gemini-3.1-pro-preview:generateContent'),
       );
+      final contents =
+          (requestBody['contents'] as List<Object?>).single
+              as Map<String, Object?>;
+      final text =
+          (((contents['parts'] as List<Object?>).single
+                  as Map<String, Object?>)['text'])
+              as String;
+      expect(text, contains('"morning": "08:30"'));
+      expect(text, contains('"lunch": "12:45"'));
+      expect(text, contains('"evening": "19:15"'));
       expect(response, isA<ModelResponseContract>());
     });
 

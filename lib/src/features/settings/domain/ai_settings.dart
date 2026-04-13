@@ -1,3 +1,5 @@
+import 'package:tokenizers/src/core/domain/medication_schedule_preferences.dart';
+
 /// The currently supported cloud AI providers.
 enum AiProvider { gemini }
 
@@ -81,6 +83,7 @@ class AiSettings {
     this.apiKeySource = ApiKeySource.none,
     this.apiKeyStorage = ApiKeyStorageKind.secureStorage,
     this.geminiModel = GeminiModel.gemini25Flash,
+    this.medicationSchedulePreferences = const MedicationSchedulePreferences(),
     this.provider = AiProvider.gemini,
   });
 
@@ -92,6 +95,9 @@ class AiSettings {
 
   /// Selected Gemini model.
   final GeminiModel geminiModel;
+
+  /// Default anchor times used when medication timing is underspecified.
+  final MedicationSchedulePreferences medicationSchedulePreferences;
 
   /// Selected AI provider.
   final AiProvider provider;
@@ -115,12 +121,15 @@ class AiSettings {
     ApiKeySource? apiKeySource,
     ApiKeyStorageKind? apiKeyStorage,
     GeminiModel? geminiModel,
+    MedicationSchedulePreferences? medicationSchedulePreferences,
     AiProvider? provider,
   }) {
     return AiSettings(
       apiKeySource: apiKeySource ?? this.apiKeySource,
       apiKeyStorage: apiKeyStorage ?? this.apiKeyStorage,
       geminiModel: geminiModel ?? this.geminiModel,
+      medicationSchedulePreferences:
+          medicationSchedulePreferences ?? this.medicationSchedulePreferences,
       provider: provider ?? this.provider,
     );
   }

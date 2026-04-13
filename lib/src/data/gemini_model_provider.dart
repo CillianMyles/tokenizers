@@ -3,9 +3,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'package:tokenizers/src/core/domain/medication_dose_schedule.dart';
+import 'package:tokenizers/src/core/domain/medication_schedule_preferences.dart';
 import 'package:tokenizers/src/core/model/model_provider.dart';
 import 'package:tokenizers/src/core/model/model_response_contract.dart';
 import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
+import 'package:tokenizers/src/features/calendar/domain/medication_schedule_time_inference.dart';
 import 'package:tokenizers/src/features/chat/domain/conversation_models.dart';
 
 const _defaultModel = 'gemini-2.5-flash';
@@ -16,11 +18,13 @@ class GeminiModelProvider implements ModelProvider {
   GeminiModelProvider({
     required this.apiKey,
     this.model = _defaultModel,
+    this.schedulePreferences = const MedicationSchedulePreferences(),
     http.Client? client,
   }) : _client = client ?? http.Client();
 
   final String apiKey;
   final String model;
+  final MedicationSchedulePreferences schedulePreferences;
   final http.Client _client;
   int _actionCounter = 0;
 
@@ -91,7 +95,12 @@ class GeminiModelProvider implements ModelProvider {
     final apiPayload = decodeJsonObject(response.body);
     final text = _extractCandidateText(apiPayload);
     final structured = decodeJsonObject(text);
-    return _parseStructuredResponse(structured, apiPayload);
+    return _parseStructuredResponse(
+      structured,
+      apiPayload,
+      activeSchedules: confirmedSchedules,
+      userText: userText,
+    );
   }
 
   /// Decodes a JSON object string into a typed map.
@@ -130,7 +139,7 @@ class GeminiModelProvider implements ModelProvider {
             'dose_schedule': medicationDoseScheduleToJsonList(
               schedule.resolvedDoseSchedule,
             ),
-            'times': schedule.times,
+            'times': schedule.resolvedTimes,
             'notes': schedule.notes,
           };
         })
@@ -142,6 +151,11 @@ class GeminiModelProvider implements ModelProvider {
       'latest_user_text': userText,
       'image_attached': imageAttachment != null,
       'image_mime_type': imageAttachment?.mimeType,
+      'medication_schedule_preferences': <String, String>{
+        'morning': schedulePreferences.morningTime,
+        'lunch': schedulePreferences.lunchTime,
+        'evening': schedulePreferences.eveningTime,
+      },
       'conversation_history': recentMessages,
       'confirmed_schedules': schedules,
     });
@@ -171,12 +185,22 @@ class GeminiModelProvider implements ModelProvider {
 
   ModelResponseContract _parseStructuredResponse(
     Map<String, Object?> structured,
-    Map<String, Object?> apiPayload,
-  ) {
+    Map<String, Object?> apiPayload, {
+    required List<MedicationScheduleView> activeSchedules,
+    required String userText,
+  }) {
     final actions =
         ((structured['actions'] ?? const <Object?>[]) as List<Object?>)
             .whereType<Map<String, Object?>>()
             .map(_parseAction)
+            .map(
+              (action) => applyMedicationTimeFallback(
+                action: action,
+                activeSchedules: activeSchedules,
+                preferences: schedulePreferences,
+                userText: userText,
+              ),
+            )
             .toList(growable: false);
 
     return ModelResponseContract(
@@ -244,11 +268,16 @@ const _systemPrompt = '''
 You are extracting medication management proposals for a patient-side tracking app.
 Return JSON only and follow the provided schema exactly.
 Never mutate current schedules directly. Always propose actions for explicit user review.
-If the message is ambiguous or missing required information, use request_missing_info instead of guessing.
+If required details other than timing are missing, use request_missing_info instead of guessing.
+If the user gives a medication and dose but not an exact time, make a reasonable schedule guess instead of asking for time-only clarification.
 When an image is attached, treat it as a prescription or medication instruction photo that may contain the primary evidence.
 Times must use 24-hour HH:mm format.
 Dates must use YYYY-MM-DD format.
 If doses differ by time, represent them in dose_schedule.
+Prefer aligning new medication times with existing active schedule times to support adherence.
+If no existing schedule time is a good fit, use the provided morning/lunch/evening preferences.
+For twice-daily schedules, prefer morning plus evening.
+For three-times-daily schedules, prefer morning plus lunch plus evening.
 ''';
 
 final _responseSchema = <String, Object?>{

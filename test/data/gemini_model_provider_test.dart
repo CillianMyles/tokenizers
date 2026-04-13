@@ -5,7 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:tokenizers/src/core/model/model_provider.dart';
+import 'package:tokenizers/src/core/model/model_response_contract.dart';
 import 'package:tokenizers/src/data/gemini_model_provider.dart';
+import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
 
 void main() {
   group('GeminiModelProvider', () {
@@ -108,6 +110,59 @@ void main() {
           'data': base64Encode(<int>[1, 2, 3, 4]),
         },
       });
+    });
+
+    test('fills in aligned times when the model leaves them missing', () async {
+      final client = MockClient((request) async {
+        final responseBody = <String, Object?>{
+          'candidates': <Map<String, Object?>>[
+            <String, Object?>{
+              'content': <String, Object?>{
+                'parts': <Map<String, String>>[
+                  <String, String>{
+                    'text': jsonEncode(<String, Object?>{
+                      'assistant_text':
+                          'I drafted a pending magnesium schedule.',
+                      'actions': <Map<String, Object?>>[
+                        <String, Object?>{
+                          'type': 'request_missing_info',
+                          'medication_name': 'Magnesium',
+                          'dose_amount': '250',
+                          'dose_unit': 'mg',
+                          'missing_fields': <String>['time'],
+                        },
+                      ],
+                    }),
+                  },
+                ],
+              },
+            },
+          ],
+        };
+
+        return http.Response(jsonEncode(responseBody), 200);
+      });
+      final provider = GeminiModelProvider(apiKey: 'test-key', client: client);
+
+      final response = await provider.generateResponse(
+        confirmedSchedules: <MedicationScheduleView>[
+          MedicationScheduleView(
+            medicationName: 'Tacrolimus',
+            scheduleId: 'schedule-1',
+            startDate: DateTime(2026, 4, 5),
+            times: const <String>['08:00', '20:00'],
+          ),
+        ],
+        conversation: const [],
+        threadId: 'thread-1',
+        userText: 'Add magnesium 250 mg twice daily',
+      );
+
+      expect(
+        response.actions.single.type,
+        ModelProposalActionType.addMedicationSchedule,
+      );
+      expect(response.actions.single.times, <String>['08:00', '20:00']);
     });
   });
 }

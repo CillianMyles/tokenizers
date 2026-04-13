@@ -81,6 +81,10 @@ class ProposalActionView {
     );
   }
 
+  /// Resolved times derived from the effective timed dose entries.
+  List<String> get resolvedTimes =>
+      medicationDoseScheduleTimes(resolvedDoseSchedule);
+
   /// Supported proposal action type.
   final ProposalActionType type;
 

@@ -211,17 +211,18 @@ class ProjectionState {
               medicationNames[medicationId] ??
               'Unknown medication';
           final scheduleId = payload['schedule_id']! as String;
+          final doseSchedule = medicationDoseScheduleFromJsonList(
+            payload['dose_schedule'],
+            fallbackDoseAmount: payload['dose_amount'] as String?,
+            fallbackDoseUnit: payload['dose_unit'] as String?,
+            fallbackTimes:
+                ((payload['times'] ?? const <Object?>[]) as List<Object?>)
+                    .whereType<String>()
+                    .toList(),
+          );
           schedulesById[scheduleId] = MedicationScheduleView(
             doseAmount: payload['dose_amount'] as String?,
-            doseSchedule: medicationDoseScheduleFromJsonList(
-              payload['dose_schedule'],
-              fallbackDoseAmount: payload['dose_amount'] as String?,
-              fallbackDoseUnit: payload['dose_unit'] as String?,
-              fallbackTimes:
-                  ((payload['times'] ?? const <Object?>[]) as List<Object?>)
-                      .whereType<String>()
-                      .toList(),
-            ),
+            doseSchedule: doseSchedule,
             doseUnit: payload['dose_unit'] as String?,
             endDate: _tryParseDate(payload['end_date']),
             medicationName: medicationName,
@@ -234,9 +235,7 @@ class ProjectionState {
               envelope.occurredAt,
             ),
             threadId: payload['thread_id'] as String?,
-            times: ((payload['times'] ?? const <Object?>[]) as List<Object?>)
-                .whereType<String>()
-                .toList(),
+            times: medicationDoseScheduleTimes(doseSchedule),
           );
           break;
         case 'medication_schedule_stopped':
@@ -255,17 +254,18 @@ class ProjectionState {
           final scheduleId = payload['schedule_id']! as String;
           final existing = schedulesById[scheduleId];
           if (existing != null) {
+            final doseSchedule = medicationDoseScheduleFromJsonList(
+              payload['dose_schedule'],
+              fallbackDoseAmount: payload['dose_amount'] as String?,
+              fallbackDoseUnit: payload['dose_unit'] as String?,
+              fallbackTimes:
+                  ((payload['times'] ?? const <Object?>[]) as List<Object?>)
+                      .whereType<String>()
+                      .toList(),
+            );
             schedulesById[scheduleId] = existing.copyWith(
               doseAmount: payload['dose_amount'] as String?,
-              doseSchedule: medicationDoseScheduleFromJsonList(
-                payload['dose_schedule'],
-                fallbackDoseAmount: payload['dose_amount'] as String?,
-                fallbackDoseUnit: payload['dose_unit'] as String?,
-                fallbackTimes:
-                    ((payload['times'] ?? const <Object?>[]) as List<Object?>)
-                        .whereType<String>()
-                        .toList(),
-              ),
+              doseSchedule: doseSchedule,
               doseUnit: payload['dose_unit'] as String?,
               endDate: _tryParseDate(payload['end_date']),
               medicationName:
@@ -277,9 +277,7 @@ class ProjectionState {
                 payload['start_date'],
                 envelope.occurredAt,
               ),
-              times: ((payload['times'] ?? const <Object?>[]) as List<Object?>)
-                  .whereType<String>()
-                  .toList(),
+              times: medicationDoseScheduleTimes(doseSchedule),
             );
           }
           break;
@@ -354,17 +352,18 @@ class ProjectionState {
 
 /// Deserializes a stored proposal action payload.
 ProposalActionView proposalActionFromJson(Map<String, Object?> json) {
+  final doseSchedule = medicationDoseScheduleFromJsonList(
+    json['dose_schedule'],
+    fallbackDoseAmount: json['dose_amount'] as String?,
+    fallbackDoseUnit: json['dose_unit'] as String?,
+    fallbackTimes: ((json['times'] ?? const <Object?>[]) as List<Object?>)
+        .whereType<String>()
+        .toList(),
+  );
   return ProposalActionView(
     actionId: json['action_id']! as String,
     doseAmount: json['dose_amount'] as String?,
-    doseSchedule: medicationDoseScheduleFromJsonList(
-      json['dose_schedule'],
-      fallbackDoseAmount: json['dose_amount'] as String?,
-      fallbackDoseUnit: json['dose_unit'] as String?,
-      fallbackTimes: ((json['times'] ?? const <Object?>[]) as List<Object?>)
-          .whereType<String>()
-          .toList(),
-    ),
+    doseSchedule: doseSchedule,
     doseUnit: json['dose_unit'] as String?,
     endDate: _tryParseDate(json['end_date']),
     medicationName: json['medication_name'] as String?,
@@ -376,9 +375,7 @@ ProposalActionView proposalActionFromJson(Map<String, Object?> json) {
     route: json['route'] as String?,
     startDate: _tryParseDate(json['start_date']),
     targetScheduleId: json['target_schedule_id'] as String?,
-    times: ((json['times'] ?? const <Object?>[]) as List<Object?>)
-        .whereType<String>()
-        .toList(),
+    times: medicationDoseScheduleTimes(doseSchedule),
     type: ProposalActionType.values.firstWhere(
       (type) => type.wireValue == json['type'],
     ),
