@@ -199,11 +199,14 @@ class TodayScreen extends StatelessWidget {
 
 class _TodaySummary {
   const _TodaySummary({
+    required this.completionRatio,
+    required this.completionText,
     required this.dueNowCount,
     required this.nextLabel,
     required this.overdueCount,
     required this.pendingDraftCount,
     required this.takenCount,
+    required this.totalDoseCount,
   });
 
   factory _TodaySummary.fromData({
@@ -219,6 +222,7 @@ class _TodaySummary {
     final takenCount = reminders.where((reminder) {
       return reminder.status == MedicationReminderStatus.taken;
     }).length;
+    final totalDoseCount = reminders.length;
 
     String nextLabel = 'No upcoming medications';
     for (final reminder in reminders) {
@@ -232,19 +236,27 @@ class _TodaySummary {
     }
 
     return _TodaySummary(
+      completionRatio: totalDoseCount == 0 ? 0 : takenCount / totalDoseCount,
+      completionText: totalDoseCount == 0
+          ? 'No confirmed doses scheduled today'
+          : '$takenCount of $totalDoseCount doses recorded today',
       dueNowCount: dueNowCount,
       nextLabel: nextLabel,
       overdueCount: overdueCount,
       pendingDraftCount: proposal == null ? 0 : 1,
       takenCount: takenCount,
+      totalDoseCount: totalDoseCount,
     );
   }
 
+  final double completionRatio;
+  final String completionText;
   final int dueNowCount;
   final String nextLabel;
   final int overdueCount;
   final int pendingDraftCount;
   final int takenCount;
+  final int totalDoseCount;
 }
 
 class _TodaySummaryCard extends StatelessWidget {
@@ -254,6 +266,7 @@ class _TodaySummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -264,6 +277,25 @@ class _TodaySummaryCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               summary.nextLabel,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Today\'s progress',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                minHeight: 10,
+                value: summary.completionRatio,
+                backgroundColor: colorScheme.surfaceContainerHighest,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              summary.completionText,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 16),
