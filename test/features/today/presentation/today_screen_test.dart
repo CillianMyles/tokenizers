@@ -87,6 +87,147 @@ void main() {
     expect(find.text('1 of 2 doses recorded today'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
   });
+
+  testWidgets(
+    'TodayScreen shows adherence insights for recently stopped medications',
+    (tester) async {
+      final now = DateTime.now();
+      final date = DateTime(now.year, now.month, now.day);
+      final stoppedOn = date.subtract(const Duration(days: 1));
+      final previousDay = date.subtract(const Duration(days: 2));
+      final repository = _FakeMedicationRepository(
+        entries: const <MedicationCalendarEntry>[],
+      );
+      final eventStore = _FakeEventStore(
+        events: <EventEnvelope<DomainEvent>>[
+          _event(
+            aggregateId: 'medication-omeprazole',
+            eventId: 'event-medication-registered',
+            eventType: 'medication_registered',
+            occurredAt: previousDay.subtract(const Duration(days: 21)),
+            payload: const <String, Object?>{
+              'medication_id': 'medication-omeprazole',
+              'medication_name': 'Omeprazole',
+            },
+          ),
+          _event(
+            aggregateId: 'schedule-omeprazole',
+            eventId: 'event-schedule-added',
+            eventType: 'medication_schedule_added',
+            occurredAt: previousDay.subtract(const Duration(days: 20)),
+            payload: <String, Object?>{
+              'medication_id': 'medication-omeprazole',
+              'schedule_id': 'schedule-omeprazole',
+              'medication_name': 'Omeprazole',
+              'dose_amount': '20',
+              'dose_unit': 'mg',
+              'start_date': previousDay
+                  .subtract(const Duration(days: 20))
+                  .toIso8601String()
+                  .split('T')
+                  .first,
+              'times': <String>['08:00'],
+            },
+          ),
+          _event(
+            aggregateId: 'schedule-omeprazole',
+            eventId: 'event-taken-1',
+            eventType: 'medication_taken',
+            occurredAt: DateTime(
+              previousDay.year,
+              previousDay.month,
+              previousDay.day,
+              8,
+              5,
+            ),
+            payload: <String, Object?>{
+              'medication_name': 'Omeprazole',
+              'schedule_id': 'schedule-omeprazole',
+              'scheduled_for': DateTime(
+                previousDay.year,
+                previousDay.month,
+                previousDay.day,
+                8,
+              ).toIso8601String(),
+              'taken_at': DateTime(
+                previousDay.year,
+                previousDay.month,
+                previousDay.day,
+                8,
+                5,
+              ).toIso8601String(),
+            },
+          ),
+          _event(
+            aggregateId: 'schedule-omeprazole',
+            eventId: 'event-taken-2',
+            eventType: 'medication_taken',
+            occurredAt: DateTime(
+              stoppedOn.year,
+              stoppedOn.month,
+              stoppedOn.day,
+              8,
+              5,
+            ),
+            payload: <String, Object?>{
+              'medication_name': 'Omeprazole',
+              'schedule_id': 'schedule-omeprazole',
+              'scheduled_for': DateTime(
+                stoppedOn.year,
+                stoppedOn.month,
+                stoppedOn.day,
+                8,
+              ).toIso8601String(),
+              'taken_at': DateTime(
+                stoppedOn.year,
+                stoppedOn.month,
+                stoppedOn.day,
+                8,
+                5,
+              ).toIso8601String(),
+            },
+          ),
+          _event(
+            aggregateId: 'schedule-omeprazole',
+            eventId: 'event-schedule-stopped',
+            eventType: 'medication_schedule_stopped',
+            occurredAt: DateTime(
+              stoppedOn.year,
+              stoppedOn.month,
+              stoppedOn.day,
+              9,
+            ),
+            payload: <String, Object?>{
+              'schedule_id': 'schedule-omeprazole',
+              'end_date': stoppedOn.toIso8601String().split('T').first,
+            },
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        AppScope(
+          bootstrap: _buildBootstrap(
+            eventStore: eventStore,
+            medicationRepository: repository,
+          ),
+          child: MaterialApp(theme: AppTheme.light, home: const TodayScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Adherence insights'),
+        300,
+        scrollable: find.byType(Scrollable),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Adherence insights'), findsOneWidget);
+      expect(find.text('Week at a glance'), findsOneWidget);
+      expect(find.text('Omeprazole'), findsOneWidget);
+      expect(find.text('2-day streak'), findsOneWidget);
+    },
+  );
 }
 
 AppBootstrap _buildBootstrap({
@@ -114,6 +255,23 @@ AppBootstrap _buildBootstrap({
     medicationRepository: medicationRepository,
     modelProvider: modelProvider,
     projectionRunner: const _FakeProjectionRunner(),
+  );
+}
+
+EventEnvelope<DomainEvent> _event({
+  required String aggregateId,
+  required String eventId,
+  required String eventType,
+  required DateTime occurredAt,
+  required Map<String, Object?> payload,
+}) {
+  return EventEnvelope<DomainEvent>(
+    eventId: eventId,
+    aggregateType: 'medication',
+    aggregateId: aggregateId,
+    actorType: EventActorType.user,
+    event: DomainEvent(type: eventType, payload: payload),
+    occurredAt: occurredAt,
   );
 }
 
@@ -229,6 +387,7 @@ class _FakeModelProvider implements ModelProvider {
     required List<ConversationMessageView> conversation,
     required String threadId,
     required String userText,
+    ModelImageAttachment? imageAttachment,
   }) async {
     return const ModelResponseContract(
       actions: <ModelProposalAction>[],

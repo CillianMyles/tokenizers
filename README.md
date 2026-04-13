@@ -16,6 +16,7 @@ The app currently has four top-level surfaces:
 - `Assistant`
   - chat-first interface for proposing medication changes
   - optional voice input that transcribes speech locally on-device before inserting text into the composer
+  - supports text prompts and prescription/script photos as draft inputs
   - pending draft review launched from the conversation area
 - `Calendar`
   - direct manual add, edit, and remove for confirmed medication schedules
@@ -33,6 +34,7 @@ There are two ways to change medication state:
    - add, edit, or remove confirmed schedules directly
 2. Assistant proposals
    - ask for a change in natural language
+   - or attach a prescription/script photo for Gemini to interpret
    - review the generated draft
    - confirm it before the change affects confirmed schedules
 

@@ -57,9 +57,7 @@ void main() {
 
       expect(find.text('Danger Zone'), findsOneWidget);
 
-      await tester.tap(
-        find.widgetWithIcon(FilledButton, Icons.delete_forever_outlined),
-      );
+      await tester.tap(find.byIcon(Icons.delete_forever_outlined).first);
       await tester.pumpAndSettle();
 
       final dialog = find.byType(AlertDialog);
@@ -229,6 +227,7 @@ class _FakeModelProvider implements ModelProvider {
     required List<ConversationMessageView> conversation,
     required String threadId,
     required String userText,
+    ModelImageAttachment? imageAttachment,
   }) async {
     return const ModelResponseContract(
       actions: <ModelProposalAction>[],

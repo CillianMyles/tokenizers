@@ -30,7 +30,28 @@ class GeminiModelProvider implements ModelProvider {
     required List<ConversationMessageView> conversation,
     required String threadId,
     required String userText,
+    ModelImageAttachment? imageAttachment,
   }) async {
+    final contentParts = <Map<String, Object?>>[
+      <String, Object?>{
+        'text': _buildUserPrompt(
+          activeSchedules: activeSchedules,
+          conversation: conversation,
+          threadId: threadId,
+          userText: userText,
+          imageAttachment: imageAttachment,
+        ),
+      },
+    ];
+    if (imageAttachment != null) {
+      contentParts.add(<String, Object?>{
+        'inline_data': <String, Object?>{
+          'mime_type': imageAttachment.mimeType,
+          'data': base64Encode(imageAttachment.bytes),
+        },
+      });
+    }
+
     final requestPayload = <String, Object?>{
       'system_instruction': <String, Object?>{
         'parts': <Map<String, String>>[
@@ -38,19 +59,7 @@ class GeminiModelProvider implements ModelProvider {
         ],
       },
       'contents': <Map<String, Object?>>[
-        <String, Object?>{
-          'role': 'user',
-          'parts': <Map<String, String>>[
-            <String, String>{
-              'text': _buildUserPrompt(
-                activeSchedules: activeSchedules,
-                conversation: conversation,
-                threadId: threadId,
-                userText: userText,
-              ),
-            },
-          ],
-        },
+        <String, Object?>{'role': 'user', 'parts': contentParts},
       ],
       'generationConfig': <String, Object?>{
         'temperature': 0.2,
@@ -95,6 +104,7 @@ class GeminiModelProvider implements ModelProvider {
     required List<ConversationMessageView> conversation,
     required String threadId,
     required String userText,
+    required ModelImageAttachment? imageAttachment,
   }) {
     final recentMessages = conversation
         .take(conversation.length > 8 ? 8 : conversation.length)
@@ -128,7 +138,10 @@ class GeminiModelProvider implements ModelProvider {
 
     return const JsonEncoder.withIndent('  ').convert(<String, Object?>{
       'thread_id': threadId,
+      'input_mode': imageAttachment == null ? 'text' : 'text_and_image',
       'latest_user_text': userText,
+      'image_attached': imageAttachment != null,
+      'image_mime_type': imageAttachment?.mimeType,
       'conversation_history': recentMessages,
       'active_schedules': schedules,
     });
@@ -232,6 +245,7 @@ You are extracting medication management proposals for a patient-side tracking a
 Return JSON only and follow the provided schema exactly.
 Never mutate current schedules directly. Always propose actions for explicit user review.
 If the message is ambiguous or missing required information, use request_missing_info instead of guessing.
+When an image is attached, treat it as a prescription or medication instruction photo that may contain the primary evidence.
 Times must use 24-hour HH:mm format.
 Dates must use YYYY-MM-DD format.
 If doses differ by time, represent them in dose_schedule.

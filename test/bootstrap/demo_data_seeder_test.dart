@@ -128,6 +128,50 @@ void main() {
     },
   );
 
+  test(
+    'seedDemoData creates historical taken events via date_offset_days',
+    () async {
+      final database = AppDatabase(NativeDatabase.memory());
+      final eventStore = DriftEventStore(database: database);
+      final workspace = DriftWorkspace(
+        database: database,
+        eventStore: eventStore,
+      );
+
+      final seedNow = DateTime(2026, 4, 9, 12);
+      await seedDemoData(
+        database: database,
+        eventStore: eventStore,
+        projectionRunner: workspace,
+        seedScript: await _loadDemoSeedScript(),
+        now: seedNow,
+      );
+
+      final events = await eventStore.loadAll();
+      final takenEvents = events.where((event) {
+        return event.event.type == 'medication_taken';
+      }).toList();
+
+      // Historical TAKEN records span multiple days.
+      final takenDates = takenEvents
+          .map((event) {
+            final raw = event.event.payload['scheduled_for'] as String;
+            return DateTime.parse(raw);
+          })
+          .map((dt) => DateTime(dt.year, dt.month, dt.day))
+          .toSet();
+
+      // Should have at least today and several past days.
+      expect(takenDates.length, greaterThan(1));
+
+      // Verify a specific offset: day -7 from seed date (April 2).
+      final expectedDay = DateTime(2026, 4, 2);
+      expect(takenDates.contains(expectedDay), isTrue);
+
+      await workspace.dispose();
+    },
+  );
+
   test('seedDemoData preserves deterministic schedule timestamps', () async {
     final database = AppDatabase(NativeDatabase.memory());
     final eventStore = DriftEventStore(database: database);

@@ -5,6 +5,9 @@ import 'package:tokenizers/src/core/domain/domain_event.dart';
 import 'package:tokenizers/src/core/domain/event_envelope.dart';
 import 'package:tokenizers/src/core/presentation/date_formatters.dart';
 import 'package:tokenizers/src/core/presentation/expandable_text.dart';
+import 'package:tokenizers/src/data/projection_state.dart';
+import 'package:tokenizers/src/features/adherence/domain/adherence_calculator.dart';
+import 'package:tokenizers/src/features/adherence/presentation/adherence_insights_card.dart';
 import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
 import 'package:tokenizers/src/features/calendar/presentation/medication_taken_editor.dart';
 import 'package:tokenizers/src/features/history/domain/history_timeline_models.dart';
@@ -51,6 +54,11 @@ class TodayScreen extends StatelessWidget {
                       .expand((group) => group.items)
                       .take(3)
                       .toList(growable: false);
+                  final adherence = calculateAdherence(
+                    schedules: _adherenceSchedules(events),
+                    events: events,
+                    today: today,
+                  );
 
                   return StreamBuilder<ProposalView?>(
                     stream: bootstrap.conversationRepository
@@ -88,8 +96,8 @@ class TodayScreen extends StatelessWidget {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      'Recorded ${entry.medicationName} at '
-                                      '${formatTime(draft.takenAt)}.',
+                                      'Recorded ${entry.medicationName} '
+                                      'at ${formatTime(draft.takenAt)}.',
                                     ),
                                   ),
                                 );
@@ -104,22 +112,22 @@ class TodayScreen extends StatelessWidget {
                                 })
                                 .toList(growable: false),
                             subtitle:
-                                'The most urgent reminders that need attention '
-                                'today.',
+                                'The most urgent reminders that need '
+                                'attention today.',
                             title: 'Due now',
                           ),
                           if (proposal != null) ...<Widget>[
                             const SizedBox(height: 16),
                             _PendingReviewCard(
                               onReviewProposal: () async {
-                                final activeSchedules = await bootstrap
+                                final schedules = await bootstrap
                                     .medicationRepository
                                     .getActiveSchedules();
                                 if (!context.mounted) {
                                   return;
                                 }
                                 return showProposalDraftEditor(
-                                  activeSchedules: activeSchedules,
+                                  activeSchedules: schedules,
                                   context: context,
                                   onCancelProposal: () {
                                     return bootstrap.chatCoordinator
@@ -162,8 +170,8 @@ class TodayScreen extends StatelessWidget {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      'Recorded ${entry.medicationName} at '
-                                      '${formatTime(draft.takenAt)}.',
+                                      'Recorded ${entry.medicationName} '
+                                      'at ${formatTime(draft.takenAt)}.',
                                     ),
                                   ),
                                 );
@@ -181,6 +189,10 @@ class TodayScreen extends StatelessWidget {
                                 'today.',
                             title: 'Up next',
                           ),
+                          if (!adherence.isEmpty) ...<Widget>[
+                            const SizedBox(height: 16),
+                            AdherenceInsightsCard(summary: adherence),
+                          ],
                           const SizedBox(height: 16),
                           _RecentActivityCard(items: historyItems),
                         ],
@@ -195,6 +207,13 @@ class TodayScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+List<MedicationScheduleView> _adherenceSchedules(
+  List<EventEnvelope<DomainEvent>> events,
+) {
+  final state = ProjectionState.fromEvents(events);
+  return state.schedulesById.values.toList(growable: false);
 }
 
 class _TodaySummary {

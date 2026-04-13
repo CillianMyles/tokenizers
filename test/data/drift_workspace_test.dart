@@ -331,6 +331,7 @@ class _SequencedModelProvider implements ModelProvider {
     required List conversation,
     required String threadId,
     required String userText,
+    ModelImageAttachment? imageAttachment,
   }) async {
     return _responses.removeFirst();
   }

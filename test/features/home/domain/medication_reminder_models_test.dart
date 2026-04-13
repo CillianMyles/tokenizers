@@ -94,6 +94,61 @@ void main() {
       expect(reminders.single.status, MedicationReminderStatus.taken);
       expect(reminders.single.takenAt, DateTime(2026, 4, 9, 8, 12));
     });
+
+    test('removes the superseded slot when a correction moves the dose', () {
+      final reminders = buildMedicationReminders(
+        entries: <MedicationCalendarEntry>[
+          MedicationCalendarEntry(
+            dateTime: DateTime(2026, 4, 9, 8, 0),
+            doseLabel: '500 mg',
+            medicationName: 'Metformin',
+            scheduleId: 'schedule-1',
+          ),
+          MedicationCalendarEntry(
+            dateTime: DateTime(2026, 4, 9, 20, 0),
+            doseLabel: '500 mg',
+            medicationName: 'Metformin',
+            scheduleId: 'schedule-1',
+          ),
+        ],
+        events: <EventEnvelope<DomainEvent>>[
+          _event(
+            aggregateId: 'schedule-1',
+            eventId: 'event-1',
+            eventType: 'medication_taken',
+            occurredAt: DateTime(2026, 4, 9, 8, 5),
+            payload: const <String, Object?>{
+              'schedule_id': 'schedule-1',
+              'medication_name': 'Metformin',
+              'scheduled_for': '2026-04-09T08:00:00.000',
+              'taken_at': '2026-04-09T08:05:00.000',
+            },
+          ),
+          _event(
+            aggregateId: 'schedule-1',
+            eventId: 'event-2',
+            eventType: 'medication_taken_corrected',
+            occurredAt: DateTime(2026, 4, 9, 20, 10),
+            payload: const <String, Object?>{
+              'previous_scheduled_for': '2026-04-09T08:00:00.000',
+              'previous_taken_at': '2026-04-09T08:05:00.000',
+              'schedule_id': 'schedule-1',
+              'medication_name': 'Metformin',
+              'scheduled_for': '2026-04-09T20:00:00.000',
+              'taken_at': '2026-04-09T20:10:00.000',
+            },
+          ),
+        ],
+        now: DateTime(2026, 4, 9, 21, 0),
+      );
+
+      expect(reminders[0].entry.dateTime, DateTime(2026, 4, 9, 8, 0));
+      expect(reminders[0].status, MedicationReminderStatus.overdue);
+      expect(reminders[0].takenAt, isNull);
+      expect(reminders[1].entry.dateTime, DateTime(2026, 4, 9, 20, 0));
+      expect(reminders[1].status, MedicationReminderStatus.taken);
+      expect(reminders[1].takenAt, DateTime(2026, 4, 9, 20, 10));
+    });
   });
 }
 

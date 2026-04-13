@@ -208,6 +208,10 @@ void main() {
 
       expect(eventStore.events.single.event.type, 'medication_taken_corrected');
       expect(
+        eventStore.events.single.event.payload['previous_scheduled_for'],
+        '2026-04-09T09:00:00.000',
+      );
+      expect(
         eventStore.events.single.event.payload['previous_taken_at'],
         '2026-04-09T09:03:00.000',
       );

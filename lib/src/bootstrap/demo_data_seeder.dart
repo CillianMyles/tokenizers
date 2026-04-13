@@ -254,12 +254,15 @@ Future<DemoSeedSummary> seedDemoData({
               eventStore: eventStore,
               medicationName: medicationName,
             );
+        final dateBase = fields['date_offset_days'] != null
+            ? _offsetDate(today, fields['date_offset_days']!)
+            : today;
         final scheduledFor = _resolveTime(
-          today,
+          dateBase,
           _requiredField(record, 'scheduled_time'),
         );
         final takenAt = _resolveTime(
-          today,
+          dateBase,
           _requiredField(record, 'taken_time'),
         );
         await commandService.recordMedicationTaken(
@@ -272,7 +275,7 @@ Future<DemoSeedSummary> seedDemoData({
             threadId: threadId,
           ),
           recordedAt: _resolveTime(
-            today,
+            dateBase,
             fields['recorded_time'] ?? _requiredField(record, 'taken_time'),
           ),
           scheduledFor: scheduledFor,
@@ -287,8 +290,11 @@ Future<DemoSeedSummary> seedDemoData({
               eventStore: eventStore,
               medicationName: medicationName,
             );
+        final dateBase = fields['date_offset_days'] != null
+            ? _offsetDate(today, fields['date_offset_days']!)
+            : today;
         final scheduledFor = _resolveTime(
-          today,
+          dateBase,
           _requiredField(record, 'scheduled_time'),
         );
         await commandService.correctMedicationTaken(
@@ -301,15 +307,15 @@ Future<DemoSeedSummary> seedDemoData({
             threadId: threadId,
           ),
           previousTakenAt: _resolveTime(
-            today,
+            dateBase,
             _requiredField(record, 'previous_taken_time'),
           ),
           recordedAt: _resolveTime(
-            today,
+            dateBase,
             fields['recorded_time'] ?? _requiredField(record, 'taken_time'),
           ),
           scheduledFor: scheduledFor,
-          takenAt: _resolveTime(today, _requiredField(record, 'taken_time')),
+          takenAt: _resolveTime(dateBase, _requiredField(record, 'taken_time')),
         );
         continue recordLoop;
       default:
@@ -377,19 +383,31 @@ void _validateSeedRecords(List<_SeedRecord> records, DateTime today) {
         _times(fields['times']);
       case 'TAKEN':
         _requiredField(record, 'medication_name');
-        _resolveTime(today, _requiredField(record, 'scheduled_time'));
-        _resolveTime(today, _requiredField(record, 'taken_time'));
+        final takenDateBase = fields['date_offset_days'] != null
+            ? _offsetDate(today, fields['date_offset_days']!)
+            : today;
+        _resolveTime(takenDateBase, _requiredField(record, 'scheduled_time'));
+        _resolveTime(takenDateBase, _requiredField(record, 'taken_time'));
         _resolveTime(
-          today,
+          takenDateBase,
           fields['recorded_time'] ?? _requiredField(record, 'taken_time'),
         );
       case 'CORRECTED_TAKEN':
         _requiredField(record, 'medication_name');
-        _resolveTime(today, _requiredField(record, 'scheduled_time'));
-        _resolveTime(today, _requiredField(record, 'previous_taken_time'));
-        _resolveTime(today, _requiredField(record, 'taken_time'));
+        final correctedDateBase = fields['date_offset_days'] != null
+            ? _offsetDate(today, fields['date_offset_days']!)
+            : today;
         _resolveTime(
-          today,
+          correctedDateBase,
+          _requiredField(record, 'scheduled_time'),
+        );
+        _resolveTime(
+          correctedDateBase,
+          _requiredField(record, 'previous_taken_time'),
+        );
+        _resolveTime(correctedDateBase, _requiredField(record, 'taken_time'));
+        _resolveTime(
+          correctedDateBase,
           fields['recorded_time'] ?? _requiredField(record, 'taken_time'),
         );
       default:

@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:mime/mime.dart';
 
 import 'package:tokenizers/src/app/app_scope.dart';
 import 'package:tokenizers/src/bootstrap/demo_app_bootstrap.dart';
+import 'package:tokenizers/src/core/model/model_provider.dart';
 import 'package:tokenizers/src/core/presentation/date_formatters.dart';
 import 'package:tokenizers/src/core/presentation/expandable_text.dart';
 import 'package:tokenizers/src/features/assistant/presentation/assistant_voice_input_sheet.dart';
@@ -19,10 +23,12 @@ class AssistantScreen extends StatefulWidget {
 }
 
 class _AssistantScreenState extends State<AssistantScreen> {
+  final ImagePicker _imagePicker = ImagePicker();
   final TextEditingController _composerController = TextEditingController();
   final ScrollController _conversationScrollController = ScrollController();
   bool _isSubmitting = false;
   String? _lastConversationAnchor;
+  _PendingImageAttachment? _pendingImageAttachment;
 
   @override
   void dispose() {
@@ -79,6 +85,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
                       ],
                       const SizedBox(height: 8),
                       _AssistantComposer(
+                        attachment: _pendingImageAttachment,
                         controller: _composerController,
                         isSubmitting: _isSubmitting,
                         onInputActionSelected: (action) {
@@ -87,6 +94,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
                             bootstrap: bootstrap,
                           );
                         },
+                        onClearAttachment: _clearPendingAttachment,
                         onSend: () {
                           return _submitMessage(
                             bootstrap: bootstrap,
@@ -118,19 +126,96 @@ class _AssistantScreenState extends State<AssistantScreen> {
       _isSubmitting = true;
     });
 
-    await bootstrap.chatCoordinator.submitText(
-      threadId,
-      _composerController.text,
-    );
+    try {
+      if (_pendingImageAttachment == null) {
+        await bootstrap.chatCoordinator.submitText(
+          threadId,
+          _composerController.text,
+        );
+      } else {
+        await bootstrap.chatCoordinator.submitImage(
+          threadId,
+          imageAttachment: ModelImageAttachment(
+            bytes: _pendingImageAttachment!.bytes,
+            mimeType: _pendingImageAttachment!.mimeType,
+          ),
+          text: _composerController.text,
+        );
+      }
 
+      if (!mounted) {
+        return;
+      }
+
+      _composerController.clear();
+      setState(() {
+        _isSubmitting = false;
+        _pendingImageAttachment = null;
+      });
+    } finally {
+      if (mounted && _isSubmitting) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final pickedImage = await _imagePicker.pickImage(
+        source: source,
+        imageQuality: 85,
+        maxWidth: 1800,
+      );
+      if (pickedImage == null || !mounted) {
+        return;
+      }
+
+      final bytes = await pickedImage.readAsBytes();
+      if (!mounted) {
+        return;
+      }
+
+      final mimeType =
+          lookupMimeType(pickedImage.name, headerBytes: bytes) ?? 'image/jpeg';
+      setState(() {
+        _pendingImageAttachment = _PendingImageAttachment(
+          bytes: bytes,
+          mimeType: mimeType,
+        );
+      });
+    } on PlatformException catch (error) {
+      final message = switch (source) {
+        ImageSource.camera =>
+          'Camera capture is not available here yet. Choose image instead.',
+        ImageSource.gallery =>
+          'Could not open the image picker: ${error.message ?? error.code}.',
+      };
+      _showMessage(message);
+    } on UnsupportedError {
+      _showMessage('Image capture is not supported on this platform.');
+    } on Object {
+      _showMessage('Could not load that image.');
+    }
+  }
+
+  void _clearPendingAttachment() {
+    if (_pendingImageAttachment == null) {
+      return;
+    }
+    setState(() {
+      _pendingImageAttachment = null;
+    });
+  }
+
+  void _showMessage(String message) {
     if (!mounted) {
       return;
     }
-
-    _composerController.clear();
-    setState(() {
-      _isSubmitting = false;
-    });
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _handleComposerInputAction(
@@ -147,18 +232,16 @@ class _AssistantScreenState extends State<AssistantScreen> {
           return;
         }
         _insertTranscript(transcript.trim());
+        return;
       case _ComposerInputAction.takePhoto:
+        await _pickImage(ImageSource.camera);
+        return;
       case _ComposerInputAction.chooseImage:
+        await _pickImage(ImageSource.gallery);
+        return;
       case _ComposerInputAction.chooseFile:
-        final label = switch (action) {
-          _ComposerInputAction.recordAudio => 'Record audio',
-          _ComposerInputAction.takePhoto => 'Take photo',
-          _ComposerInputAction.chooseImage => 'Choose image',
-          _ComposerInputAction.chooseFile => 'Choose file',
-        };
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('$label is not wired yet.')));
+        _showMessage('File attachments are not wired yet.');
+        return;
     }
   }
 
@@ -259,15 +342,19 @@ class _AssistantConversationPane extends StatelessWidget {
 
 class _AssistantComposer extends StatelessWidget {
   const _AssistantComposer({
+    required this.attachment,
     required this.controller,
     required this.isSubmitting,
+    required this.onClearAttachment,
     required this.onInputActionSelected,
     required this.onSend,
     required this.showSuggestions,
   });
 
+  final _PendingImageAttachment? attachment;
   final TextEditingController controller;
   final bool isSubmitting;
+  final VoidCallback onClearAttachment;
   final Future<void> Function(_ComposerInputAction action)
   onInputActionSelected;
   final Future<void> Function() onSend;
@@ -317,10 +404,18 @@ class _AssistantComposer extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
               ],
+              if (attachment != null) ...<Widget>[
+                _PendingAttachmentCard(
+                  attachment: attachment!,
+                  onClear: isSubmitting ? null : onClearAttachment,
+                ),
+                const SizedBox(height: 10),
+              ],
               ValueListenableBuilder<TextEditingValue>(
                 valueListenable: controller,
                 builder: (context, value, child) {
-                  final hasText = value.text.trim().isNotEmpty;
+                  final canSend =
+                      value.text.trim().isNotEmpty || attachment != null;
                   return TextField(
                     controller: controller,
                     enabled: !isSubmitting && configurationError == null,
@@ -328,13 +423,15 @@ class _AssistantComposer extends StatelessWidget {
                     maxLines: 5,
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) {
-                      if (hasText) {
+                      if (canSend) {
                         onSend();
                       }
                     },
                     decoration: InputDecoration(
                       hintText: configurationError == null
-                          ? 'Describe a medication change...'
+                          ? attachment == null
+                                ? 'Describe a medication change...'
+                                : 'Add context for this script photo (optional)...'
                           : 'Add a Gemini API key in Settings before sending.',
                       suffixIcon: Padding(
                         padding: const EdgeInsets.only(right: 6),
@@ -348,7 +445,7 @@ class _AssistantComposer extends StatelessWidget {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : hasText
+                              : canSend
                               ? IconButton(
                                   key: const ValueKey('send'),
                                   onPressed: configurationError != null
@@ -418,6 +515,13 @@ class _SuggestionPromptChip extends StatelessWidget {
   }
 }
 
+class _PendingImageAttachment {
+  const _PendingImageAttachment({required this.bytes, required this.mimeType});
+
+  final Uint8List bytes;
+  final String mimeType;
+}
+
 enum _ComposerInputAction { recordAudio, takePhoto, chooseImage, chooseFile }
 
 class _ComposerActionMenu extends StatelessWidget {
@@ -435,8 +539,8 @@ class _ComposerActionMenu extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return PopupMenuButton<_ComposerInputAction>(
-      tooltip: 'More input options',
       enabled: enabled,
+      tooltip: 'More input options',
       onSelected: onSelected,
       color: colorScheme.surface,
       elevation: 6,
@@ -479,6 +583,69 @@ class _ComposerActionMenu extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _PendingAttachmentCard extends StatelessWidget {
+  const _PendingAttachmentCard({
+    required this.attachment,
+    required this.onClear,
+  });
+
+  final _PendingImageAttachment attachment;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: <Widget>[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Image.memory(
+                attachment.bytes,
+                fit: BoxFit.cover,
+                height: 56,
+                width: 56,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    'Script photo ready',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    attachment.mimeType,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              onPressed: onClear,
+              icon: const Icon(Icons.close),
+              tooltip: 'Remove attachment',
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -625,8 +792,9 @@ class _EmptyAssistantState extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Ask to add, update, or stop a medication schedule. The assistant '
-              'will draft the change for review before anything is applied.',
+              'Ask to add, update, or stop a medication schedule, or share a '
+              'script photo. The assistant will draft the change for review '
+              'before anything is applied.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),

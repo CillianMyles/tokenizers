@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tokenizers/src/core/application/event_store.dart';
@@ -259,6 +260,57 @@ void main() {
         expect(
           eventStore.events.map((event) => event.event.type).toList(),
           <String>['message_added'],
+        );
+      },
+    );
+
+    test(
+      'submitImage records a placeholder message and forwards the attachment',
+      () async {
+        final eventStore = _FakeEventStore();
+        final modelProvider = _FakeModelProvider(
+          response: const ModelResponseContract(
+            actions: <ModelProposalAction>[],
+            assistantText: 'Drafted from the script photo.',
+            rawPayload: <String, Object?>{},
+          ),
+        );
+        final coordinator = ChatCoordinator(
+          conversationRepository: _FakeConversationRepository(),
+          eventStore: eventStore,
+          medicationRepository: _FakeMedicationRepository(),
+          modelProvider: modelProvider,
+        );
+
+        await coordinator.submitImage(
+          'thread-1',
+          imageAttachment: ModelImageAttachment(
+            bytes: Uint8List.fromList(<int>[1, 2, 3]),
+            mimeType: 'image/jpeg',
+          ),
+        );
+
+        final messageAdded = eventStore.events.firstWhere(
+          (event) => event.event.type == 'message_added',
+        );
+
+        expect(
+          messageAdded.event.payload['text'],
+          'Shared a script photo for review.',
+        );
+        expect(messageAdded.event.payload['attachments'], <Map<String, String>>[
+          <String, String>{'mime_type': 'image/jpeg', 'type': 'image'},
+        ]);
+        expect(
+          modelProvider.lastUserText,
+          'Review this prescription photo and draft any medication '
+          'schedule changes it implies.',
+        );
+        expect(modelProvider.lastImageAttachment, isNotNull);
+        expect(modelProvider.lastImageAttachment?.mimeType, 'image/jpeg');
+        expect(
+          modelProvider.lastConversation.single.text,
+          'Shared a script photo for review.',
         );
       },
     );
@@ -644,6 +696,7 @@ class _FakeModelProvider implements ModelProvider {
   final ModelResponseContract response;
   List<ConversationMessageView> lastConversation =
       const <ConversationMessageView>[];
+  ModelImageAttachment? lastImageAttachment;
   String? lastUserText;
 
   @override
@@ -652,8 +705,10 @@ class _FakeModelProvider implements ModelProvider {
     required List<ConversationMessageView> conversation,
     required String threadId,
     required String userText,
+    ModelImageAttachment? imageAttachment,
   }) async {
     lastConversation = conversation;
+    lastImageAttachment = imageAttachment;
     lastUserText = userText;
     return response;
   }
@@ -669,6 +724,7 @@ class _CompletingModelProvider implements ModelProvider {
     required List<ConversationMessageView> conversation,
     required String threadId,
     required String userText,
+    ModelImageAttachment? imageAttachment,
   }) {
     return _completer.future;
   }
@@ -689,6 +745,7 @@ class _ThrowingModelProvider implements ModelProvider {
     required List<ConversationMessageView> conversation,
     required String threadId,
     required String userText,
+    ModelImageAttachment? imageAttachment,
   }) {
     throw StateError(message);
   }
