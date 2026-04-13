@@ -223,6 +223,7 @@ class _FakeModelProvider implements ModelProvider {
     required List<ConversationMessageView> conversation,
     required String threadId,
     required String userText,
+    ModelImageAttachment? imageAttachment,
   }) async {
     return const ModelResponseContract(
       actions: <ModelProposalAction>[],
