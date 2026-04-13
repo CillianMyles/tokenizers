@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.22.0](https://github.com/CillianMyles/tokenizers/compare/v0.21.0...v0.22.0) (2026-04-13)
+
+
+### Features
+
+* infer medication times from daily doses ([#26](https://github.com/CillianMyles/tokenizers/issues/26)) ([193d7df](https://github.com/CillianMyles/tokenizers/commit/193d7dfcb6815e1d6049b3b7a7ad57228dd1d956))
+* **settings:** add Gemini 3.1 Pro model option ([#29](https://github.com/CillianMyles/tokenizers/issues/29)) ([678b386](https://github.com/CillianMyles/tokenizers/commit/678b38682a240b267940c43b99f9cec7a3d8132f))
+
 ## [0.21.0](https://github.com/CillianMyles/tokenizers/compare/v0.20.0...v0.21.0) (2026-04-13)
 
 
