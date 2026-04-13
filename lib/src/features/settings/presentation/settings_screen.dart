@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:tokenizers/src/app/app_scope.dart';
 import 'package:tokenizers/src/app/app_theme.dart';
@@ -361,6 +362,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               '${selectedLocalModel.sizeLabel}.',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
+                            if (defaultTargetPlatform ==
+                                TargetPlatform.iOS) ...<Widget>[
+                              const SizedBox(height: 8),
+                              Text(
+                                'iPhone inference uses a reduced token budget '
+                                'and disables thinking mode to reduce memory '
+                                'pressure on older devices.',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                                    ),
+                              ),
+                            ],
                             const SizedBox(height: 16),
                             _LocalModelStatusRow(
                               isInstalled: isLocalModelInstalled,

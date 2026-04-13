@@ -1,5 +1,45 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:tokenizers/src/features/settings/domain/ai_settings.dart';
+
+/// Runtime settings used when opening a local Gemma inference model.
+class LocalGemmaRuntimeConfig {
+  /// Creates a local Gemma runtime configuration.
+  const LocalGemmaRuntimeConfig({
+    required this.isThinkingEnabled,
+    required this.maxTokens,
+    required this.preferredBackend,
+  });
+
+  /// Whether the chat should expose reasoning/thinking tokens.
+  final bool isThinkingEnabled;
+
+  /// Maximum number of generated tokens for the current turn.
+  final int maxTokens;
+
+  /// Preferred backend for the current device.
+  final PreferredBackend preferredBackend;
+}
+
+/// Resolves a conservative local Gemma runtime profile for the current device.
+LocalGemmaRuntimeConfig resolveLocalGemmaRuntimeConfig({
+  required TargetPlatform platform,
+}) {
+  return switch (platform) {
+    // Older iPhones can be memory-constrained with Gemma 4. Prefer a smaller
+    // token budget, text-only chat, and CPU backend for stability.
+    TargetPlatform.iOS => const LocalGemmaRuntimeConfig(
+      isThinkingEnabled: false,
+      maxTokens: 512,
+      preferredBackend: PreferredBackend.cpu,
+    ),
+    _ => const LocalGemmaRuntimeConfig(
+      isThinkingEnabled: true,
+      maxTokens: 1024,
+      preferredBackend: PreferredBackend.gpu,
+    ),
+  };
+}
 
 /// Read-only snapshot of local Gemma availability and installed models.
 class LocalGemmaServiceStatus {
@@ -102,14 +142,20 @@ class FlutterGemmaLocalService implements LocalGemmaService {
       );
     }
 
+    final runtimeConfig = resolveLocalGemmaRuntimeConfig(
+      platform: defaultTargetPlatform,
+    );
     FlutterGemmaPlugin.instance.modelManager.setActiveModel(_specFor(model));
     final inferenceModel = await FlutterGemma.getActiveModel(
-      maxTokens: maxTokens,
+      maxTokens: maxTokens < runtimeConfig.maxTokens
+          ? maxTokens
+          : runtimeConfig.maxTokens,
+      preferredBackend: runtimeConfig.preferredBackend,
     );
 
     try {
       final chat = await inferenceModel.createChat(
-        isThinking: true,
+        isThinking: runtimeConfig.isThinkingEnabled,
         modelType: ModelType.gemmaIt,
         systemInstruction: systemInstruction,
       );
