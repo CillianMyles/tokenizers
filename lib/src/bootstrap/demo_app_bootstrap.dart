@@ -10,6 +10,7 @@ import 'package:tokenizers/src/data/drift_workspace.dart';
 import 'package:tokenizers/src/data/local_ai_settings_repository.dart';
 import 'package:tokenizers/src/data/platform_api_key_store.dart';
 import 'package:tokenizers/src/data/settings_backed_model_provider.dart';
+import 'package:tokenizers/src/features/assistant/application/speech_to_text_service.dart';
 import 'package:tokenizers/src/features/calendar/application/medication_command_service.dart';
 import 'package:tokenizers/src/features/calendar/application/medication_repository.dart';
 import 'package:tokenizers/src/features/chat/application/chat_coordinator.dart';
@@ -31,6 +32,7 @@ class AppBootstrap {
     required this.medicationRepository,
     required this.modelProvider,
     required this.projectionRunner,
+    this.speechToTextService = const UnsupportedSpeechToTextService(),
   });
 
   final String activityStreamId;
@@ -43,6 +45,7 @@ class AppBootstrap {
   final MedicationRepository medicationRepository;
   final ModelProvider modelProvider;
   final ProjectionRunner projectionRunner;
+  final SpeechToTextService speechToTextService;
 
   /// Explains why live assistant requests are unavailable.
   String? get configurationError => aiSettingsController.configurationError;
@@ -72,6 +75,7 @@ Future<AppBootstrap> createDemoAppBootstrap() async {
 
   final database = AppDatabase();
   final eventStore = DriftEventStore(database: database);
+  final speechToTextService = createSpeechToTextService();
   final medicationCommandService = MedicationCommandService(
     eventStore: eventStore,
   );
@@ -99,5 +103,6 @@ Future<AppBootstrap> createDemoAppBootstrap() async {
     medicationRepository: workspace,
     modelProvider: modelProvider,
     projectionRunner: workspace,
+    speechToTextService: speechToTextService,
   );
 }
