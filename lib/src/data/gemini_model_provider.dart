@@ -10,6 +10,29 @@ import 'package:tokenizers/src/features/chat/domain/conversation_models.dart';
 
 const _defaultModel = 'gemini-2.5-flash';
 
+/// Thrown when the Gemini API returns a transient error after all retries.
+class GeminiTransientException implements Exception {
+  /// Creates a [GeminiTransientException].
+  const GeminiTransientException({
+    required this.statusCode,
+    required this.body,
+    required this.attempts,
+  });
+
+  /// The HTTP status code of the last failed attempt.
+  final int statusCode;
+
+  /// The response body of the last failed attempt.
+  final String body;
+
+  /// Total number of attempts made (including retries).
+  final int attempts;
+
+  @override
+  String toString() =>
+      'GeminiTransientException($statusCode after $attempts attempts)';
+}
+
 /// Gemini-backed implementation of the app-owned model contract.
 class GeminiModelProvider implements ModelProvider {
   /// Creates a Gemini model provider.
@@ -64,25 +87,58 @@ class GeminiModelProvider implements ModelProvider {
       '$model:generateContent',
     );
 
-    final response = await _client.post(
-      uri,
-      headers: <String, String>{
-        'x-goog-api-key': apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode(requestPayload),
-    );
-
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception(
-        'Gemini API request failed (${response.statusCode}): ${response.body}',
-      );
-    }
+    final response = await _postWithRetry(uri, jsonEncode(requestPayload));
 
     final apiPayload = decodeJsonObject(response.body);
     final text = _extractCandidateText(apiPayload);
     final structured = decodeJsonObject(text);
     return _parseStructuredResponse(structured, apiPayload);
+  }
+
+  /// Max number of retry attempts for transient API errors.
+  static const _maxRetries = 3;
+
+  /// HTTP status codes that are safe to retry.
+  static const _retryableStatusCodes = <int>{429, 500, 502, 503, 504};
+
+  /// Posts to [uri] with retry and exponential backoff for transient errors.
+  Future<http.Response> _postWithRetry(Uri uri, String body) async {
+    final headers = <String, String>{
+      'x-goog-api-key': apiKey,
+      'Content-Type': 'application/json',
+    };
+
+    for (var attempt = 0; attempt <= _maxRetries; attempt++) {
+      final response = await _client.post(uri, headers: headers, body: body);
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return response;
+      }
+
+      final isRetryable = _retryableStatusCodes.contains(response.statusCode);
+      final isLastAttempt = attempt == _maxRetries;
+
+      if (isLastAttempt && isRetryable) {
+        throw GeminiTransientException(
+          statusCode: response.statusCode,
+          body: response.body,
+          attempts: attempt + 1,
+        );
+      }
+
+      if (!isRetryable) {
+        throw Exception(
+          'Gemini API request failed (${response.statusCode}): '
+          '${response.body}',
+        );
+      }
+
+      // Exponential backoff: 1s, 2s, 4s.
+      await Future<void>.delayed(Duration(seconds: 1 << attempt));
+    }
+
+    // Unreachable — the loop always returns or throws.
+    throw StateError('Unexpected end of retry loop');
   }
 
   /// Decodes a JSON object string into a typed map.

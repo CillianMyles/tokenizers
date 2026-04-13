@@ -91,13 +91,34 @@ class ProposalActionView {
         'Add ${medicationName ?? 'medication'}'
             '${resolvedDoseSchedule.isEmpty ? '' : ' • ${summarizeMedicationDoseSchedule(resolvedDoseSchedule)}'}',
       ProposalActionType.requestMissingInfo =>
-        'Missing: ${missingFields.join(', ')}',
+        'Missing: ${missingFields.map(humanReadableFieldLabel).join(', ')}',
       ProposalActionType.stopMedicationSchedule =>
         'Stop ${medicationName ?? 'active schedule'}',
       ProposalActionType.updateMedicationSchedule =>
         'Update ${medicationName ?? 'schedule'}',
     };
   }
+}
+
+/// Maps a raw missing-field identifier to a human-readable label.
+String humanReadableFieldLabel(String field) {
+  return switch (field) {
+    'start_date' => 'Start date',
+    'end_date' => 'End date',
+    'time' || 'times' => 'Dosing times',
+    'dose_amount' => 'Dose amount',
+    'dose_unit' => 'Dose unit',
+    'medication_name' => 'Medication name',
+    'route' => 'Route',
+    'dose_schedule' => 'Dose schedule',
+    'notes' => 'Notes',
+    _ => _capitalize(field.replaceAll('_', ' ')),
+  };
+}
+
+String _capitalize(String text) {
+  if (text.isEmpty) return text;
+  return text[0].toUpperCase() + text.substring(1);
 }
 
 /// A projected medication proposal.
