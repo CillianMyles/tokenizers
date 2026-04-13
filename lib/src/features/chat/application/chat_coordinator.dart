@@ -222,9 +222,34 @@ class ChatCoordinator implements LocalDataResetGuard {
 
   /// Sends a new text message through the local chat workflow.
   Future<void> submitText(String threadId, String text) async {
+    return _submitUserTurn(threadId: threadId, userText: text);
+  }
+
+  /// Sends an image-assisted message through the local chat workflow.
+  Future<void> submitImage(
+    String threadId, {
+    required ModelImageAttachment imageAttachment,
+    String text = '',
+  }) async {
+    return _submitUserTurn(
+      threadId: threadId,
+      userText: text,
+      imageAttachment: imageAttachment,
+    );
+  }
+
+  Future<void> _submitUserTurn({
+    required String threadId,
+    required String userText,
+    ModelImageAttachment? imageAttachment,
+  }) async {
     final writeGeneration = _writeGeneration;
-    final trimmed = text.trim();
-    if (trimmed.isEmpty || !_isWriteCurrent(writeGeneration)) {
+    final trimmed = userText.trim();
+    final effectiveUserText = _effectiveUserText(
+      userText: trimmed,
+      imageAttachment: imageAttachment,
+    );
+    if (effectiveUserText.isEmpty || !_isWriteCurrent(writeGeneration)) {
       return;
     }
 
@@ -263,7 +288,17 @@ class ChatCoordinator implements LocalDataResetGuard {
           payload: <String, Object?>{
             'thread_id': threadId,
             'message_id': messageId,
-            'text': trimmed,
+            'text': _conversationMessageText(
+              userText: trimmed,
+              imageAttachment: imageAttachment,
+            ),
+            if (imageAttachment != null)
+              'attachments': <Map<String, String>>[
+                <String, String>{
+                  'mime_type': imageAttachment.mimeType,
+                  'type': 'image',
+                },
+              ],
           },
         ),
         occurredAt: now,
@@ -282,18 +317,23 @@ class ChatCoordinator implements LocalDataResetGuard {
         actor: ConversationActor.user,
         createdAt: now,
         messageId: messageId,
-        text: trimmed,
+        text: _conversationMessageText(
+          userText: trimmed,
+          imageAttachment: imageAttachment,
+        ),
         threadId: threadId,
       ),
     ];
 
-    final directAdherenceResult = _tryHandleTakenMessage(
-      activeSchedules: activeSchedules,
-      correlationId: correlationId,
-      now: now,
-      text: trimmed,
-      threadId: threadId,
-    );
+    final directAdherenceResult = imageAttachment == null
+        ? _tryHandleTakenMessage(
+            activeSchedules: activeSchedules,
+            correlationId: correlationId,
+            now: now,
+            text: effectiveUserText,
+            threadId: threadId,
+          )
+        : null;
     if (directAdherenceResult != null) {
       if (!_isWriteCurrent(writeGeneration)) {
         return;
@@ -316,7 +356,8 @@ class ChatCoordinator implements LocalDataResetGuard {
         activeSchedules: activeSchedules,
         conversation: responseConversation,
         threadId: threadId,
-        userText: trimmed,
+        userText: effectiveUserText,
+        imageAttachment: imageAttachment,
       );
     } on Object catch (error, stackTrace) {
       final errorMessage = _describeModelError(error);
@@ -398,6 +439,33 @@ class ChatCoordinator implements LocalDataResetGuard {
     }
 
     await _eventStore.append(responseEvents);
+  }
+
+  String _conversationMessageText({
+    required String userText,
+    required ModelImageAttachment? imageAttachment,
+  }) {
+    if (imageAttachment == null) {
+      return userText;
+    }
+    if (userText.isEmpty) {
+      return 'Shared a script photo for review.';
+    }
+    return 'Shared a script photo for review.\n\n$userText';
+  }
+
+  String _effectiveUserText({
+    required String userText,
+    required ModelImageAttachment? imageAttachment,
+  }) {
+    if (userText.isNotEmpty) {
+      return userText;
+    }
+    if (imageAttachment == null) {
+      return '';
+    }
+    return 'Review this prescription photo and draft any medication '
+        'schedule changes it implies.';
   }
 
   bool _isWriteCurrent(int generation) => generation == _writeGeneration;

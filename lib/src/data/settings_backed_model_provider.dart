@@ -25,6 +25,7 @@ class SettingsBackedModelProvider implements ModelProvider {
     required List<ConversationMessageView> conversation,
     required String threadId,
     required String userText,
+    ModelImageAttachment? imageAttachment,
   }) {
     final settings = _settingsController.settings;
     final geminiApiKey = _settingsController.geminiApiKey;
@@ -49,6 +50,7 @@ class SettingsBackedModelProvider implements ModelProvider {
       conversation: conversation,
       threadId: threadId,
       userText: userText,
+      imageAttachment: imageAttachment,
     );
   }
 }
