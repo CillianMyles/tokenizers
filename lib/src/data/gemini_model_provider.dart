@@ -2,12 +2,12 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import 'package:tokenizers/src/core/domain/medication_schedule_preferences.dart';
 import 'package:tokenizers/src/core/domain/medication_dose_schedule.dart';
+import 'package:tokenizers/src/core/domain/medication_schedule_preferences.dart';
 import 'package:tokenizers/src/core/model/model_provider.dart';
 import 'package:tokenizers/src/core/model/model_response_contract.dart';
-import 'package:tokenizers/src/features/calendar/domain/medication_schedule_time_inference.dart';
 import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
+import 'package:tokenizers/src/features/calendar/domain/medication_schedule_time_inference.dart';
 import 'package:tokenizers/src/features/chat/domain/conversation_models.dart';
 
 const _defaultModel = 'gemini-2.5-flash';

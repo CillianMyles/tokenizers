@@ -1,6 +1,6 @@
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tokenizers/src/data/api_key_store.dart';
 import 'package:tokenizers/src/core/domain/medication_schedule_preferences.dart';
+import 'package:tokenizers/src/data/api_key_store.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tokenizers/src/features/settings/application/ai_settings_repository.dart';
 import 'package:tokenizers/src/features/settings/domain/ai_settings.dart';
 
