@@ -1,3 +1,5 @@
+import 'package:tokenizers/src/data/gemini_model_provider.dart';
+
 import 'package:tokenizers/src/core/application/event_store.dart';
 import 'package:tokenizers/src/core/application/local_data_reset_guard.dart';
 import 'package:tokenizers/src/core/domain/domain_event.dart';
@@ -318,12 +320,25 @@ class ChatCoordinator implements LocalDataResetGuard {
         threadId: threadId,
         userText: trimmed,
       );
+    } on GeminiTransientException catch (error, stackTrace) {
+      response = ModelResponseContract(
+        actions: const <ModelProposalAction>[],
+        assistantText:
+            'The AI service is temporarily busy. '
+            'Please try again in a moment.',
+        rawPayload: <String, Object?>{
+          'provider_error_message': error.toString(),
+          'provider_error': error.toString(),
+          'stack_trace': stackTrace.toString(),
+        },
+      );
     } on Object catch (error, stackTrace) {
       final errorMessage = _describeModelError(error);
       response = ModelResponseContract(
         actions: const <ModelProposalAction>[],
         assistantText:
-            'Gemini request failed. $errorMessage Your message is still stored locally.',
+            'Gemini request failed. $errorMessage '
+            'Your message is still stored locally.',
         rawPayload: <String, Object?>{
           'provider_error_message': errorMessage,
           'provider_error': error.toString(),
