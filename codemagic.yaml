@@ -38,6 +38,7 @@ workflows:
       #    GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
 
       java: 17
+      flutter: 3.41.6
       # App Store Connect requires uploads built with the iOS 26 SDK from
       # Xcode 26 or later.
       xcode: 26.2
