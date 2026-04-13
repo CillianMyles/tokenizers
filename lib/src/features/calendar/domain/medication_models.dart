@@ -53,6 +53,10 @@ class MedicationScheduleDraft {
     );
   }
 
+  /// Resolved times derived from the effective timed dose entries.
+  List<String> get resolvedTimes =>
+      medicationDoseScheduleTimes(resolvedDoseSchedule);
+
   /// Creates a draft from a projected proposal action.
   factory MedicationScheduleDraft.fromProposalAction(
     ProposalActionView action,
@@ -181,6 +185,10 @@ class MedicationScheduleView {
       fallbackTimes: times,
     );
   }
+
+  /// Resolved times derived from the effective timed dose entries.
+  List<String> get resolvedTimes =>
+      medicationDoseScheduleTimes(resolvedDoseSchedule);
 
   /// Whether the schedule remains active.
   bool get isActive => endDate == null;

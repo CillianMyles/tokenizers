@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import 'package:tokenizers/src/core/domain/medication_schedule_preferences.dart';
 import 'package:tokenizers/src/features/settings/application/ai_settings_repository.dart';
 import 'package:tokenizers/src/features/settings/domain/ai_settings.dart';
 
@@ -15,6 +16,7 @@ class AiSettingsController extends ChangeNotifier {
   bool _isLoaded = false;
   bool _isSavingApiKey = false;
   bool _isSavingModel = false;
+  bool _isSavingSchedulePreferences = false;
   String? _errorMessage;
 
   /// The current AI settings snapshot.
@@ -28,6 +30,9 @@ class AiSettingsController extends ChangeNotifier {
 
   /// Whether the model selection is currently being persisted.
   bool get isSavingModel => _isSavingModel;
+
+  /// Whether medication schedule defaults are being persisted.
+  bool get isSavingSchedulePreferences => _isSavingSchedulePreferences;
 
   /// The loaded Gemini API key, if present.
   String? get geminiApiKey => _geminiApiKey;
@@ -99,6 +104,28 @@ class AiSettingsController extends ChangeNotifier {
         apiKeySource: apiKeyRecord?.source ?? ApiKeySource.none,
       );
     });
+  }
+
+  /// Persists default morning, lunch, and evening medication times.
+  Future<void> saveMedicationSchedulePreferences(
+    MedicationSchedulePreferences preferences,
+  ) async {
+    _isSavingSchedulePreferences = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      _settings = await _repository.save(
+        _settings.copyWith(
+          medicationSchedulePreferences: preferences.normalized(),
+        ),
+      );
+    } catch (error) {
+      _errorMessage = 'Could not save AI settings. ${error.toString()}';
+    } finally {
+      _isSavingSchedulePreferences = false;
+      notifyListeners();
+    }
   }
 
   Future<void> _saveApiKey(Future<void> Function() action) async {

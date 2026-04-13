@@ -200,7 +200,7 @@ class DriftWorkspace
 
         final timeRows = <MedicationScheduleTimesTableCompanion>[];
         for (final schedule in state.schedulesById.values) {
-          for (final time in schedule.times) {
+          for (final time in schedule.resolvedTimes) {
             timeRows.add(
               MedicationScheduleTimesTableCompanion.insert(
                 scheduleId: schedule.scheduleId,

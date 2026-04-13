@@ -77,7 +77,45 @@ void main() {
           },
         ],
       );
+      expect(eventStore.events.last.event.payload['times'], <String>[
+        '07:00',
+        '19:00',
+      ]);
     });
+
+    test(
+      'addSchedule derives times from doseSchedule when raw times are empty',
+      () async {
+        final eventStore = _FakeEventStore();
+        final service = MedicationCommandService(eventStore: eventStore);
+
+        await service.addSchedule(
+          actorType: EventActorType.user,
+          draft: MedicationScheduleDraft(
+            medicationName: 'Tacrolimus',
+            startDate: DateTime(2026, 4, 5),
+            times: const <String>[],
+            doseSchedule: const <MedicationDoseScheduleEntry>[
+              MedicationDoseScheduleEntry(
+                time: '07:00',
+                doseAmount: '1.2',
+                doseUnit: 'mg',
+              ),
+              MedicationDoseScheduleEntry(
+                time: '19:00',
+                doseAmount: '1.0',
+                doseUnit: 'mg',
+              ),
+            ],
+          ),
+        );
+
+        expect(eventStore.events.last.event.payload['times'], <String>[
+          '07:00',
+          '19:00',
+        ]);
+      },
+    );
 
     test(
       'updateSchedule emits medication_schedule_updated for same-name edits',

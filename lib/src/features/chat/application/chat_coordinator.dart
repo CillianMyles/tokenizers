@@ -488,7 +488,7 @@ class ChatCoordinator implements LocalDataResetGuard {
       'dose_schedule': medicationDoseScheduleToJsonList(
         action.resolvedDoseSchedule,
       ),
-      'times': action.times,
+      'times': action.resolvedTimes,
       'type': switch (action.type) {
         ModelProposalActionType.addMedicationSchedule =>
           'add_medication_schedule',
@@ -582,7 +582,7 @@ class ChatCoordinator implements LocalDataResetGuard {
             'dose_schedule': medicationDoseScheduleToJsonList(
               action.resolvedDoseSchedule,
             ),
-            'times': action.times,
+            'times': action.resolvedTimes,
           },
         ),
         occurredAt: occurredAt,
@@ -607,7 +607,7 @@ class ChatCoordinator implements LocalDataResetGuard {
       notes: action.notes,
       route: action.route,
       startDate: action.startDate ?? DateTime.now(),
-      times: action.times,
+      times: action.resolvedTimes,
     );
   }
 
@@ -641,7 +641,7 @@ class ChatCoordinator implements LocalDataResetGuard {
       'dose_schedule': medicationDoseScheduleToJsonList(
         action.resolvedDoseSchedule,
       ),
-      'times': action.times,
+      'times': action.resolvedTimes,
       'type': action.type.wireValue,
     };
   }

@@ -253,6 +253,98 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                'Medication Timing Defaults',
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'These default anchors help the assistant '
+                                'fill in missing schedule times and align new '
+                                'medications with the rest of the day.',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                              const SizedBox(height: 16),
+                              Wrap(
+                                spacing: 12,
+                                runSpacing: 12,
+                                children: <Widget>[
+                                  _TimePreferenceChip(
+                                    isBusy:
+                                        controller.isSavingSchedulePreferences,
+                                    label: 'Morning',
+                                    onPressed: () {
+                                      _pickMedicationTimePreference(
+                                        context,
+                                        controller: controller,
+                                        currentValue: settings
+                                            .medicationSchedulePreferences
+                                            .morningTime,
+                                        dayPart: _MedicationTimeDayPart.morning,
+                                      );
+                                    },
+                                    valueLabel: _timeLabel(
+                                      context,
+                                      settings
+                                          .medicationSchedulePreferences
+                                          .morningTime,
+                                    ),
+                                  ),
+                                  _TimePreferenceChip(
+                                    isBusy:
+                                        controller.isSavingSchedulePreferences,
+                                    label: 'Lunch',
+                                    onPressed: () {
+                                      _pickMedicationTimePreference(
+                                        context,
+                                        controller: controller,
+                                        currentValue: settings
+                                            .medicationSchedulePreferences
+                                            .lunchTime,
+                                        dayPart: _MedicationTimeDayPart.lunch,
+                                      );
+                                    },
+                                    valueLabel: _timeLabel(
+                                      context,
+                                      settings
+                                          .medicationSchedulePreferences
+                                          .lunchTime,
+                                    ),
+                                  ),
+                                  _TimePreferenceChip(
+                                    isBusy:
+                                        controller.isSavingSchedulePreferences,
+                                    label: 'Evening',
+                                    onPressed: () {
+                                      _pickMedicationTimePreference(
+                                        context,
+                                        controller: controller,
+                                        currentValue: settings
+                                            .medicationSchedulePreferences
+                                            .eveningTime,
+                                        dayPart: _MedicationTimeDayPart.evening,
+                                      );
+                                    },
+                                    valueLabel: _timeLabel(
+                                      context,
+                                      settings
+                                          .medicationSchedulePreferences
+                                          .eveningTime,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                       _DangerZoneCard(
                         isDeletingData: _isDeletingData,
                         onDeletePressed: () {
@@ -380,6 +472,93 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Could not open the Gemini link.')),
+    );
+  }
+
+  Future<void> _pickMedicationTimePreference(
+    BuildContext context, {
+    required AiSettingsController controller,
+    required String currentValue,
+    required _MedicationTimeDayPart dayPart,
+  }) async {
+    final current = currentValue.split(':');
+    final selectedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(
+        hour: int.parse(current[0]),
+        minute: int.parse(current[1]),
+      ),
+    );
+    if (selectedTime == null || !context.mounted) {
+      return;
+    }
+
+    final nextValue = _formatTimeOfDay(selectedTime);
+    final currentPreferences =
+        controller.settings.medicationSchedulePreferences;
+    final updatedPreferences = switch (dayPart) {
+      _MedicationTimeDayPart.morning => currentPreferences.copyWith(
+        morningTime: nextValue,
+      ),
+      _MedicationTimeDayPart.lunch => currentPreferences.copyWith(
+        lunchTime: nextValue,
+      ),
+      _MedicationTimeDayPart.evening => currentPreferences.copyWith(
+        eveningTime: nextValue,
+      ),
+    };
+
+    await controller.saveMedicationSchedulePreferences(updatedPreferences);
+    if (!context.mounted || controller.errorMessage == null) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(controller.errorMessage!)));
+  }
+
+  String _formatTimeOfDay(TimeOfDay value) {
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
+  String _timeLabel(BuildContext context, String time) {
+    final parts = time.split(':');
+    final value = TimeOfDay(
+      hour: int.parse(parts[0]),
+      minute: int.parse(parts[1]),
+    );
+    return value.format(context);
+  }
+}
+
+enum _MedicationTimeDayPart { morning, lunch, evening }
+
+class _TimePreferenceChip extends StatelessWidget {
+  const _TimePreferenceChip({
+    required this.isBusy,
+    required this.label,
+    required this.onPressed,
+    required this.valueLabel,
+  });
+
+  final bool isBusy;
+  final String label;
+  final VoidCallback onPressed;
+  final String valueLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: isBusy ? null : onPressed,
+      icon: isBusy
+          ? const SizedBox.square(
+              dimension: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.schedule_outlined),
+      label: Text('$label · $valueLabel'),
     );
   }
 }

@@ -75,6 +75,10 @@ class ModelProposalAction {
       fallbackTimes: times,
     );
   }
+
+  /// Resolved times derived from the effective timed dose entries.
+  List<String> get resolvedTimes =>
+      medicationDoseScheduleTimes(resolvedDoseSchedule);
 }
 
 /// The app-owned response contract returned by a model provider.

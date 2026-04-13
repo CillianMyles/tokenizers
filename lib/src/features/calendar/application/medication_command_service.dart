@@ -68,7 +68,7 @@ class MedicationCommandService {
             'dose_schedule': medicationDoseScheduleToJsonList(
               draft.resolvedDoseSchedule,
             ),
-            'times': draft.times,
+            'times': draft.resolvedTimes,
           },
         ),
         occurredAt: effectiveOccurredAt,
@@ -166,7 +166,7 @@ class MedicationCommandService {
             'dose_schedule': medicationDoseScheduleToJsonList(
               draft.resolvedDoseSchedule,
             ),
-            'times': draft.times,
+            'times': draft.resolvedTimes,
           },
         ),
         occurredAt: occurredAt,

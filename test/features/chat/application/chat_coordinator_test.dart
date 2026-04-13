@@ -131,6 +131,7 @@ void main() {
           },
         ],
       );
+      expect(scheduleAdded.event.payload['times'], <String>['07:00', '19:00']);
     });
 
     test('confirmPendingProposal uses edited actions when provided', () async {

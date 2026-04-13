@@ -138,6 +138,15 @@ List<Map<String, Object?>> medicationDoseScheduleToJsonList(
   return entries.map((entry) => entry.toJson()).toList(growable: false);
 }
 
+/// Extracts normalized `HH:mm` times from a timed dose list.
+List<String> medicationDoseScheduleTimes(
+  List<MedicationDoseScheduleEntry> entries,
+) {
+  return entries
+      .map((entry) => normalizeMedicationTimeString(entry.time))
+      .toList(growable: false);
+}
+
 /// Returns whether the timed dose list varies across the day.
 bool hasVariableMedicationDoses(List<MedicationDoseScheduleEntry> entries) {
   if (entries.isEmpty) {

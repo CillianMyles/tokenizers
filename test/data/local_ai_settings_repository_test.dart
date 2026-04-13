@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tokenizers/src/core/domain/medication_schedule_preferences.dart';
 import 'package:tokenizers/src/data/api_key_store.dart';
 import 'package:tokenizers/src/data/local_ai_settings_repository.dart';
 import 'package:tokenizers/src/data/platform_api_key_store.dart';
@@ -52,6 +53,40 @@ void main() {
       expect(
         preferences.getString('ai_settings.gemini_model'),
         'gemini-3.1-pro-preview',
+      );
+    });
+
+    test('stores medication timing defaults in shared preferences', () async {
+      final preferences = await SharedPreferences.getInstance();
+      final apiKeyStore = _InMemoryApiKeyStore(
+        kind: ApiKeyStorageKind.secureStorage,
+      );
+      final repository = LocalAiSettingsRepository(
+        apiKeyStore: apiKeyStore,
+        preferences: preferences,
+      );
+
+      await repository.save(
+        const AiSettings(
+          medicationSchedulePreferences: MedicationSchedulePreferences(
+            morningTime: '08:30',
+            lunchTime: '12:45',
+            eveningTime: '19:15',
+          ),
+        ),
+      );
+
+      expect(
+        preferences.getString('ai_settings.medication_time.morning'),
+        '08:30',
+      );
+      expect(
+        preferences.getString('ai_settings.medication_time.lunch'),
+        '12:45',
+      );
+      expect(
+        preferences.getString('ai_settings.medication_time.evening'),
+        '19:15',
       );
     });
 
