@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tokenizers/env/env.dart';
+import 'package:tokenizers/src/app/theme_mode_controller.dart';
 import 'package:tokenizers/src/core/application/event_store.dart';
 import 'package:tokenizers/src/core/application/projection_runner.dart';
 import 'package:tokenizers/src/core/model/model_provider.dart';
@@ -14,7 +15,6 @@ import 'package:tokenizers/src/features/calendar/application/medication_command_
 import 'package:tokenizers/src/features/calendar/application/medication_repository.dart';
 import 'package:tokenizers/src/features/chat/application/chat_coordinator.dart';
 import 'package:tokenizers/src/features/chat/application/conversation_repository.dart';
-import 'package:tokenizers/src/app/theme_mode_controller.dart';
 import 'package:tokenizers/src/features/settings/application/ai_settings_controller.dart';
 import 'package:tokenizers/src/features/settings/application/local_data_reset_service.dart';
 
