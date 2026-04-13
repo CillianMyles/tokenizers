@@ -146,7 +146,12 @@ class _FakeMedicationRepository implements MedicationRepository {
   }
 
   @override
-  Stream<List<MedicationScheduleView>> watchActiveSchedules() {
+  Future<List<MedicationScheduleView>> getCurrentAndUpcomingSchedules() async {
+    return const <MedicationScheduleView>[];
+  }
+
+  @override
+  Stream<List<MedicationScheduleView>> watchActiveSchedules(DateTime day) {
     return Stream<List<MedicationScheduleView>>.value(
       <MedicationScheduleView>[],
     );
@@ -213,7 +218,7 @@ class _FakeEventStore implements EventStore {
 class _FakeModelProvider implements ModelProvider {
   @override
   Future<ModelResponseContract> generateResponse({
-    required List<MedicationScheduleView> activeSchedules,
+    required List<MedicationScheduleView> confirmedSchedules,
     required List<ConversationMessageView> conversation,
     required String threadId,
     required String userText,

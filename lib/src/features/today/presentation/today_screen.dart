@@ -122,12 +122,12 @@ class TodayScreen extends StatelessWidget {
                               onReviewProposal: () async {
                                 final schedules = await bootstrap
                                     .medicationRepository
-                                    .getActiveSchedules();
+                                    .getCurrentAndUpcomingSchedules();
                                 if (!context.mounted) {
                                   return;
                                 }
                                 return showProposalDraftEditor(
-                                  activeSchedules: schedules,
+                                  confirmedSchedules: schedules,
                                   context: context,
                                   onCancelProposal: () {
                                     return bootstrap.chatCoordinator

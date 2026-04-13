@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import 'package:tokenizers/src/app/app_scope.dart';
+import 'package:tokenizers/src/core/domain/domain_event.dart';
 import 'package:tokenizers/src/core/domain/event_envelope.dart';
 import 'package:tokenizers/src/core/presentation/date_formatters.dart';
 import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
 import 'package:tokenizers/src/features/calendar/presentation/medication_schedule_editor.dart';
 import 'package:tokenizers/src/features/calendar/presentation/medication_taken_editor.dart';
+import 'package:tokenizers/src/features/home/domain/medication_reminder_models.dart';
 
 DateTime _defaultCurrentDate() => DateUtils.dateOnly(DateTime.now());
 
@@ -122,48 +124,64 @@ class _MedicationCalendarScreenState extends State<MedicationCalendarScreen> {
                       StreamBuilder<List<MedicationCalendarEntry>>(
                         stream: bootstrap.medicationRepository
                             .watchCalendarEntriesForDay(_selectedDay),
-                        builder: (context, snapshot) {
+                        builder: (context, entriesSnapshot) {
                           final entries =
-                              snapshot.data ??
+                              entriesSnapshot.data ??
                               const <MedicationCalendarEntry>[];
-                          return _CalendarEntriesSection(
-                            currentDay: currentDay,
-                            entries: entries,
-                            onMarkTaken: (entry) async {
-                              final draft = await showMedicationTakenEditor(
-                                context: context,
-                                entry: entry,
-                                scheduleEntries: entries,
+                          return StreamBuilder<
+                            List<EventEnvelope<DomainEvent>>
+                          >(
+                            stream: bootstrap.eventStore.watchAll(),
+                            builder: (context, eventsSnapshot) {
+                              final events =
+                                  eventsSnapshot.data ??
+                                  const <EventEnvelope<DomainEvent>>[];
+                              final reminders = buildMedicationReminders(
+                                entries: entries,
+                                events: events,
+                                now: currentDay,
                               );
-                              if (draft == null) {
-                                return;
-                              }
-                              await bootstrap.medicationCommandService
-                                  .recordMedicationTaken(
-                                    actorType: EventActorType.user,
+                              return _CalendarEntriesSection(
+                                currentDay: currentDay,
+                                onMarkTaken: (entry) async {
+                                  final draft = await showMedicationTakenEditor(
+                                    context: context,
                                     entry: entry,
-                                    scheduledFor: draft.scheduledFor,
-                                    takenAt: draft.takenAt,
+                                    scheduleEntries: entries,
                                   );
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Recorded ${entry.medicationName} at '
-                                      '${formatTime(draft.takenAt)}.',
-                                    ),
-                                  ),
-                                );
-                              }
+                                  if (draft == null) {
+                                    return;
+                                  }
+                                  await bootstrap.medicationCommandService
+                                      .recordMedicationTaken(
+                                        actorType: EventActorType.user,
+                                        entry: entry,
+                                        scheduledFor: draft.scheduledFor,
+                                        takenAt: draft.takenAt,
+                                      );
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Recorded ${entry.medicationName}'
+                                          ' at '
+                                          '${formatTime(draft.takenAt)}.',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                                reminders: reminders,
+                                selectedDay: _selectedDay,
+                              );
                             },
-                            selectedDay: _selectedDay,
                           );
                         },
                       ),
                       const SizedBox(height: 20),
                       StreamBuilder<List<MedicationScheduleView>>(
                         stream: bootstrap.medicationRepository
-                            .watchActiveSchedules(),
+                            .watchActiveSchedules(_selectedDay),
                         builder: (context, snapshot) {
                           final schedules =
                               snapshot.data ?? const <MedicationScheduleView>[];
@@ -384,14 +402,14 @@ class _ActiveSchedulesSection extends StatelessWidget {
 class _CalendarEntriesSection extends StatelessWidget {
   const _CalendarEntriesSection({
     required this.currentDay,
-    required this.entries,
     required this.onMarkTaken,
+    required this.reminders,
     required this.selectedDay,
   });
 
   final DateTime currentDay;
-  final List<MedicationCalendarEntry> entries;
   final Future<void> Function(MedicationCalendarEntry entry) onMarkTaken;
+  final List<MedicationReminderView> reminders;
   final DateTime selectedDay;
 
   @override
@@ -415,20 +433,23 @@ class _CalendarEntriesSection extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 16),
-            if (entries.isEmpty)
+            if (reminders.isEmpty)
               Text(
                 'No confirmed medication times for this day.',
                 style: Theme.of(context).textTheme.titleMedium,
               )
             else
               ListView.separated(
-                itemCount: entries.length,
+                itemCount: reminders.length,
                 physics: const NeverScrollableScrollPhysics(),
                 shrinkWrap: true,
                 separatorBuilder: (context, index) =>
                     const SizedBox(height: 12),
                 itemBuilder: (context, index) {
-                  final entry = entries[index];
+                  final reminder = reminders[index];
+                  final entry = reminder.entry;
+                  final isTaken =
+                      reminder.status == MedicationReminderStatus.taken;
                   return DecoratedBox(
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.surfaceContainerLow,
@@ -451,11 +472,25 @@ class _CalendarEntriesSection extends StatelessWidget {
                           const SizedBox(height: 12),
                           Row(
                             children: <Widget>[
-                              FilledButton.tonalIcon(
-                                onPressed: () => onMarkTaken(entry),
-                                icon: const Icon(Icons.check_circle_outline),
-                                label: const Text('Mark taken'),
-                              ),
+                              if (isTaken)
+                                Chip(
+                                  avatar: const Icon(
+                                    Icons.check_circle,
+                                    size: 18,
+                                  ),
+                                  label: Text(
+                                    reminder.takenAt != null
+                                        ? 'Taken at '
+                                              '${formatTime(reminder.takenAt!)}'
+                                        : 'Taken',
+                                  ),
+                                )
+                              else
+                                FilledButton.tonalIcon(
+                                  onPressed: () => onMarkTaken(entry),
+                                  icon: const Icon(Icons.check_circle_outline),
+                                  label: const Text('Mark taken'),
+                                ),
                               if (entry.threadId
                                   case final threadId?) ...<Widget>[
                                 const SizedBox(width: 12),

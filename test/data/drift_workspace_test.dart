@@ -16,6 +16,64 @@ import 'package:tokenizers/src/features/proposals/domain/proposal_models.dart';
 
 void main() {
   test(
+    'DriftWorkspace includes future confirmed schedules in review context only',
+    () async {
+      final database = AppDatabase(NativeDatabase.memory());
+      final eventStore = DriftEventStore(database: database);
+      final workspace = DriftWorkspace(
+        database: database,
+        eventStore: eventStore,
+      );
+      final tomorrow = DateTime.now().add(const Duration(days: 1));
+      final futureStartDate = DateTime(
+        tomorrow.year,
+        tomorrow.month,
+        tomorrow.day,
+      );
+
+      await eventStore.append(<EventEnvelope<DomainEvent>>[
+        _event(
+          actorType: EventActorType.user,
+          aggregateId: 'medication-1',
+          eventId: 'event-medication-1',
+          eventType: 'medication_registered',
+          occurredAt: DateTime.now(),
+          payload: const <String, Object?>{
+            'medication_id': 'medication-1',
+            'medication_name': 'Vitamin D',
+          },
+        ),
+        _event(
+          actorType: EventActorType.user,
+          aggregateId: 'schedule-future',
+          eventId: 'event-schedule-future',
+          eventType: 'medication_schedule_added',
+          occurredAt: DateTime.now(),
+          payload: <String, Object?>{
+            'schedule_id': 'schedule-future',
+            'medication_id': 'medication-1',
+            'medication_name': 'Vitamin D',
+            'dose_amount': '1000',
+            'dose_unit': 'IU',
+            'start_date': futureStartDate.toIso8601String().split('T').first,
+            'times': <String>['09:00'],
+          },
+        ),
+      ]);
+      await workspace.rebuild();
+
+      final activeSchedules = await workspace.getActiveSchedules();
+      final confirmedSchedules = await workspace
+          .getCurrentAndUpcomingSchedules();
+
+      expect(activeSchedules, isEmpty);
+      expect(confirmedSchedules.single.scheduleId, 'schedule-future');
+
+      await workspace.dispose();
+    },
+  );
+
+  test(
     'DriftWorkspace serializes rebuilds so stale proposal snapshots do not overwrite confirmed state',
     () async {
       final firstLoad = Completer<List<EventEnvelope<DomainEvent>>>();
@@ -327,7 +385,7 @@ class _SequencedModelProvider implements ModelProvider {
 
   @override
   Future<ModelResponseContract> generateResponse({
-    required List activeSchedules,
+    required List confirmedSchedules,
     required List conversation,
     required String threadId,
     required String userText,

@@ -86,7 +86,8 @@ class ChatCoordinator implements LocalDataResetGuard {
 
     final occurredAt = DateTime.now();
     final correlationId = _id('corr');
-    final activeSchedules = await _medicationRepository.getActiveSchedules();
+    final confirmedSchedules = await _medicationRepository
+        .getCurrentAndUpcomingSchedules();
     if (!_isWriteCurrent(writeGeneration)) {
       return;
     }
@@ -129,7 +130,7 @@ class ChatCoordinator implements LocalDataResetGuard {
           break;
         case ProposalActionType.stopMedicationSchedule:
           final targetSchedule = _findSchedule(
-            activeSchedules,
+            confirmedSchedules,
             action.targetScheduleId,
           );
           if (targetSchedule == null) {
@@ -149,7 +150,7 @@ class ChatCoordinator implements LocalDataResetGuard {
           break;
         case ProposalActionType.updateMedicationSchedule:
           final targetSchedule = _findSchedule(
-            activeSchedules,
+            confirmedSchedules,
             action.targetScheduleId,
           );
           if (targetSchedule == null) {
@@ -269,10 +270,12 @@ class ChatCoordinator implements LocalDataResetGuard {
       return;
     }
 
-    final activeSchedules = await _medicationRepository.getActiveSchedules();
+    final confirmedSchedules = await _medicationRepository
+        .getCurrentAndUpcomingSchedules();
     if (!_isWriteCurrent(writeGeneration)) {
       return;
     }
+    final activeSchedules = _schedulesActiveOn(now, confirmedSchedules);
 
     final messageId = _id('message');
 
@@ -353,7 +356,7 @@ class ChatCoordinator implements LocalDataResetGuard {
     late final ModelResponseContract response;
     try {
       response = await _modelProvider.generateResponse(
-        activeSchedules: activeSchedules,
+        confirmedSchedules: confirmedSchedules,
         conversation: responseConversation,
         threadId: threadId,
         userText: effectiveUserText,
@@ -791,6 +794,27 @@ class ChatCoordinator implements LocalDataResetGuard {
           '${_timeLabel(takenAt)}.',
       events: <EventEnvelope<DomainEvent>>[event],
     );
+  }
+
+  List<MedicationScheduleView> _schedulesActiveOn(
+    DateTime day,
+    List<MedicationScheduleView> schedules,
+  ) {
+    final dayOnly = _dateOnly(day);
+    return schedules
+        .where((schedule) {
+          final startDate = _dateOnly(schedule.startDate);
+          final endDate = schedule.endDate == null
+              ? null
+              : _dateOnly(schedule.endDate!);
+          return !startDate.isAfter(dayOnly) &&
+              (endDate == null || !endDate.isBefore(dayOnly));
+        })
+        .toList(growable: false);
+  }
+
+  DateTime _dateOnly(DateTime value) {
+    return DateTime(value.year, value.month, value.day);
   }
 
   DateTime? _parseReportedTime(String text, DateTime now) {
