@@ -89,6 +89,78 @@ void main() {
       await workspace.dispose();
     },
   );
+
+  test(
+    'seedDemoData validates the script before wiping existing data on reset',
+    () async {
+      final database = AppDatabase(NativeDatabase.memory());
+      final eventStore = DriftEventStore(database: database);
+      final workspace = DriftWorkspace(
+        database: database,
+        eventStore: eventStore,
+      );
+
+      await seedDemoData(
+        database: database,
+        eventStore: eventStore,
+        projectionRunner: workspace,
+        seedScript: await _loadDemoSeedScript(),
+        now: DateTime(2026, 4, 9, 12),
+      );
+
+      final eventCountBefore = (await eventStore.loadAll()).length;
+
+      expect(
+        () => seedDemoData(
+          database: database,
+          eventStore: eventStore,
+          projectionRunner: workspace,
+          seedScript: 'BROKEN|foo=bar',
+          resetExistingData: true,
+          now: DateTime(2026, 4, 9, 12),
+        ),
+        throwsStateError,
+      );
+
+      expect((await eventStore.loadAll()).length, eventCountBefore);
+
+      await workspace.dispose();
+    },
+  );
+
+  test('seedDemoData preserves deterministic schedule timestamps', () async {
+    final database = AppDatabase(NativeDatabase.memory());
+    final eventStore = DriftEventStore(database: database);
+    final workspace = DriftWorkspace(
+      database: database,
+      eventStore: eventStore,
+    );
+
+    await seedDemoData(
+      database: database,
+      eventStore: eventStore,
+      projectionRunner: workspace,
+      seedScript: await _loadDemoSeedScript(),
+      now: DateTime(2026, 4, 9, 12),
+    );
+
+    final events = await eventStore.loadAll();
+    final metforminScheduleAdded = events.firstWhere((event) {
+      return event.event.type == 'medication_schedule_added' &&
+          event.event.payload['medication_name'] == 'Metformin';
+    });
+
+    expect(
+      DateTime(
+        metforminScheduleAdded.occurredAt.toLocal().year,
+        metforminScheduleAdded.occurredAt.toLocal().month,
+        metforminScheduleAdded.occurredAt.toLocal().day,
+      ),
+      DateTime(2026, 3, 10),
+    );
+
+    await workspace.dispose();
+  });
 }
 
 Future<String> _loadDemoSeedScript() {

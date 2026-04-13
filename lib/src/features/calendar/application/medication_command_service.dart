@@ -19,11 +19,12 @@ class MedicationCommandService {
     required EventActorType actorType,
     String? causationId,
     String? correlationId,
+    DateTime? occurredAt,
     String? sourceProposalId,
     String? threadId,
   }) async {
     final writeCorrelationId = correlationId ?? _id('corr');
-    final occurredAt = DateTime.now();
+    final effectiveOccurredAt = occurredAt ?? DateTime.now();
     final medicationId = _id('medication');
     final scheduleId = _id('schedule');
     await _eventStore.append(<EventEnvelope<DomainEvent>>[
@@ -41,7 +42,7 @@ class MedicationCommandService {
             'medication_name': draft.medicationName,
           },
         ),
-        occurredAt: occurredAt,
+        occurredAt: effectiveOccurredAt,
       ),
       EventEnvelope<DomainEvent>(
         eventId: _id('event'),
@@ -70,7 +71,7 @@ class MedicationCommandService {
             'times': draft.times,
           },
         ),
-        occurredAt: occurredAt,
+        occurredAt: effectiveOccurredAt,
       ),
     ]);
   }

@@ -35,6 +35,11 @@ Future<DemoSeedSummary> seedDemoData({
   bool resetExistingData = false,
   DateTime? now,
 }) async {
+  final seedClock = now ?? DateTime.now();
+  final today = DateTime(seedClock.year, seedClock.month, seedClock.day);
+  final parsed = _parseSeedScript(seedScript);
+  _validateSeedRecords(parsed, today);
+
   final existingEvents = await eventStore.loadAll();
   if (existingEvents.isNotEmpty && !resetExistingData) {
     throw StateError(
@@ -48,9 +53,6 @@ Future<DemoSeedSummary> seedDemoData({
     await projectionRunner.rebuild();
   }
 
-  final seedClock = now ?? DateTime.now();
-  final today = DateTime(seedClock.year, seedClock.month, seedClock.day);
-  final parsed = _parseSeedScript(seedScript);
   final commandService = MedicationCommandService(eventStore: eventStore);
 
   var threadCreated = false;
@@ -197,6 +199,10 @@ Future<DemoSeedSummary> seedDemoData({
         continue recordLoop;
       case 'SCHEDULE':
         final medicationName = _requiredField(record, 'medication_name');
+        final startDate = _offsetDate(
+          today,
+          fields['start_offset_days'] ?? '0',
+        );
         final draft = MedicationScheduleDraft(
           doseAmount: fields['dose_amount'],
           doseSchedule: _doseSchedule(fields),
@@ -204,12 +210,13 @@ Future<DemoSeedSummary> seedDemoData({
           medicationName: medicationName,
           notes: fields['notes'],
           route: fields['route'],
-          startDate: _offsetDate(today, fields['start_offset_days'] ?? '0'),
+          startDate: startDate,
           times: _times(fields['times']),
         );
         await commandService.addSchedule(
           actorType: EventActorType.user,
           draft: draft,
+          occurredAt: _seedOccurredAtForDate(startDate),
           threadId: threadId,
         );
         activeScheduleIdsByMedication[medicationName] =
@@ -339,6 +346,61 @@ class _SeedRecord {
   final int lineNumber;
 }
 
+void _validateSeedRecords(List<_SeedRecord> records, DateTime today) {
+  for (final record in records) {
+    final fields = record.fields;
+    switch (record.kind) {
+      case 'THREAD':
+        _requiredField(record, 'title');
+        _resolveTime(today, fields['at'] ?? '09:00');
+      case 'MESSAGE':
+        _requiredField(record, 'text');
+        _resolveTime(today, fields['at'] ?? '10:00');
+      case 'PROPOSAL':
+        _requiredField(record, 'summary');
+        _requiredField(record, 'assistant_text');
+        _resolveTime(today, fields['at'] ?? '10:00');
+        _resolveOffsetDate(today, fields['start_offset_days'] ?? '0');
+        _doseScheduleJson(fields);
+        _times(fields['times']);
+        _csv(fields['missing_fields']);
+      case 'SCHEDULE':
+        _requiredField(record, 'medication_name');
+        _offsetDate(today, fields['start_offset_days'] ?? '0');
+        _doseSchedule(fields);
+        _times(fields['times']);
+      case 'RETIRED_SCHEDULE':
+        _requiredField(record, 'medication_name');
+        _offsetDate(today, fields['start_offset_days'] ?? '0');
+        _offsetDate(today, fields['stop_offset_days'] ?? '0');
+        _doseSchedule(fields);
+        _times(fields['times']);
+      case 'TAKEN':
+        _requiredField(record, 'medication_name');
+        _resolveTime(today, _requiredField(record, 'scheduled_time'));
+        _resolveTime(today, _requiredField(record, 'taken_time'));
+        _resolveTime(
+          today,
+          fields['recorded_time'] ?? _requiredField(record, 'taken_time'),
+        );
+      case 'CORRECTED_TAKEN':
+        _requiredField(record, 'medication_name');
+        _resolveTime(today, _requiredField(record, 'scheduled_time'));
+        _resolveTime(today, _requiredField(record, 'previous_taken_time'));
+        _resolveTime(today, _requiredField(record, 'taken_time'));
+        _resolveTime(
+          today,
+          fields['recorded_time'] ?? _requiredField(record, 'taken_time'),
+        );
+      default:
+        throw StateError(
+          'Unsupported seed record kind "${record.kind}" on line '
+          '${record.lineNumber}.',
+        );
+    }
+  }
+}
+
 List<_SeedRecord> _parseSeedScript(String source) {
   final records = <_SeedRecord>[];
   final lines = source.split('\n');
@@ -427,7 +489,11 @@ List<Map<String, Object?>> _doseScheduleJson(Map<String, String> fields) {
 }
 
 DateTime _offsetDate(DateTime today, String offsetDays) {
-  return today.add(Duration(days: int.parse(offsetDays)));
+  return DateTime(today.year, today.month, today.day + int.parse(offsetDays));
+}
+
+DateTime _seedOccurredAtForDate(DateTime date) {
+  return DateTime.utc(date.year, date.month, date.day);
 }
 
 String _resolveOffsetDate(DateTime today, String offsetDays) {
