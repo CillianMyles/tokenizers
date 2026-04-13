@@ -1,7 +1,7 @@
 name: tokenizers
 description: "An AI-powered health and medical tracking app"
-publish_to: 'none'
-version: 0.1.0
+publish_to: "none"
+version: 0.20.0+1
 
 environment:
   sdk: ^3.10.4

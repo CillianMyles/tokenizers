@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tokenizers/src/app/app_scope.dart';
-import 'package:tokenizers/src/app/app_theme.dart';
+import 'package:tokenizers/src/app/tokenizers_app.dart';
 import 'package:tokenizers/src/bootstrap/demo_app_bootstrap.dart';
 import 'package:tokenizers/src/core/application/event_store.dart';
 import 'package:tokenizers/src/core/application/projection_runner.dart';
@@ -13,7 +12,6 @@ import 'package:tokenizers/src/data/api_key_store.dart';
 import 'package:tokenizers/src/features/calendar/application/medication_command_service.dart';
 import 'package:tokenizers/src/features/calendar/application/medication_repository.dart';
 import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
-import 'package:tokenizers/src/features/calendar/presentation/medication_calendar_screen.dart';
 import 'package:tokenizers/src/features/chat/application/chat_coordinator.dart';
 import 'package:tokenizers/src/features/chat/application/conversation_repository.dart';
 import 'package:tokenizers/src/features/chat/domain/conversation_models.dart';
@@ -24,53 +22,38 @@ import 'package:tokenizers/src/features/settings/application/local_data_reset_se
 import 'package:tokenizers/src/features/settings/domain/ai_settings.dart';
 
 void main() {
-  testWidgets(
-    'MedicationCalendarScreen uses the injected current date for initial and '
-    'reset state',
-    (tester) async {
-      final repository = _FakeMedicationRepository();
-      final bootstrap = _buildBootstrap(repository);
-      final injectedNow = DateTime(2026, 4, 9, 17, 45);
-      final today = DateUtils.dateOnly(injectedNow);
-      final previousDay = today.subtract(const Duration(days: 1));
+  testWidgets('AppShell uses bottom navigation on narrow layouts', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(700, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      await tester.pumpWidget(
-        AppScope(
-          bootstrap: bootstrap,
-          child: MaterialApp(
-            theme: AppTheme.light,
-            home: Scaffold(
-              body: MedicationCalendarScreen(currentDate: () => injectedNow),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      TokenizersApp(bootstrap: _buildBootstrap(_FakeMedicationRepository())),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.text('Thursday, April 9'), findsOneWidget);
-      expect(repository.requestedDays, isNotEmpty);
-      expect(repository.requestedDays.last, today);
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byType(NavigationRail), findsNothing);
+  });
 
-      final initialRequestCount = repository.requestedDays.length;
-      await tester.tap(find.byTooltip('Previous day'));
-      await tester.pumpAndSettle();
+  testWidgets('AppShell uses a desktop rail on wide layouts', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      expect(find.text('Wednesday, April 8'), findsOneWidget);
-      expect(repository.requestedDays.length, greaterThan(initialRequestCount));
-      expect(repository.requestedDays.last, previousDay);
+    await tester.pumpWidget(
+      TokenizersApp(bootstrap: _buildBootstrap(_FakeMedicationRepository())),
+    );
+    await tester.pumpAndSettle();
 
-      final requestCountAfterPrevious = repository.requestedDays.length;
-      await tester.tap(find.text('Wednesday, April 8'));
-      await tester.pumpAndSettle();
+    expect(find.byType(NavigationRail), findsOneWidget);
+    expect(find.byType(NavigationBar), findsNothing);
 
-      expect(find.text('Thursday, April 9'), findsOneWidget);
-      expect(
-        repository.requestedDays.length,
-        greaterThan(requestCountAfterPrevious),
-      );
-      expect(repository.requestedDays.last, today);
-    },
-  );
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bring Your Own AI'), findsOneWidget);
+  });
 }
 
 AppBootstrap _buildBootstrap(_FakeMedicationRepository medicationRepository) {
@@ -132,8 +115,6 @@ class _FakeLocalDataResetService implements LocalDataResetService {
 }
 
 class _FakeMedicationRepository implements MedicationRepository {
-  final List<DateTime> requestedDays = <DateTime>[];
-
   @override
   Future<List<MedicationScheduleView>> getActiveSchedules() async {
     return const <MedicationScheduleView>[];
@@ -150,7 +131,6 @@ class _FakeMedicationRepository implements MedicationRepository {
   Stream<List<MedicationCalendarEntry>> watchCalendarEntriesForDay(
     DateTime day,
   ) {
-    requestedDays.add(DateUtils.dateOnly(day));
     return Stream<List<MedicationCalendarEntry>>.value(
       <MedicationCalendarEntry>[],
     );

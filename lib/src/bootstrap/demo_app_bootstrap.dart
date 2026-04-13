@@ -4,6 +4,7 @@ import 'package:tokenizers/src/core/application/event_store.dart';
 import 'package:tokenizers/src/core/application/projection_runner.dart';
 import 'package:tokenizers/src/core/model/model_provider.dart';
 import 'package:tokenizers/src/data/app_database.dart';
+import 'package:tokenizers/src/data/device_local_data_reset_service.dart';
 import 'package:tokenizers/src/data/drift_event_store.dart';
 import 'package:tokenizers/src/data/drift_workspace.dart';
 import 'package:tokenizers/src/data/local_ai_settings_repository.dart';
@@ -14,6 +15,7 @@ import 'package:tokenizers/src/features/calendar/application/medication_reposito
 import 'package:tokenizers/src/features/chat/application/chat_coordinator.dart';
 import 'package:tokenizers/src/features/chat/application/conversation_repository.dart';
 import 'package:tokenizers/src/features/settings/application/ai_settings_controller.dart';
+import 'package:tokenizers/src/features/settings/application/local_data_reset_service.dart';
 
 /// Bundles the app's core services and repositories.
 class AppBootstrap {
@@ -24,6 +26,7 @@ class AppBootstrap {
     required this.chatCoordinator,
     required this.conversationRepository,
     required this.eventStore,
+    required this.localDataResetService,
     required this.medicationCommandService,
     required this.medicationRepository,
     required this.modelProvider,
@@ -35,6 +38,7 @@ class AppBootstrap {
   final ChatCoordinator chatCoordinator;
   final ConversationRepository conversationRepository;
   final EventStore eventStore;
+  final LocalDataResetService localDataResetService;
   final MedicationCommandService medicationCommandService;
   final MedicationRepository medicationRepository;
   final ModelProvider modelProvider;
@@ -48,14 +52,18 @@ class AppBootstrap {
 Future<AppBootstrap> createDemoAppBootstrap() async {
   const activityStreamId = 'thread-current';
   final sharedPreferences = await SharedPreferences.getInstance();
-  final aiSettingsController = AiSettingsController(
-    repository: LocalAiSettingsRepository(
-      apiKeyStore: FallbackApiKeyStore(
-        fallback: DebugApiKeyStore(readValue: () => Env.geminiApiKey),
-        primary: createPlatformApiKeyStore(preferences: sharedPreferences),
-      ),
-      preferences: sharedPreferences,
+  final writableApiKeyStore = createPlatformApiKeyStore(
+    preferences: sharedPreferences,
+  );
+  final aiSettingsRepository = LocalAiSettingsRepository(
+    apiKeyStore: FallbackApiKeyStore(
+      fallback: DebugApiKeyStore(readValue: () => Env.geminiApiKey),
+      primary: writableApiKeyStore,
     ),
+    preferences: sharedPreferences,
+  );
+  final aiSettingsController = AiSettingsController(
+    repository: aiSettingsRepository,
   );
   await aiSettingsController.load();
   final modelProvider = SettingsBackedModelProvider(
@@ -69,18 +77,24 @@ Future<AppBootstrap> createDemoAppBootstrap() async {
   );
   final workspace = DriftWorkspace(database: database, eventStore: eventStore);
   await workspace.rebuild();
+  final chatCoordinator = ChatCoordinator(
+    conversationRepository: workspace,
+    eventStore: eventStore,
+    medicationRepository: workspace,
+    modelProvider: modelProvider,
+  );
 
   return AppBootstrap(
     activityStreamId: activityStreamId,
     aiSettingsController: aiSettingsController,
-    chatCoordinator: ChatCoordinator(
-      conversationRepository: workspace,
-      eventStore: eventStore,
-      medicationRepository: workspace,
-      modelProvider: modelProvider,
-    ),
+    chatCoordinator: chatCoordinator,
     conversationRepository: workspace,
     eventStore: eventStore,
+    localDataResetService: DeviceLocalDataResetService(
+      database: database,
+      resetGuard: chatCoordinator,
+      settingsRepository: aiSettingsRepository,
+    ),
     medicationCommandService: medicationCommandService,
     medicationRepository: workspace,
     modelProvider: modelProvider,

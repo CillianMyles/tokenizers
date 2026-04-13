@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tokenizers/src/core/application/event_store.dart';
 import 'package:tokenizers/src/core/domain/domain_event.dart';
@@ -220,6 +222,46 @@ void main() {
 
       expect(eventStore.events, isEmpty);
     });
+
+    test(
+      'submitText drops delayed response events after a local data reset begins',
+      () async {
+        final modelProvider = _CompletingModelProvider();
+        final eventStore = _FakeEventStore();
+        final coordinator = ChatCoordinator(
+          conversationRepository: _FakeConversationRepository(),
+          eventStore: eventStore,
+          medicationRepository: _FakeMedicationRepository(),
+          modelProvider: modelProvider,
+        );
+
+        final submission = coordinator.submitText('thread-1', 'Add vitamin D');
+        await Future<void>.delayed(Duration.zero);
+
+        coordinator.beginLocalDataReset();
+        modelProvider.complete(
+          const ModelResponseContract(
+            actions: <ModelProposalAction>[
+              ModelProposalAction(
+                actionId: 'action-1',
+                medicationName: 'Vitamin D',
+                startDate: null,
+                times: <String>['09:00'],
+                type: ModelProposalActionType.addMedicationSchedule,
+              ),
+            ],
+            assistantText: 'Review the vitamin D proposal.',
+            rawPayload: <String, Object?>{},
+          ),
+        );
+        await submission;
+
+        expect(
+          eventStore.events.map((event) => event.event.type).toList(),
+          <String>['message_added'],
+        );
+      },
+    );
 
     test(
       'confirmPendingProposal emits schedule update events for update actions',
@@ -614,6 +656,25 @@ class _FakeModelProvider implements ModelProvider {
     lastConversation = conversation;
     lastUserText = userText;
     return response;
+  }
+}
+
+class _CompletingModelProvider implements ModelProvider {
+  final Completer<ModelResponseContract> _completer =
+      Completer<ModelResponseContract>();
+
+  @override
+  Future<ModelResponseContract> generateResponse({
+    required List<MedicationScheduleView> activeSchedules,
+    required List<ConversationMessageView> conversation,
+    required String threadId,
+    required String userText,
+  }) {
+    return _completer.future;
+  }
+
+  void complete(ModelResponseContract response) {
+    _completer.complete(response);
   }
 }
 

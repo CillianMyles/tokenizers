@@ -86,7 +86,7 @@ Install dependencies:
 flutter pub get
 ```
 
-Create a local environment file:
+Optional for local debug builds only: create a local environment file:
 
 ```bash
 cp .env.example .env
@@ -100,8 +100,9 @@ GEMINI_API_KEY=your_key_here
 
 This is optional. The app now supports a BYO-AI flow in `Settings`, where
 users can save their own Gemini API key and choose the Gemini model used for
-assistant requests. During desktop development, `.env` can still provide a
-debug fallback key if no user key has been saved yet.
+assistant requests. During local debug builds, `.env` can still provide a
+debug fallback key if no user key has been saved yet. Release builds do not
+bundle or read `.env`.
 
 Run the app:
 
@@ -115,7 +116,7 @@ Or:
 flutter run -d chrome
 ```
 
-If neither a saved Gemini key nor a `.env` debug key is available, the
+If neither a saved Gemini key nor a debug-build `.env` key is available, the
 assistant remains visible but live assistant submission is disabled. Manual
 calendar and adherence flows still work.
 
@@ -146,6 +147,8 @@ All app data is stored locally.
 - non-sensitive AI settings use shared preferences
 - Gemini API keys use secure storage where supported, with shared-preferences
   fallback on unsupported platforms
+- `Settings` includes a `Danger Zone` action that clears local schedules,
+  history, conversations, and saved AI settings from the current device
 - installs are no longer pre-seeded with sample medications, chat messages, or history
 
 ## Development
@@ -176,6 +179,8 @@ Codemagic CD:
   credentials exist
 - the Codemagic App Store Connect integration is assumed to be named
   `tokenizers.p8`
+- iOS build numbers come from the `pubspec.yaml` version metadata
+  (`x.y.z+build`)
 
 Release Please:
 
@@ -183,6 +188,7 @@ Release Please:
   dispatch
 - it uses `release_please_config.json` with the Dart releaser for the
   `tokenizers` package
+- release metadata is sourced from `pubspec.yaml` and `CHANGELOG.md`
 - `.github/workflows/release-with-bumped-patch-version.yaml` provides the same
   manual patch-bump release entrypoint as the sibling apps
 - both workflows require the `RELEASE_PLEASE_COMMIT_TOKEN` GitHub secret

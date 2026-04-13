@@ -10,8 +10,11 @@ const _geminiApiKeyStorageKey = 'ai_settings.gemini_api_key';
 ApiKeyStore createPlatformApiKeyStore({
   required SharedPreferences preferences,
   FlutterSecureStorage? secureStorage,
+  TargetPlatform? targetPlatform,
 }) {
-  if (kIsWeb) {
+  final platform = targetPlatform ?? defaultTargetPlatform;
+
+  if (kIsWeb || platform == TargetPlatform.macOS) {
     return SharedPreferencesApiKeyStore(preferences: preferences);
   }
 
@@ -63,6 +66,10 @@ class SharedPreferencesApiKeyStore implements ApiKeyStore {
 
   @override
   Future<void> delete() async {
+    if (!_preferences.containsKey(_geminiApiKeyStorageKey)) {
+      return;
+    }
+
     final removed = await _preferences.remove(_geminiApiKeyStorageKey);
     if (!removed) {
       throw StateError('Could not remove the Gemini API key from storage.');

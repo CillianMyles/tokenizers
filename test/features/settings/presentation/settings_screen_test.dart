@@ -13,7 +13,6 @@ import 'package:tokenizers/src/data/api_key_store.dart';
 import 'package:tokenizers/src/features/calendar/application/medication_command_service.dart';
 import 'package:tokenizers/src/features/calendar/application/medication_repository.dart';
 import 'package:tokenizers/src/features/calendar/domain/medication_models.dart';
-import 'package:tokenizers/src/features/calendar/presentation/medication_calendar_screen.dart';
 import 'package:tokenizers/src/features/chat/application/chat_coordinator.dart';
 import 'package:tokenizers/src/features/chat/application/conversation_repository.dart';
 import 'package:tokenizers/src/features/chat/domain/conversation_models.dart';
@@ -22,67 +21,88 @@ import 'package:tokenizers/src/features/settings/application/ai_settings_control
 import 'package:tokenizers/src/features/settings/application/ai_settings_repository.dart';
 import 'package:tokenizers/src/features/settings/application/local_data_reset_service.dart';
 import 'package:tokenizers/src/features/settings/domain/ai_settings.dart';
+import 'package:tokenizers/src/features/settings/presentation/settings_screen.dart';
 
 void main() {
   testWidgets(
-    'MedicationCalendarScreen uses the injected current date for initial and '
-    'reset state',
+    'SettingsScreen requires typing delete before local data can be removed',
     (tester) async {
-      final repository = _FakeMedicationRepository();
-      final bootstrap = _buildBootstrap(repository);
-      final injectedNow = DateTime(2026, 4, 9, 17, 45);
-      final today = DateUtils.dateOnly(injectedNow);
-      final previousDay = today.subtract(const Duration(days: 1));
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(800, 1600);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+
+      final settingsRepository = _FakeAiSettingsRepository();
+      final settingsController = AiSettingsController(
+        repository: settingsRepository,
+      );
+      final resetService = _RecordingLocalDataResetService();
+      final bootstrap = _buildBootstrap(
+        localDataResetService: resetService,
+        settingsController: settingsController,
+      );
+
+      await settingsController.load();
 
       await tester.pumpWidget(
         AppScope(
           bootstrap: bootstrap,
           child: MaterialApp(
             theme: AppTheme.light,
-            home: Scaffold(
-              body: MedicationCalendarScreen(currentDate: () => injectedNow),
-            ),
+            home: const Scaffold(body: SettingsScreen()),
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Thursday, April 9'), findsOneWidget);
-      expect(repository.requestedDays, isNotEmpty);
-      expect(repository.requestedDays.last, today);
+      expect(find.text('Danger Zone'), findsOneWidget);
 
-      final initialRequestCount = repository.requestedDays.length;
-      await tester.tap(find.byTooltip('Previous day'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Wednesday, April 8'), findsOneWidget);
-      expect(repository.requestedDays.length, greaterThan(initialRequestCount));
-      expect(repository.requestedDays.last, previousDay);
-
-      final requestCountAfterPrevious = repository.requestedDays.length;
-      await tester.tap(find.text('Wednesday, April 8'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Thursday, April 9'), findsOneWidget);
-      expect(
-        repository.requestedDays.length,
-        greaterThan(requestCountAfterPrevious),
+      await tester.tap(
+        find.widgetWithIcon(FilledButton, Icons.delete_forever_outlined),
       );
-      expect(repository.requestedDays.last, today);
+      await tester.pumpAndSettle();
+
+      final dialog = find.byType(AlertDialog);
+      final dialogDeleteButton = find.descendant(
+        of: dialog,
+        matching: find.widgetWithText(FilledButton, 'Delete Data'),
+      );
+
+      expect(dialog, findsOneWidget);
+      expect(tester.widget<FilledButton>(dialogDeleteButton).onPressed, isNull);
+
+      await tester.enterText(
+        find.descendant(of: dialog, matching: find.byType(TextField)),
+        'delete',
+      );
+      await tester.pump();
+
+      expect(
+        tester.widget<FilledButton>(dialogDeleteButton).onPressed,
+        isNotNull,
+      );
+
+      await tester.tap(dialogDeleteButton);
+      await tester.pumpAndSettle();
+
+      expect(resetService.deleteCallCount, 1);
+      expect(find.text('All local data has been deleted.'), findsOneWidget);
     },
   );
 }
 
-AppBootstrap _buildBootstrap(_FakeMedicationRepository medicationRepository) {
+AppBootstrap _buildBootstrap({
+  required LocalDataResetService localDataResetService,
+  required AiSettingsController settingsController,
+}) {
   final eventStore = _FakeEventStore();
   final conversationRepository = _FakeConversationRepository();
+  final medicationRepository = _FakeMedicationRepository();
   final modelProvider = _FakeModelProvider();
 
   return AppBootstrap(
     activityStreamId: 'thread-current',
-    aiSettingsController: AiSettingsController(
-      repository: const _FakeAiSettingsRepository(),
-    ),
+    aiSettingsController: settingsController,
     chatCoordinator: ChatCoordinator(
       conversationRepository: conversationRepository,
       eventStore: eventStore,
@@ -91,7 +111,7 @@ AppBootstrap _buildBootstrap(_FakeMedicationRepository medicationRepository) {
     ),
     conversationRepository: conversationRepository,
     eventStore: eventStore,
-    localDataResetService: const _FakeLocalDataResetService(),
+    localDataResetService: localDataResetService,
     medicationCommandService: MedicationCommandService(eventStore: eventStore),
     medicationRepository: medicationRepository,
     modelProvider: modelProvider,
@@ -100,8 +120,6 @@ AppBootstrap _buildBootstrap(_FakeMedicationRepository medicationRepository) {
 }
 
 class _FakeAiSettingsRepository implements AiSettingsRepository {
-  const _FakeAiSettingsRepository();
-
   @override
   Future<void> clearAll() async {}
 
@@ -124,16 +142,16 @@ class _FakeAiSettingsRepository implements AiSettingsRepository {
   Future<void> saveGeminiApiKey(String apiKey) async {}
 }
 
-class _FakeLocalDataResetService implements LocalDataResetService {
-  const _FakeLocalDataResetService();
+class _RecordingLocalDataResetService implements LocalDataResetService {
+  int deleteCallCount = 0;
 
   @override
-  Future<void> deleteAllLocalData() async {}
+  Future<void> deleteAllLocalData() async {
+    deleteCallCount += 1;
+  }
 }
 
 class _FakeMedicationRepository implements MedicationRepository {
-  final List<DateTime> requestedDays = <DateTime>[];
-
   @override
   Future<List<MedicationScheduleView>> getActiveSchedules() async {
     return const <MedicationScheduleView>[];
@@ -150,7 +168,6 @@ class _FakeMedicationRepository implements MedicationRepository {
   Stream<List<MedicationCalendarEntry>> watchCalendarEntriesForDay(
     DateTime day,
   ) {
-    requestedDays.add(DateUtils.dateOnly(day));
     return Stream<List<MedicationCalendarEntry>>.value(
       <MedicationCalendarEntry>[],
     );
