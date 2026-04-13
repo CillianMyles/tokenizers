@@ -170,7 +170,7 @@ class _FakeMedicationRepository implements MedicationRepository {
   }
 
   @override
-  Stream<List<MedicationScheduleView>> watchActiveSchedules() {
+  Stream<List<MedicationScheduleView>> watchActiveSchedules(DateTime day) {
     return Stream<List<MedicationScheduleView>>.value(
       <MedicationScheduleView>[],
     );

@@ -63,8 +63,14 @@ class DriftWorkspace
 
   @override
   Future<List<MedicationScheduleView>> getActiveSchedules() async {
+    final todayText = _dateText(DateTime.now())!;
     final query = _database.select(_database.medicationSchedulesTable)
-      ..where((table) => table.isActive.equals(true))
+      ..where(
+        (table) =>
+            table.startDate.isSmallerOrEqualValue(todayText) &
+            (table.endDate.isNull() |
+                table.endDate.isBiggerOrEqualValue(todayText)),
+      )
       ..orderBy(<OrderingTerm Function($MedicationSchedulesTableTable)>[
         (table) => OrderingTerm.asc(table.medicationName),
       ]);
@@ -227,7 +233,6 @@ class DriftWorkspace
     final query = _database.select(_database.medicationSchedulesTable)
       ..where(
         (table) =>
-            table.isActive.equals(true) &
             table.startDate.isSmallerOrEqualValue(dayText) &
             (table.endDate.isNull() |
                 table.endDate.isBiggerOrEqualValue(dayText)),
@@ -267,9 +272,15 @@ class DriftWorkspace
   }
 
   @override
-  Stream<List<MedicationScheduleView>> watchActiveSchedules() {
+  Stream<List<MedicationScheduleView>> watchActiveSchedules(DateTime day) {
+    final dayText = _dateText(day)!;
     final query = _database.select(_database.medicationSchedulesTable)
-      ..where((table) => table.isActive.equals(true))
+      ..where(
+        (table) =>
+            table.startDate.isSmallerOrEqualValue(dayText) &
+            (table.endDate.isNull() |
+                table.endDate.isBiggerOrEqualValue(dayText)),
+      )
       ..orderBy(<OrderingTerm Function($MedicationSchedulesTableTable)>[
         (table) => OrderingTerm.asc(table.medicationName),
       ]);

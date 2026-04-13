@@ -5,8 +5,8 @@ abstract interface class MedicationRepository {
   /// Loads active schedules.
   Future<List<MedicationScheduleView>> getActiveSchedules();
 
-  /// Watches active schedules.
-  Stream<List<MedicationScheduleView>> watchActiveSchedules();
+  /// Watches schedules that are active on the given [day].
+  Stream<List<MedicationScheduleView>> watchActiveSchedules(DateTime day);
 
   /// Watches confirmed calendar entries for a specific day.
   Stream<List<MedicationCalendarEntry>> watchCalendarEntriesForDay(
