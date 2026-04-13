@@ -132,15 +132,12 @@ class _EditableProposalAction {
       return switch (field) {
         'start_date' => false, // always has a default
         'end_date' => draft.endDate == null,
-        'time' || 'times' =>
-          draft.times.isEmpty && draft.doseSchedule.isEmpty,
-        'dose_amount' =>
-          draft.doseAmount == null || draft.doseAmount!.isEmpty,
+        'time' || 'times' => draft.times.isEmpty && draft.doseSchedule.isEmpty,
+        'dose_amount' => draft.doseAmount == null || draft.doseAmount!.isEmpty,
         'dose_unit' => draft.doseUnit == null || draft.doseUnit!.isEmpty,
         'medication_name' => draft.medicationName.trim().isEmpty,
         'route' => draft.route == null || draft.route!.isEmpty,
-        'dose_schedule' =>
-          draft.doseSchedule.isEmpty && draft.times.isEmpty,
+        'dose_schedule' => draft.doseSchedule.isEmpty && draft.times.isEmpty,
         'notes' => draft.notes == null || draft.notes!.isEmpty,
         _ => true,
       };

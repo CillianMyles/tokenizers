@@ -14,8 +14,7 @@ void main() {
             'parts': <Map<String, String>>[
               <String, String>{
                 'text': jsonEncode(<String, Object?>{
-                  'assistant_text':
-                      'I drafted a pending ibuprofen schedule.',
+                  'assistant_text': 'I drafted a pending ibuprofen schedule.',
                   'actions': <Map<String, Object?>>[
                     <String, Object?>{
                       'type': 'add_medication_schedule',
