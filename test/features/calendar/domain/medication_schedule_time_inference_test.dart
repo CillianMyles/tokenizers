@@ -16,6 +16,29 @@ void main() {
       );
     });
 
+    test('supports explicit numeric twice-daily phrasing', () {
+      expect(inferDailyDoseCount('Take magnesium 250 mg 2 times daily'), 2);
+      expect(
+        inferMedicationDayParts('Take magnesium 250 mg 2 times daily'),
+        <MedicationDayPart>[
+          MedicationDayPart.morning,
+          MedicationDayPart.evening,
+        ],
+      );
+    });
+
+    test('supports explicit numeric three-times-a-day phrasing', () {
+      expect(inferDailyDoseCount('Take magnesium 250 mg 3 times a day'), 3);
+      expect(
+        inferMedicationDayParts('Take magnesium 250 mg 3 times a day'),
+        <MedicationDayPart>[
+          MedicationDayPart.morning,
+          MedicationDayPart.lunch,
+          MedicationDayPart.evening,
+        ],
+      );
+    });
+
     test('aligns guessed times with nearby existing schedule times', () {
       final activeSchedules = <MedicationScheduleView>[
         MedicationScheduleView(

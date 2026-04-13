@@ -100,13 +100,13 @@ int? inferDailyDoseCount(String userText) {
   }
   if (_matches(
     normalized,
-    r'\b(twice (daily|a day)|two times? (daily|a day)|2x (daily|a day)|bid|every 12 hours?)\b',
+    r'\b(twice (daily|a day)|(two|2) times? (daily|a day)|2x (daily|a day)|bid|every 12 hours?)\b',
   )) {
     return 2;
   }
   if (_matches(
     normalized,
-    r'\b(three times? (daily|a day)|3x (daily|a day)|tid|every 8 hours?)\b',
+    r'\b((three|3) times? (daily|a day)|3x (daily|a day)|tid|every 8 hours?)\b',
   )) {
     return 3;
   }
@@ -209,7 +209,7 @@ bool _matches(String input, String pattern) {
 bool _matchesUnsupportedDailyFrequency(String input) {
   return _matches(
         input,
-        r'\b((four|five|six|seven|eight|nine|\d+)\s+times?\s+(daily|a day)|[4-9]x\s+(daily|a day))\b',
+        r'\b((four|five|six|seven|eight|nine|([4-9]|[1-9]\d+))\s+times?\s+(daily|a day)|[4-9]x\s+(daily|a day))\b',
       ) ||
       _matches(input, r'\b(every\s+(4|5|6|7|9|10|11)\s+hours?)\b');
 }
