@@ -116,6 +116,102 @@ void main() {
       expect(controller.isListening, isTrue);
     },
   );
+
+  test(
+    'VoiceInputController preserves earlier text across listening restarts',
+    () async {
+      final speechService = _FakeSpeechToTextService(
+        prepareResult: const SpeechAvailability.available(localeId: 'en-US'),
+      );
+      final controller = VoiceInputController(
+        speechToTextService: speechService,
+        localeCandidates: const <String>['en-US'],
+      );
+      addTearDown(controller.dispose);
+
+      await controller.start();
+
+      speechService.emit(
+        const SpeechToTextTranscriptEvent(
+          isFinal: true,
+          text: 'Take vitamin D',
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.transcript, 'Take vitamin D');
+      expect(controller.canInsert, isTrue);
+
+      speechService.emit(
+        const SpeechToTextStatusEvent(SpeechToTextStatus.idle),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      await controller.start();
+      expect(controller.transcript, 'Take vitamin D');
+
+      speechService.emit(
+        const SpeechToTextTranscriptEvent(
+          isFinal: false,
+          text: 'after breakfast',
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.transcript, 'Take vitamin D after breakfast');
+
+      speechService.emit(
+        const SpeechToTextTranscriptEvent(
+          isFinal: true,
+          text: 'after breakfast',
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.transcript, 'Take vitamin D after breakfast');
+      expect(speechService.startedLocaleIds, <String>['en-US', 'en-US']);
+    },
+  );
+
+  test(
+    'VoiceInputController preserves earlier text when iOS resets partial text',
+    () async {
+      final speechService = _FakeSpeechToTextService(
+        prepareResult: const SpeechAvailability.available(localeId: 'en-US'),
+      );
+      final controller = VoiceInputController(
+        speechToTextService: speechService,
+        localeCandidates: const <String>['en-US'],
+      );
+      addTearDown(controller.dispose);
+
+      await controller.start();
+
+      speechService.emit(
+        const SpeechToTextTranscriptEvent(
+          isFinal: false,
+          text: 'Take vitamin D',
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.transcript, 'Take vitamin D');
+
+      speechService.emit(
+        const SpeechToTextTranscriptEvent(
+          isFinal: false,
+          text: 'after breakfast',
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.transcript, 'Take vitamin D after breakfast');
+
+      speechService.emit(
+        const SpeechToTextTranscriptEvent(
+          isFinal: true,
+          text: 'after breakfast at 9am',
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.transcript, 'Take vitamin D after breakfast at 9am');
+    },
+  );
 }
 
 class _FakeSpeechToTextService implements SpeechToTextService {
