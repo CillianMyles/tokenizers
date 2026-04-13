@@ -38,7 +38,9 @@ workflows:
       #    GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
 
       java: 17
-      xcode: 16.4
+      # App Store Connect requires uploads built with the iOS 26 SDK from
+      # Xcode 26 or later.
+      xcode: 26.2
       cocoapods: 1.16.2
 
     cache:
