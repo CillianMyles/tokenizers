@@ -1,15 +1,31 @@
-.PHONY: help list
+.PHONY: help list fmt lint test run rules-generate
 
 help:
+	@echo ""
+	@echo "Project Commands:"
+	@echo "    make fmt                   Format Dart code"
+	@echo "    make lint                  Analyze Dart code"
+	@echo "    make test                  Run Flutter tests"
+	@echo "    make run                   Run Flutter with dart defines from .env"
 	@echo ""
 	@echo "GenAI Tooling:"
 	@echo "    make rules-generate        Generate AI agent rules files"
 	@echo ""
 
 list:
-	@grep '^[^#[:space:]].*:' Makefile
+	@awk -F: '/^[[:alnum:]_-]+:/ { print $$1 }' Makefile
 
-.PHONY: rules-generate
+fmt:
+	dart format .
+
+lint:
+	dart analyze
+
+test:
+	flutter test
+
+run:
+	flutter run --dart-define-from-file=.env
 
 # rulesync rewrites the Codex MCP section, so reapply Codex-only approval
 # blocks after generation.

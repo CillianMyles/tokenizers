@@ -12,10 +12,14 @@ import UIKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
-    LocalSpeechToTextPlugin.register(
-      with: engineBridge.pluginRegistry.registrar(
+    guard
+      let registrar = engineBridge.pluginRegistry.registrar(
         forPlugin: "LocalSpeechToTextPlugin"
       )
-    )
+    else {
+      return
+    }
+
+    LocalSpeechToTextPlugin.register(with: registrar)
   }
 }

@@ -59,6 +59,15 @@ If you introduce or change a pattern or rule, document it clearly and reflect it
 When using `mcp__dart_mcp_server__launch_app`, pass the project root as a
 plain filesystem path, not a `file://` URI. For this repo, use `/path/to/tokenizers`.
 
+`launch_app` only accepts `root`, `device`, and `target`. It does not expose
+arbitrary `flutter run` flags such as `--dart-define-from-file=.env`.
+
+If you need custom run flags, start the app manually, for example:
+`flutter run --dart-define-from-file=.env`
+
+Then connect MCP to the running app via `mcp__dart_mcp_server__connect_dart_tooling_daemon`
+using the app's DTD URI.
+
 Example:
 `launch_app(root: "/path/to/tokenizers", device: "macos", target: "lib/main.dart")`
 
