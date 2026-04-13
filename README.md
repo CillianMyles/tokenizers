@@ -184,12 +184,16 @@ Codemagic CD:
 
 - tag builds run the Codemagic `mobile-workflow`
 - iOS builds/signing/TestFlight publishing are enabled
+- the release workflow is pinned to `Xcode 26.2` so App Store uploads are built
+  with the iOS 26 SDK required by App Store Connect
 - Android release steps are intentionally commented out until signing and Play
   credentials exist
 - the Codemagic App Store Connect integration is assumed to be named
   `tokenizers.p8`
 - iOS build numbers come from the `pubspec.yaml` version metadata
   (`x.y.z+build`)
+- if you create a manual/local iOS archive outside Codemagic, use `Xcode 26`
+  or later before uploading to App Store Connect
 
 Release Please:
 
