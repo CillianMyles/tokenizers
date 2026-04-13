@@ -26,13 +26,14 @@ import 'package:tokenizers/src/features/settings/domain/ai_settings.dart';
 void main() {
   testWidgets(
     'MedicationCalendarScreen uses the injected current date for initial and '
-    'reset state',
+    'quick-jump state',
     (tester) async {
       final repository = _FakeMedicationRepository();
       final bootstrap = _buildBootstrap(repository);
       final injectedNow = DateTime(2026, 4, 9, 17, 45);
       final today = DateUtils.dateOnly(injectedNow);
       final previousDay = today.subtract(const Duration(days: 1));
+      final tomorrow = today.add(const Duration(days: 1));
 
       await tester.pumpWidget(
         AppScope(
@@ -48,6 +49,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Thursday, April 9'), findsOneWidget);
+      expect(find.text("Today's doses"), findsOneWidget);
       expect(repository.requestedDays, isNotEmpty);
       expect(repository.requestedDays.last, today);
 
@@ -56,17 +58,26 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Wednesday, April 8'), findsOneWidget);
+      expect(find.text('Doses for Wednesday, April 8'), findsOneWidget);
       expect(repository.requestedDays.length, greaterThan(initialRequestCount));
       expect(repository.requestedDays.last, previousDay);
 
-      final requestCountAfterPrevious = repository.requestedDays.length;
-      await tester.tap(find.text('Wednesday, April 8'));
+      await tester.tap(find.text('Tomorrow'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Friday, April 10'), findsOneWidget);
+      expect(find.text('Doses for Friday, April 10'), findsOneWidget);
+      expect(repository.requestedDays.last, tomorrow);
+
+      final requestCountAfterTomorrow = repository.requestedDays.length;
+      await tester.tap(find.text('Today'));
       await tester.pumpAndSettle();
 
       expect(find.text('Thursday, April 9'), findsOneWidget);
+      expect(find.text("Today's doses"), findsOneWidget);
       expect(
         repository.requestedDays.length,
-        greaterThan(requestCountAfterPrevious),
+        greaterThan(requestCountAfterTomorrow),
       );
       expect(repository.requestedDays.last, today);
     },

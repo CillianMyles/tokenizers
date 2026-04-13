@@ -36,6 +36,7 @@ class _MedicationCalendarScreenState extends State<MedicationCalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final bootstrap = AppScope.of(context);
+    final currentDay = DateUtils.dateOnly(widget.currentDate());
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Center(
@@ -62,9 +63,7 @@ class _MedicationCalendarScreenState extends State<MedicationCalendarScreen> {
                     child: FilledButton.tonal(
                       onPressed: () {
                         setState(() {
-                          _selectedDay = DateUtils.dateOnly(
-                            widget.currentDate(),
-                          );
+                          _selectedDay = currentDay;
                         });
                       },
                       child: Text(formatLongDate(_selectedDay)),
@@ -84,6 +83,36 @@ class _MedicationCalendarScreenState extends State<MedicationCalendarScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: <Widget>[
+                  _QuickJumpChip(
+                    label: 'Today',
+                    onPressed: _selectedDay == currentDay
+                        ? null
+                        : () {
+                            setState(() {
+                              _selectedDay = currentDay;
+                            });
+                          },
+                  ),
+                  _QuickJumpChip(
+                    label: 'Tomorrow',
+                    onPressed:
+                        _selectedDay == currentDay.add(const Duration(days: 1))
+                        ? null
+                        : () {
+                            setState(() {
+                              _selectedDay = currentDay.add(
+                                const Duration(days: 1),
+                              );
+                            });
+                          },
+                  ),
+                ],
+              ),
               const SizedBox(height: 20),
               Expanded(
                 child: SingleChildScrollView(
@@ -98,6 +127,7 @@ class _MedicationCalendarScreenState extends State<MedicationCalendarScreen> {
                               snapshot.data ??
                               const <MedicationCalendarEntry>[];
                           return _CalendarEntriesSection(
+                            currentDay: currentDay,
                             entries: entries,
                             onMarkTaken: (entry) async {
                               final draft = await showMedicationTakenEditor(
@@ -126,6 +156,7 @@ class _MedicationCalendarScreenState extends State<MedicationCalendarScreen> {
                                 );
                               }
                             },
+                            selectedDay: _selectedDay,
                           );
                         },
                       ),
@@ -228,6 +259,18 @@ class _MedicationCalendarScreenState extends State<MedicationCalendarScreen> {
         ),
       ),
     );
+  }
+}
+
+class _QuickJumpChip extends StatelessWidget {
+  const _QuickJumpChip({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return ActionChip(label: Text(label), onPressed: onPressed);
   }
 }
 
@@ -340,12 +383,16 @@ class _ActiveSchedulesSection extends StatelessWidget {
 
 class _CalendarEntriesSection extends StatelessWidget {
   const _CalendarEntriesSection({
+    required this.currentDay,
     required this.entries,
     required this.onMarkTaken,
+    required this.selectedDay,
   });
 
+  final DateTime currentDay;
   final List<MedicationCalendarEntry> entries;
   final Future<void> Function(MedicationCalendarEntry entry) onMarkTaken;
+  final DateTime selectedDay;
 
   @override
   Widget build(BuildContext context) {
@@ -356,7 +403,10 @@ class _CalendarEntriesSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(
-              'Today’s doses',
+              _titleForSelectedDay(
+                currentDay: currentDay,
+                selectedDay: selectedDay,
+              ),
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
@@ -423,5 +473,15 @@ class _CalendarEntriesSection extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _titleForSelectedDay({
+    required DateTime currentDay,
+    required DateTime selectedDay,
+  }) {
+    if (selectedDay == currentDay) {
+      return 'Today\'s doses';
+    }
+    return 'Doses for ${formatLongDate(selectedDay)}';
   }
 }
