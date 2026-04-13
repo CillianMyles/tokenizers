@@ -126,6 +126,26 @@ class _EditableProposalAction {
     };
   }
 
+  /// Returns the subset of [missingFields] not yet filled in [draft].
+  List<String> get remainingMissingFields {
+    return missingFields.where((field) {
+      return switch (field) {
+        'start_date' => false, // always has a default
+        'end_date' => draft.endDate == null,
+        'times' => draft.times.isEmpty && draft.doseSchedule.isEmpty,
+        'dose_amount' =>
+          draft.doseAmount == null || draft.doseAmount!.isEmpty,
+        'dose_unit' => draft.doseUnit == null || draft.doseUnit!.isEmpty,
+        'medication_name' => draft.medicationName.trim().isEmpty,
+        'route' => draft.route == null || draft.route!.isEmpty,
+        'dose_schedule' =>
+          draft.doseSchedule.isEmpty && draft.times.isEmpty,
+        'notes' => draft.notes == null || draft.notes!.isEmpty,
+        _ => true,
+      };
+    }).toList();
+  }
+
   _EditableProposalAction copyWith({
     MedicationScheduleDraft? draft,
     List<String>? missingFields,
@@ -398,10 +418,10 @@ class _ProposalActionEditorCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (action.missingFields.isNotEmpty) ...<Widget>[
+            if (action.remainingMissingFields.isNotEmpty) ...<Widget>[
               const SizedBox(height: 8),
               Text(
-                'Missing details: ${action.missingFields.join(', ')}',
+                'Missing details: ${action.remainingMissingFields.map(humanReadableFieldLabel).join(', ')}',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
