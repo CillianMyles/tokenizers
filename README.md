@@ -103,11 +103,12 @@ GEMINI_API_KEY=your_key_here
 
 This is optional. The app now supports a BYO-AI flow in `Settings`, where
 users can save their own Gemini API key and choose the Gemini model used for
-assistant requests. On native debug builds, a root `.env` file can still
-provide a debug fallback key if no user key has been saved yet. On web, the
-runtime app cannot read a root `.env` file directly, so either save the key in
-`Settings` or launch Flutter with `--dart-define-from-file=.env`. Release
-builds do not read a root `.env` file.
+assistant requests. The current UI exposes `Gemini 2.5 Flash`, `Gemini 3 Flash`,
+and `Gemini 3.1 Pro`. On native debug
+builds, a root `.env` file can still provide a debug fallback key if no user
+key has been saved yet. On web, the runtime app cannot read a root `.env` file
+directly, so either save the key in `Settings` or launch Flutter with
+`--dart-define-from-file=.env`. Release builds do not read a root `.env` file.
 
 Run the app:
 

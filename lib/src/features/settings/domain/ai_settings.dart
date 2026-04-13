@@ -14,13 +14,14 @@ extension AiProviderWireValue on AiProvider {
 }
 
 /// The Gemini models currently exposed in the settings UI.
-enum GeminiModel { gemini25Flash, gemini3FlashPreview }
+enum GeminiModel { gemini25Flash, gemini3FlashPreview, gemini31ProPreview }
 
 extension GeminiModelMetadata on GeminiModel {
   /// Stable storage value for the model selection.
   String get wireValue => switch (this) {
     GeminiModel.gemini25Flash => 'gemini-2.5-flash',
     GeminiModel.gemini3FlashPreview => 'gemini-3-flash-preview',
+    GeminiModel.gemini31ProPreview => 'gemini-3.1-pro-preview',
   };
 
   /// The model id used in Gemini API requests.
@@ -29,13 +30,15 @@ extension GeminiModelMetadata on GeminiModel {
   /// Human-readable label for the settings UI.
   String get label => switch (this) {
     GeminiModel.gemini25Flash => '2.5 Flash',
-    GeminiModel.gemini3FlashPreview => '3 Flash Preview',
+    GeminiModel.gemini3FlashPreview => '3 Flash',
+    GeminiModel.gemini31ProPreview => '3.1 Pro',
   };
 
   /// Short copy explaining the tradeoff of the selected model.
   String get description => switch (this) {
     GeminiModel.gemini25Flash => 'Stable default for fast scheduling.',
     GeminiModel.gemini3FlashPreview => 'Newer reasoning capabilities.',
+    GeminiModel.gemini31ProPreview => 'Best multimodal reasoning.',
   };
 }
 
