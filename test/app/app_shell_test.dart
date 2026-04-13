@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tokenizers/src/app/theme_mode_controller.dart';
 import 'package:tokenizers/src/app/tokenizers_app.dart';
 import 'package:tokenizers/src/bootstrap/demo_app_bootstrap.dart';
 import 'package:tokenizers/src/core/application/event_store.dart';
@@ -28,9 +30,8 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(700, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(
-      TokenizersApp(bootstrap: _buildBootstrap(_FakeMedicationRepository())),
-    );
+    final bootstrap = await _buildBootstrap(_FakeMedicationRepository());
+    await tester.pumpWidget(TokenizersApp(bootstrap: bootstrap));
     await tester.pumpAndSettle();
 
     expect(find.byType(NavigationBar), findsOneWidget);
@@ -41,9 +42,8 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1280, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(
-      TokenizersApp(bootstrap: _buildBootstrap(_FakeMedicationRepository())),
-    );
+    final bootstrap = await _buildBootstrap(_FakeMedicationRepository());
+    await tester.pumpWidget(TokenizersApp(bootstrap: bootstrap));
     await tester.pumpAndSettle();
 
     expect(find.byType(NavigationRail), findsOneWidget);
@@ -61,9 +61,8 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(700, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(
-      TokenizersApp(bootstrap: _buildBootstrap(_FakeMedicationRepository())),
-    );
+    final bootstrap = await _buildBootstrap(_FakeMedicationRepository());
+    await tester.pumpWidget(TokenizersApp(bootstrap: bootstrap));
     await tester.pumpAndSettle();
 
     expect(
@@ -86,9 +85,8 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(700, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(
-      TokenizersApp(bootstrap: _buildBootstrap(_FakeMedicationRepository())),
-    );
+    final bootstrap = await _buildBootstrap(_FakeMedicationRepository());
+    await tester.pumpWidget(TokenizersApp(bootstrap: bootstrap));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Assistant'));
@@ -105,7 +103,11 @@ void main() {
   });
 }
 
-AppBootstrap _buildBootstrap(_FakeMedicationRepository medicationRepository) {
+Future<AppBootstrap> _buildBootstrap(
+  _FakeMedicationRepository medicationRepository,
+) async {
+  SharedPreferences.setMockInitialValues({});
+  final prefs = await SharedPreferences.getInstance();
   final eventStore = _FakeEventStore();
   final conversationRepository = _FakeConversationRepository();
   final modelProvider = _FakeModelProvider();
@@ -128,6 +130,7 @@ AppBootstrap _buildBootstrap(_FakeMedicationRepository medicationRepository) {
     medicationRepository: medicationRepository,
     modelProvider: modelProvider,
     projectionRunner: const _FakeProjectionRunner(),
+    themeModeController: ThemeModeController(preferences: prefs),
   );
 }
 

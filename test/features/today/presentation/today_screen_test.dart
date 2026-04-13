@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tokenizers/src/app/app_scope.dart';
 import 'package:tokenizers/src/app/app_theme.dart';
+import 'package:tokenizers/src/app/theme_mode_controller.dart';
 import 'package:tokenizers/src/bootstrap/demo_app_bootstrap.dart';
 import 'package:tokenizers/src/core/application/event_store.dart';
 import 'package:tokenizers/src/core/application/projection_runner.dart';
@@ -72,12 +74,13 @@ void main() {
       ],
     );
 
+    final bootstrap = await _buildBootstrap(
+      eventStore: eventStore,
+      medicationRepository: repository,
+    );
     await tester.pumpWidget(
       AppScope(
-        bootstrap: _buildBootstrap(
-          eventStore: eventStore,
-          medicationRepository: repository,
-        ),
+        bootstrap: bootstrap,
         child: MaterialApp(theme: AppTheme.light, home: const TodayScreen()),
       ),
     );
@@ -89,10 +92,12 @@ void main() {
   });
 }
 
-AppBootstrap _buildBootstrap({
+Future<AppBootstrap> _buildBootstrap({
   required EventStore eventStore,
   required MedicationRepository medicationRepository,
-}) {
+}) async {
+  SharedPreferences.setMockInitialValues({});
+  final prefs = await SharedPreferences.getInstance();
   final conversationRepository = _FakeConversationRepository();
   final modelProvider = _FakeModelProvider();
 
@@ -114,6 +119,7 @@ AppBootstrap _buildBootstrap({
     medicationRepository: medicationRepository,
     modelProvider: modelProvider,
     projectionRunner: const _FakeProjectionRunner(),
+    themeModeController: ThemeModeController(preferences: prefs),
   );
 }
 

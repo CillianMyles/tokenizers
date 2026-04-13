@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tokenizers/src/app/app_scope.dart';
 import 'package:tokenizers/src/app/app_theme.dart';
+import 'package:tokenizers/src/app/theme_mode_controller.dart';
 import 'package:tokenizers/src/bootstrap/demo_app_bootstrap.dart';
 import 'package:tokenizers/src/core/application/event_store.dart';
 import 'package:tokenizers/src/core/application/projection_runner.dart';
@@ -29,7 +31,7 @@ void main() {
     'quick-jump state',
     (tester) async {
       final repository = _FakeMedicationRepository();
-      final bootstrap = _buildBootstrap(repository);
+      final bootstrap = await _buildBootstrap(repository);
       final injectedNow = DateTime(2026, 4, 9, 17, 45);
       final today = DateUtils.dateOnly(injectedNow);
       final previousDay = today.subtract(const Duration(days: 1));
@@ -84,7 +86,11 @@ void main() {
   );
 }
 
-AppBootstrap _buildBootstrap(_FakeMedicationRepository medicationRepository) {
+Future<AppBootstrap> _buildBootstrap(
+  _FakeMedicationRepository medicationRepository,
+) async {
+  SharedPreferences.setMockInitialValues({});
+  final prefs = await SharedPreferences.getInstance();
   final eventStore = _FakeEventStore();
   final conversationRepository = _FakeConversationRepository();
   final modelProvider = _FakeModelProvider();
@@ -107,6 +113,7 @@ AppBootstrap _buildBootstrap(_FakeMedicationRepository medicationRepository) {
     medicationRepository: medicationRepository,
     modelProvider: modelProvider,
     projectionRunner: const _FakeProjectionRunner(),
+    themeModeController: ThemeModeController(preferences: prefs),
   );
 }
 

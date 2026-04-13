@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tokenizers/src/app/app_scope.dart';
 import 'package:tokenizers/src/app/app_theme.dart';
+import 'package:tokenizers/src/app/theme_mode_controller.dart';
 
 const double _desktopNavigationBreakpoint = 900;
 const int _assistantDestinationIndex = 1;
@@ -53,23 +54,25 @@ class AppShell extends StatelessWidget {
           builder: (context, constraints) {
             final isDesktop =
                 constraints.maxWidth >= _desktopNavigationBreakpoint;
-            return Scaffold(
-              body: _ShellBackground(
-                child: SafeArea(
-                  child: isDesktop
-                      ? _DesktopShellLayout(
-                          configurationError: configurationError,
-                          navigationShell: navigationShell,
-                        )
-                      : _ShellContent(
-                          configurationError: configurationError,
-                          navigationShell: navigationShell,
-                        ),
+            return _InterpolatedComponentTheme(
+              child: Scaffold(
+                body: _ShellBackground(
+                  child: SafeArea(
+                    child: isDesktop
+                        ? _DesktopShellLayout(
+                            configurationError: configurationError,
+                            navigationShell: navigationShell,
+                          )
+                        : _ShellContent(
+                            configurationError: configurationError,
+                            navigationShell: navigationShell,
+                          ),
+                  ),
                 ),
+                bottomNavigationBar: isDesktop
+                    ? null
+                    : _AppNavigationBar(navigationShell: navigationShell),
               ),
-              bottomNavigationBar: isDesktop
-                  ? null
-                  : _AppNavigationBar(navigationShell: navigationShell),
             );
           },
         );
@@ -96,6 +99,50 @@ class _ShellBackground extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// Overrides component theme colors with values read from the interpolated
+/// [ColorScheme] so they transition smoothly during theme animations.
+///
+/// [ThemeData.lerp] properly interpolates [ColorScheme] but snaps component
+/// themes (e.g. [InputDecorationTheme]) at the 50% mark. This widget
+/// re-resolves those colors from the already-interpolated color scheme.
+class _InterpolatedComponentTheme extends StatelessWidget {
+  const _InterpolatedComponentTheme({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Theme(
+      data: theme.copyWith(
+        inputDecorationTheme: theme.inputDecorationTheme.copyWith(
+          fillColor: colorScheme.surfaceContainerLow,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(20),
+            borderSide: BorderSide(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.6),
+            ),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(20),
+            borderSide: BorderSide(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.6),
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(20),
+            borderSide: BorderSide(color: colorScheme.primary, width: 1.5),
+          ),
+        ),
+        cardTheme: theme.cardTheme.copyWith(color: colorScheme.surface),
       ),
       child: child,
     );
@@ -139,44 +186,49 @@ class _DesktopNavigationRail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Theme.of(
-          context,
-        ).colorScheme.surface.withValues(alpha: isDark ? 0.82 : 0.9),
+        color: colorScheme.surface.withValues(alpha: isDark ? 0.82 : 0.9),
         border: Border.all(
-          color: Theme.of(
-            context,
-          ).colorScheme.outlineVariant.withValues(alpha: 0.85),
+          color: colorScheme.outlineVariant.withValues(alpha: 0.85),
         ),
         borderRadius: BorderRadius.circular(28),
         boxShadow: <BoxShadow>[
           BoxShadow(
             blurRadius: 30,
-            color: Theme.of(
-              context,
-            ).colorScheme.shadow.withValues(alpha: isDark ? 0.2 : 0.08),
+            color: colorScheme.shadow.withValues(alpha: isDark ? 0.2 : 0.08),
             offset: const Offset(0, 18),
           ),
         ],
       ),
-      child: NavigationRail(
-        backgroundColor: Colors.transparent,
-        extended: true,
-        groupAlignment: -1,
-        minExtendedWidth: 216,
-        onDestinationSelected: navigationShell.goBranch,
-        selectedIndex: navigationShell.currentIndex,
-        destinations: _shellDestinations
-            .map((destination) {
-              return NavigationRailDestination(
-                icon: Icon(destination.icon),
-                label: Text(destination.label),
-                selectedIcon: Icon(destination.selectedIcon),
-              );
-            })
-            .toList(growable: false),
+      child: SizedBox(
+        width: 216,
+        child: Column(
+          children: <Widget>[
+            Expanded(
+              child: NavigationRail(
+                backgroundColor: Colors.transparent,
+                extended: true,
+                groupAlignment: -1,
+                minExtendedWidth: 216,
+                onDestinationSelected: navigationShell.goBranch,
+                selectedIndex: navigationShell.currentIndex,
+                destinations: _shellDestinations
+                    .map((destination) {
+                      return NavigationRailDestination(
+                        icon: Icon(destination.icon),
+                        label: Text(destination.label),
+                        selectedIcon: Icon(destination.selectedIcon),
+                      );
+                    })
+                    .toList(growable: false),
+              ),
+            ),
+            const _ThemeModeToggle(),
+          ],
+        ),
       ),
     );
   }
@@ -231,18 +283,38 @@ class _AppNavigationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return NavigationBar(
-      selectedIndex: navigationShell.currentIndex,
-      onDestinationSelected: navigationShell.goBranch,
-      destinations: _shellDestinations
-          .map((destination) {
-            return NavigationDestination(
-              icon: Icon(destination.icon),
-              label: destination.label,
-              selectedIcon: Icon(destination.selectedIcon),
-            );
-          })
-          .toList(growable: false),
+    final controller = AppScope.of(context).themeModeController;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: _CompactThemeModeToggle(
+              controller: controller,
+              isDark: isDark,
+              colorScheme: colorScheme,
+            ),
+          ),
+        ),
+        NavigationBar(
+          selectedIndex: navigationShell.currentIndex,
+          onDestinationSelected: navigationShell.goBranch,
+          destinations: _shellDestinations
+              .map((destination) {
+                return NavigationDestination(
+                  icon: Icon(destination.icon),
+                  label: destination.label,
+                  selectedIcon: Icon(destination.selectedIcon),
+                );
+              })
+              .toList(growable: false),
+        ),
+      ],
     );
   }
 }
@@ -303,6 +375,82 @@ class _ConfigurationBanner extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ThemeModeToggle extends StatelessWidget {
+  const _ThemeModeToggle();
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = AppScope.of(context).themeModeController;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () =>
+              controller.toggle(MediaQuery.platformBrightnessOf(context)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: <Widget>[
+                Icon(
+                  isDark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+                  size: 20,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 12),
+                Flexible(
+                  child: Text(
+                    isDark ? 'Dark Mode' : 'Light Mode',
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.labelLarge?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CompactThemeModeToggle extends StatelessWidget {
+  const _CompactThemeModeToggle({
+    required this.controller,
+    required this.isDark,
+    required this.colorScheme,
+  });
+
+  final ThemeModeController controller;
+  final bool isDark;
+  final ColorScheme colorScheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: Icon(
+        isDark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+        size: 18,
+      ),
+      tooltip: isDark ? 'Switch to light mode' : 'Switch to dark mode',
+      onPressed: () =>
+          controller.toggle(MediaQuery.platformBrightnessOf(context)),
+      style: IconButton.styleFrom(
+        foregroundColor: colorScheme.onSurfaceVariant,
       ),
     );
   }

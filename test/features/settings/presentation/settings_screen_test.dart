@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tokenizers/src/app/app_scope.dart';
 import 'package:tokenizers/src/app/app_theme.dart';
+import 'package:tokenizers/src/app/theme_mode_controller.dart';
 import 'package:tokenizers/src/bootstrap/demo_app_bootstrap.dart';
 import 'package:tokenizers/src/core/application/event_store.dart';
 import 'package:tokenizers/src/core/application/projection_runner.dart';
@@ -37,7 +39,7 @@ void main() {
         repository: settingsRepository,
       );
       final resetService = _RecordingLocalDataResetService();
-      final bootstrap = _buildBootstrap(
+      final bootstrap = await _buildBootstrap(
         localDataResetService: resetService,
         settingsController: settingsController,
       );
@@ -91,10 +93,12 @@ void main() {
   );
 }
 
-AppBootstrap _buildBootstrap({
+Future<AppBootstrap> _buildBootstrap({
   required LocalDataResetService localDataResetService,
   required AiSettingsController settingsController,
-}) {
+}) async {
+  SharedPreferences.setMockInitialValues({});
+  final prefs = await SharedPreferences.getInstance();
   final eventStore = _FakeEventStore();
   final conversationRepository = _FakeConversationRepository();
   final medicationRepository = _FakeMedicationRepository();
@@ -116,6 +120,7 @@ AppBootstrap _buildBootstrap({
     medicationRepository: medicationRepository,
     modelProvider: modelProvider,
     projectionRunner: const _FakeProjectionRunner(),
+    themeModeController: ThemeModeController(preferences: prefs),
   );
 }
 
