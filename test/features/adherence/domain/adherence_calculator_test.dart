@@ -43,7 +43,7 @@ void main() {
     String type = 'medication_taken',
   }) {
     return EventEnvelope<DomainEvent>(
-      eventId: 'event-${scheduleId}-${scheduledFor.toIso8601String()}-$type',
+      eventId: 'event-$scheduleId-${scheduledFor.toIso8601String()}-$type',
       aggregateType: 'medication',
       aggregateId: scheduleId,
       actorType: EventActorType.user,

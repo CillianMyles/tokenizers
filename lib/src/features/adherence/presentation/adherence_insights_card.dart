@@ -16,7 +16,6 @@ class AdherenceInsightsCard extends StatelessWidget {
     }
 
     final textTheme = Theme.of(context).textTheme;
-    final percentage = (summary.overallRate * 100).round();
 
     return Card(
       child: Padding(
