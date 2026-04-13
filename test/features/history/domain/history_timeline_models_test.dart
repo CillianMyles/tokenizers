@@ -218,6 +218,50 @@ void main() {
       );
     });
 
+    test(
+      'removes the superseded adherence item when correction changes slot',
+      () {
+        final groups = buildHistoryTimeline(<EventEnvelope<DomainEvent>>[
+          _event(
+            aggregateId: 'schedule-1',
+            eventId: 'event-1',
+            eventType: 'medication_taken',
+            occurredAt: DateTime(2026, 4, 9, 9, 5),
+            payload: const <String, Object?>{
+              'schedule_id': 'schedule-1',
+              'medication_name': 'Vitamin D',
+              'scheduled_for': '2026-04-09T09:00:00.000',
+              'taken_at': '2026-04-09T09:05:00.000',
+            },
+          ),
+          _event(
+            aggregateId: 'schedule-1',
+            eventId: 'event-2',
+            eventType: 'medication_taken_corrected',
+            occurredAt: DateTime(2026, 4, 9, 21, 12),
+            payload: const <String, Object?>{
+              'previous_scheduled_for': '2026-04-09T09:00:00.000',
+              'previous_taken_at': '2026-04-09T09:05:00.000',
+              'schedule_id': 'schedule-1',
+              'medication_name': 'Vitamin D',
+              'scheduled_for': '2026-04-09T21:00:00.000',
+              'taken_at': '2026-04-09T21:12:00.000',
+            },
+          ),
+        ]);
+
+        expect(groups.single.items, hasLength(1));
+        expect(
+          groups.single.items.single.description,
+          'Vitamin D • scheduled 21:00',
+        );
+        expect(
+          groups.single.items.single.occurredAt,
+          DateTime(2026, 4, 9, 21, 12),
+        );
+      },
+    );
+
     test('shows logged time when it differs from the taken time', () {
       final item = historyTimelineItemFromEvent(
         _event(

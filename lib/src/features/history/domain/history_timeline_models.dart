@@ -1,5 +1,6 @@
 import 'package:tokenizers/src/core/domain/domain_event.dart';
 import 'package:tokenizers/src/core/domain/event_envelope.dart';
+import 'package:tokenizers/src/core/domain/medication_adherence_events.dart';
 import 'package:tokenizers/src/core/domain/medication_dose_schedule.dart';
 import 'package:tokenizers/src/core/presentation/date_formatters.dart';
 
@@ -363,28 +364,7 @@ bool _isSameMinute(DateTime left, DateTime right) {
 }
 
 Set<String> _latestAdherenceEventIds(List<EventEnvelope<DomainEvent>> events) {
-  final latestByKey = <String, EventEnvelope<DomainEvent>>{};
-  for (final event in events) {
-    if (event.event.type != 'medication_taken' &&
-        event.event.type != 'medication_taken_corrected') {
-      continue;
-    }
-    final payload = event.event.payload;
-    final scheduleId = payload['schedule_id'] as String?;
-    final scheduledFor = payload['scheduled_for'] as String?;
-    if (scheduleId == null || scheduledFor == null || scheduledFor.isEmpty) {
-      continue;
-    }
-    final key = '$scheduleId@$scheduledFor';
-    final existing = latestByKey[key];
-    if (existing == null ||
-        event.occurredAt.isAfter(existing.occurredAt) ||
-        (event.occurredAt == existing.occurredAt &&
-            event.event.type == 'medication_taken_corrected')) {
-      latestByKey[key] = event;
-    }
-  }
-  return latestByKey.values.map((event) => event.eventId).toSet();
+  return latestMedicationTakenEventIds(events);
 }
 
 int _kindSortOrder(HistoryTimelineItemKind kind) {
