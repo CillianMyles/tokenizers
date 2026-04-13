@@ -102,13 +102,19 @@ GEMINI_API_KEY=your_key_here
 ```
 
 This is optional. The app now supports a BYO-AI flow in `Settings`, where
-users can save their own Gemini API key and choose the Gemini model used for
-assistant requests. The current UI exposes `Gemini 2.5 Flash`, `Gemini 3 Flash`,
-and `Gemini 3.1 Pro`. On native debug
-builds, a root `.env` file can still provide a debug fallback key if no user
-key has been saved yet. On web, the runtime app cannot read a root `.env` file
-directly, so either save the key in `Settings` or launch Flutter with
-`--dart-define-from-file=.env`. Release builds do not read a root `.env` file.
+users can either:
+
+- save their own Gemini API key and choose the Gemini model used for
+  assistant requests
+- switch to an offline Gemma 4 flow, download a local model from Hugging Face,
+  and keep assistant inference on-device
+
+The current Gemini UI exposes `Gemini 2.5 Flash`, `Gemini 3 Flash`, and
+`Gemini 3.1 Pro`. On native debug builds, a root `.env` file can still provide
+a debug fallback Gemini key if no user key has been saved yet. On web, the
+runtime app cannot read a root `.env` file directly, so either save the key in
+`Settings` or launch Flutter with `--dart-define-from-file=.env`. Release
+builds do not read a root `.env` file.
 
 Run the app:
 
@@ -132,6 +138,33 @@ flutter run -d chrome --dart-define-from-file=.env
 If neither a saved Gemini key nor a debug-build `.env` key is available, the
 assistant remains visible but live assistant submission is disabled. Manual
 calendar and adherence flows still work.
+
+## Offline Gemma 4
+
+`Settings` now includes an `Assistant Engine` switch and an offline Gemma 4
+workflow inspired by Google AI Edge Gallery.
+
+The current local presets are:
+
+- `Gemma 4 E2B`
+  - recommended default
+  - smaller download, faster on-device inference
+- `Gemma 4 E4B`
+  - larger checkpoint with more reasoning headroom
+
+When the offline provider is selected:
+
+- the app downloads the selected Gemma 4 model directly from Hugging Face
+- the model is stored locally by `flutter_gemma`
+- the assistant routes proposal generation through the local model instead of
+  Gemini
+
+Platform notes:
+
+- web uses Gemma 4 `-web.task` builds and the MediaPipe GenAI web runtime
+- mobile and desktop use LiteRT-LM `.litertlm` builds
+- macOS desktop support requires Apple Silicon
+- iOS requires iOS 16 or newer for the local model path
 
 Optional: seed demo data for the same local app target before launching the
 main app. The demo dataset lives in [assets/demo/demo_seed.txt](assets/demo/demo_seed.txt),
@@ -161,6 +194,7 @@ All app data is stored locally.
 - Gemini API keys use secure storage where supported, with shared-preferences
   fallback on unsupported platforms
 - assistant voice input keeps raw audio on-device and only sends the user-reviewed transcript to Gemini
+- offline Gemma model files are stored locally by `flutter_gemma`
 - `Settings` includes a `Danger Zone` action that clears local schedules,
   history, conversations, and saved AI settings from the current device
 - installs are no longer pre-seeded with sample medications, chat messages, or history
