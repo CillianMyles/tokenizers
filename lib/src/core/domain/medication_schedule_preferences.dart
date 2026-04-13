@@ -1,7 +1,5 @@
 import 'package:tokenizers/src/core/domain/medication_dose_schedule.dart';
 
-const _timePattern = r'^\d{2}:\d{2}$';
-
 /// User-configurable default times for common medication day parts.
 class MedicationSchedulePreferences {
   /// Creates medication schedule time preferences.
@@ -67,8 +65,18 @@ String normalizeMedicationPreferenceTime(
   required String fallback,
 }) {
   final normalized = normalizeMedicationTimeString(value);
-  if (RegExp(_timePattern).hasMatch(normalized)) {
+  if (_isValidPreferenceTime(normalized)) {
     return normalized;
   }
   return fallback;
+}
+
+bool _isValidPreferenceTime(String value) {
+  final match = RegExp(r'^(\d{2}):(\d{2})$').firstMatch(value);
+  if (match == null) {
+    return false;
+  }
+  final hour = int.parse(match.group(1)!);
+  final minute = int.parse(match.group(2)!);
+  return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59;
 }

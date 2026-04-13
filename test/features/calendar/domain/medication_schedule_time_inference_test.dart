@@ -66,5 +66,33 @@ void main() {
       expect(action.times, <String>['08:00', '20:00']);
       expect(action.missingFields, isEmpty);
     });
+
+    test('preserves existing times for dose-only schedule updates', () {
+      final activeSchedules = <MedicationScheduleView>[
+        MedicationScheduleView(
+          medicationName: 'Tacrolimus',
+          scheduleId: 'schedule-1',
+          startDate: DateTime(2026, 4, 5),
+          times: const <String>['08:00', '20:00'],
+        ),
+      ];
+
+      final action = applyMedicationTimeFallback(
+        activeSchedules: activeSchedules,
+        action: const ModelProposalAction(
+          actionId: 'action-1',
+          doseAmount: '1.5',
+          doseUnit: 'mg',
+          medicationName: 'Tacrolimus',
+          targetScheduleId: 'schedule-1',
+          type: ModelProposalActionType.updateMedicationSchedule,
+        ),
+        preferences: const MedicationSchedulePreferences(),
+        userText: 'Increase tacrolimus to 1.5 mg twice daily',
+      );
+
+      expect(action.type, ModelProposalActionType.updateMedicationSchedule);
+      expect(action.times, <String>['08:00', '20:00']);
+    });
   });
 }

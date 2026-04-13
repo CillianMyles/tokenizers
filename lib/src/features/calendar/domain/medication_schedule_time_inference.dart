@@ -16,6 +16,16 @@ ModelProposalAction applyMedicationTimeFallback({
     return _copyAction(action, times: resolvedTimes);
   }
 
+  final existingSchedule = _findTargetSchedule(
+    activeSchedules,
+    action.targetScheduleId,
+  );
+  if (action.type == ModelProposalActionType.updateMedicationSchedule &&
+      existingSchedule != null &&
+      existingSchedule.resolvedTimes.isNotEmpty) {
+    return _copyAction(action, times: existingSchedule.resolvedTimes);
+  }
+
   final requestedDayParts = inferMedicationDayParts(userText);
   if (requestedDayParts.isEmpty ||
       !_supportsTimeInference(action) ||
@@ -191,6 +201,21 @@ bool _isOnlyTimeMissing(List<String> missingFields) {
 
 bool _matches(String input, String pattern) {
   return RegExp(pattern, caseSensitive: false).hasMatch(input);
+}
+
+MedicationScheduleView? _findTargetSchedule(
+  List<MedicationScheduleView> activeSchedules,
+  String? targetScheduleId,
+) {
+  if (targetScheduleId == null) {
+    return null;
+  }
+  for (final schedule in activeSchedules) {
+    if (schedule.scheduleId == targetScheduleId) {
+      return schedule;
+    }
+  }
+  return null;
 }
 
 int _minutesSinceMidnight(String time) {

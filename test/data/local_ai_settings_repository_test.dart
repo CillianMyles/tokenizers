@@ -90,6 +90,34 @@ void main() {
       );
     });
 
+    test('normalizes invalid persisted medication timing defaults', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'ai_settings.medication_time.morning': '25:99',
+        'ai_settings.medication_time.lunch': '13:30',
+        'ai_settings.medication_time.evening': '88:00',
+      });
+      final preferences = await SharedPreferences.getInstance();
+      final apiKeyStore = _InMemoryApiKeyStore(
+        kind: ApiKeyStorageKind.secureStorage,
+      );
+      final repository = LocalAiSettingsRepository(
+        apiKeyStore: apiKeyStore,
+        preferences: preferences,
+      );
+
+      final settings = await repository.load();
+
+      expect(
+        settings.medicationSchedulePreferences.morningTime,
+        MedicationSchedulePreferences.defaultMorningTime,
+      );
+      expect(settings.medicationSchedulePreferences.lunchTime, '13:30');
+      expect(
+        settings.medicationSchedulePreferences.eveningTime,
+        MedicationSchedulePreferences.defaultEveningTime,
+      );
+    });
+
     test('reports a debug env key source from the adapter', () async {
       final preferences = await SharedPreferences.getInstance();
       final repository = LocalAiSettingsRepository(
