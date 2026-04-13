@@ -118,7 +118,7 @@ void main() {
   });
 
   testWidgets(
-    'ConversationHistoryScreen keeps full filter labels on narrow layouts',
+    'ConversationHistoryScreen uses horizontally scrollable chips on narrow layouts',
     (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
@@ -141,6 +141,15 @@ void main() {
       expect(find.text('Assistant'), findsOneWidget);
       expect(find.text('Medication'), findsOneWidget);
       expect(find.text('Adherence'), findsOneWidget);
+      expect(find.byType(ChoiceChip), findsNWidgets(4));
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is SingleChildScrollView &&
+              widget.scrollDirection == Axis.horizontal,
+        ),
+        findsOneWidget,
+      );
     },
   );
 }

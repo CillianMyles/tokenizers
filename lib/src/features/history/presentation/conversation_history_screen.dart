@@ -87,43 +87,24 @@ class _HistoryFilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final useExpandedLayout = constraints.maxWidth < 420;
-        return SegmentedButton<_HistoryFilter>(
-          expandedInsets: useExpandedLayout ? EdgeInsets.zero : null,
-          selected: <_HistoryFilter>{selectedFilter},
-          showSelectedIcon: false,
-          style: ButtonStyle(
-            visualDensity: VisualDensity.compact,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            padding: const WidgetStatePropertyAll(
-              EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            ),
-            textStyle: WidgetStatePropertyAll(theme.textTheme.labelMedium),
-          ),
-          onSelectionChanged: (selection) {
-            onFilterSelected(selection.first);
-          },
-          segments: _HistoryFilter.values
-              .map((filter) {
-                return ButtonSegment<_HistoryFilter>(
-                  value: filter,
-                  label: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      _labelForFilter(filter),
-                      maxLines: 1,
-                      softWrap: false,
-                    ),
-                  ),
-                  tooltip: _labelForFilter(filter),
-                );
-              })
-              .toList(growable: false),
-        );
-      },
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: _HistoryFilter.values.indexed
+            .expand((entry) {
+              final (index, filter) = entry;
+              return <Widget>[
+                ChoiceChip(
+                  label: Text(_labelForFilter(filter)),
+                  selected: selectedFilter == filter,
+                  onSelected: (_) => onFilterSelected(filter),
+                ),
+                if (index != _HistoryFilter.values.length - 1)
+                  const SizedBox(width: 8),
+              ];
+            })
+            .toList(growable: false),
+      ),
     );
   }
 
