@@ -25,7 +25,8 @@ class VoiceInputController extends ChangeNotifier {
   bool _isListening = false;
   bool _isPreparing = false;
   bool _isProcessing = false;
-  String _transcript = '';
+  String _committedTranscript = '';
+  String _activeTranscript = '';
 
   /// Suggested locale fallbacks for local speech recognition.
   static List<String> defaultLocaleCandidates() {
@@ -55,7 +56,8 @@ class VoiceInputController extends ChangeNotifier {
   bool get isProcessing => _isProcessing;
 
   /// Current transcript shown to the user.
-  String get transcript => _transcript;
+  String get transcript =>
+      _joinTranscript(_committedTranscript, _activeTranscript);
 
   /// Human-readable helper copy for the current state.
   String get helperMessage => _helperMessage;
@@ -65,7 +67,7 @@ class VoiceInputController extends ChangeNotifier {
 
   /// Whether the user can insert the current transcript into the composer.
   bool get canInsert =>
-      _transcript.trim().isNotEmpty && !_isPreparing && !_isListening;
+      transcript.trim().isNotEmpty && !_isPreparing && !_isListening;
 
   /// Whether the controller is busy with microphone work.
   bool get isBusy => _isPreparing || _isListening || _isProcessing;
@@ -81,7 +83,8 @@ class VoiceInputController extends ChangeNotifier {
     _isPreparing = true;
     _isProcessing = false;
     _isListening = false;
-    _transcript = '';
+    _committedTranscript = transcript;
+    _activeTranscript = '';
     notifyListeners();
 
     SpeechAvailability availability;
@@ -189,7 +192,7 @@ class VoiceInputController extends ChangeNotifier {
             _isListening = false;
             _isProcessing = false;
             if (_errorMessage == null) {
-              _helperMessage = _transcript.trim().isEmpty
+              _helperMessage = transcript.trim().isEmpty
                   ? 'No speech detected yet.'
                   : 'Review the transcript before inserting it.';
             }
@@ -206,11 +209,33 @@ class VoiceInputController extends ChangeNotifier {
         }
       case SpeechToTextTranscriptEvent():
         _errorMessage = null;
-        _transcript = event.text.trim();
+        final text = event.text.trim();
         if (event.isFinal) {
+          _activeTranscript = _nextActiveTranscript(
+            previousText: _activeTranscript,
+            nextText: text,
+          );
+          _committedTranscript = _appendTranscript(
+            _committedTranscript,
+            _activeTranscript,
+          );
+          _activeTranscript = '';
           _isListening = false;
           _isProcessing = false;
           _helperMessage = 'Review the transcript before inserting it.';
+        } else {
+          if (_looksLikeContinuation(
+            previousText: _activeTranscript,
+            nextText: text,
+          )) {
+            _activeTranscript = text;
+          } else {
+            _committedTranscript = _appendTranscript(
+              _committedTranscript,
+              _activeTranscript,
+            );
+            _activeTranscript = text;
+          }
         }
     }
     notifyListeners();
@@ -222,8 +247,69 @@ class VoiceInputController extends ChangeNotifier {
     _isListening = false;
     _isPreparing = false;
     _isProcessing = false;
-    _transcript = transcript;
+    _committedTranscript = transcript.trim();
+    _activeTranscript = '';
     notifyListeners();
+  }
+
+  String _appendTranscript(String existingText, String nextText) {
+    final trimmedExistingText = existingText.trim();
+    final trimmedNextText = nextText.trim();
+    if (trimmedNextText.isEmpty) {
+      return trimmedExistingText;
+    }
+    if (trimmedExistingText.isEmpty) {
+      return trimmedNextText;
+    }
+    return '$trimmedExistingText $trimmedNextText';
+  }
+
+  String _joinTranscript(String committedText, String activeText) {
+    return _appendTranscript(committedText, activeText);
+  }
+
+  bool _looksLikeContinuation({
+    required String previousText,
+    required String nextText,
+  }) {
+    final trimmedPreviousText = previousText.trim();
+    final trimmedNextText = nextText.trim();
+    if (trimmedPreviousText.isEmpty || trimmedNextText.isEmpty) {
+      return true;
+    }
+    if (trimmedPreviousText == trimmedNextText) {
+      return true;
+    }
+    if (trimmedPreviousText.startsWith(trimmedNextText) ||
+        trimmedNextText.startsWith(trimmedPreviousText)) {
+      return true;
+    }
+    return _sharedPrefixLength(trimmedPreviousText, trimmedNextText) >=
+        trimmedPreviousText.length ~/ 2;
+  }
+
+  String _nextActiveTranscript({
+    required String previousText,
+    required String nextText,
+  }) {
+    return _looksLikeContinuation(
+          previousText: previousText,
+          nextText: nextText,
+        )
+        ? nextText.trim()
+        : _appendTranscript(previousText, nextText);
+  }
+
+  int _sharedPrefixLength(String leftText, String rightText) {
+    final limit = leftText.length < rightText.length
+        ? leftText.length
+        : rightText.length;
+    var index = 0;
+    while (index < limit &&
+        leftText.codeUnitAt(index) == rightText.codeUnitAt(index)) {
+      index += 1;
+    }
+    return index;
   }
 
   @override
