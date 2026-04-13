@@ -43,7 +43,7 @@ void main() {
             value: 'test-key',
           ),
           settings: const AiSettings(
-            geminiModel: GeminiModel.gemini3FlashPreview,
+            geminiModel: GeminiModel.gemini31ProPreview,
           ),
         ),
       );
@@ -62,7 +62,7 @@ void main() {
 
       expect(
         requestUri.toString(),
-        contains('models/gemini-3-flash-preview:generateContent'),
+        contains('models/gemini-3.1-pro-preview:generateContent'),
       );
       expect(response, isA<ModelResponseContract>());
     });

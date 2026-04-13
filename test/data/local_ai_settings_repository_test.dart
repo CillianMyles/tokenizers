@@ -35,6 +35,26 @@ void main() {
       expect(preferences.containsKey('ai_settings.gemini_api_key'), isFalse);
     });
 
+    test('stores the Gemini 3.1 Pro preview selection', () async {
+      final preferences = await SharedPreferences.getInstance();
+      final apiKeyStore = _InMemoryApiKeyStore(
+        kind: ApiKeyStorageKind.secureStorage,
+      );
+      final repository = LocalAiSettingsRepository(
+        apiKeyStore: apiKeyStore,
+        preferences: preferences,
+      );
+
+      await repository.save(
+        const AiSettings(geminiModel: GeminiModel.gemini31ProPreview),
+      );
+
+      expect(
+        preferences.getString('ai_settings.gemini_model'),
+        'gemini-3.1-pro-preview',
+      );
+    });
+
     test('reports a debug env key source from the adapter', () async {
       final preferences = await SharedPreferences.getInstance();
       final repository = LocalAiSettingsRepository(
