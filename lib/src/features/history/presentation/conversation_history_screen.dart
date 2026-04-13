@@ -87,27 +87,48 @@ class _HistoryFilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: _HistoryFilter.values
-          .map((filter) {
-            return ChoiceChip(
-              label: Text(_labelForFilter(filter)),
-              selected: selectedFilter == filter,
-              onSelected: (_) => onFilterSelected(filter),
-            );
-          })
-          .toList(growable: false),
+    final theme = Theme.of(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final useCompactLabels = constraints.maxWidth < 420;
+        return SegmentedButton<_HistoryFilter>(
+          selected: <_HistoryFilter>{selectedFilter},
+          showSelectedIcon: false,
+          style: ButtonStyle(
+            visualDensity: VisualDensity.compact,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            padding: const WidgetStatePropertyAll(
+              EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            ),
+            textStyle: WidgetStatePropertyAll(theme.textTheme.labelMedium),
+          ),
+          onSelectionChanged: (selection) {
+            onFilterSelected(selection.first);
+          },
+          segments: _HistoryFilter.values
+              .map((filter) {
+                return ButtonSegment<_HistoryFilter>(
+                  value: filter,
+                  label: Text(
+                    _labelForFilter(filter, compact: useCompactLabels),
+                    overflow: TextOverflow.fade,
+                    softWrap: false,
+                  ),
+                  tooltip: _labelForFilter(filter),
+                );
+              })
+              .toList(growable: false),
+        );
+      },
     );
   }
 
-  String _labelForFilter(_HistoryFilter filter) {
+  String _labelForFilter(_HistoryFilter filter, {bool compact = false}) {
     return switch (filter) {
       _HistoryFilter.all => 'All',
-      _HistoryFilter.assistant => 'Assistant',
-      _HistoryFilter.medication => 'Medication',
-      _HistoryFilter.adherence => 'Adherence',
+      _HistoryFilter.assistant => compact ? 'Chat' : 'Assistant',
+      _HistoryFilter.medication => compact ? 'Meds' : 'Medication',
+      _HistoryFilter.adherence => compact ? 'Taken' : 'Adherence',
     };
   }
 }
