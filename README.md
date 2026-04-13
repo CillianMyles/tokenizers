@@ -100,9 +100,11 @@ GEMINI_API_KEY=your_key_here
 
 This is optional. The app now supports a BYO-AI flow in `Settings`, where
 users can save their own Gemini API key and choose the Gemini model used for
-assistant requests. During local debug builds, `.env` can still provide a
-debug fallback key if no user key has been saved yet. Release builds do not
-bundle or read `.env`.
+assistant requests. On native debug builds, a root `.env` file can still
+provide a debug fallback key if no user key has been saved yet. On web, the
+runtime app cannot read a root `.env` file directly, so either save the key in
+`Settings` or launch Flutter with `--dart-define-from-file=.env`. Release
+builds do not read a root `.env` file.
 
 Run the app:
 
@@ -114,6 +116,13 @@ Or:
 
 ```bash
 flutter run -d chrome
+```
+
+If you want Chrome to pick up the same local `.env` values during development,
+use:
+
+```bash
+flutter run -d chrome --dart-define-from-file=.env
 ```
 
 If neither a saved Gemini key nor a debug-build `.env` key is available, the

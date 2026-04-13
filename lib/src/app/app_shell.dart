@@ -4,6 +4,8 @@ import 'package:tokenizers/src/app/app_scope.dart';
 import 'package:tokenizers/src/app/app_theme.dart';
 
 const double _desktopNavigationBreakpoint = 900;
+const int _assistantDestinationIndex = 1;
+const int _settingsDestinationIndex = 4;
 const List<_ShellDestination> _shellDestinations = <_ShellDestination>[
   _ShellDestination(
     icon: Icons.today_outlined,
@@ -191,12 +193,28 @@ class _ShellContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final showConfigurationBanner =
+        navigationShell.currentIndex == _assistantDestinationIndex;
+    final configurationMessage = showConfigurationBanner
+        ? configurationError
+        : null;
+
     return Column(
       children: <Widget>[
-        if (configurationError case final message?) ...<Widget>[
+        if (configurationMessage case final message?) ...<Widget>[
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: _ConfigurationBanner(message: message),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: _ConfigurationBanner(
+                  message: message,
+                  onOpenSettings: () {
+                    navigationShell.goBranch(_settingsDestinationIndex);
+                  },
+                ),
+              ),
+            ),
           ),
           const SizedBox(height: 8),
         ],
@@ -230,31 +248,57 @@ class _AppNavigationBar extends StatelessWidget {
 }
 
 class _ConfigurationBanner extends StatelessWidget {
-  const _ConfigurationBanner({required this.message});
+  const _ConfigurationBanner({
+    required this.message,
+    required this.onOpenSettings,
+  });
 
   final String message;
+  final VoidCallback onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: colorScheme.errorContainer,
-        borderRadius: BorderRadius.circular(16),
+        color: colorScheme.surfaceContainerLow.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.75),
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Icon(Icons.error_outline, color: colorScheme.onErrorContainer),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                message,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onErrorContainer,
-                  fontWeight: FontWeight.w600,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Icon(
+                  Icons.info_outline,
+                  size: 18,
+                  color: colorScheme.onSurfaceVariant,
                 ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                onPressed: onOpenSettings,
+                icon: const Icon(Icons.settings_outlined),
+                label: const Text('Open Settings'),
               ),
             ),
           ],

@@ -54,6 +54,55 @@ void main() {
 
     expect(find.text('Bring Your Own AI'), findsOneWidget);
   });
+
+  testWidgets('configuration banner only appears on the assistant tab', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(700, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      TokenizersApp(bootstrap: _buildBootstrap(_FakeMedicationRepository())),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Add a Gemini API key in Settings to use the assistant.'),
+      findsNothing,
+    );
+
+    await tester.tap(find.text('Assistant'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Add a Gemini API key in Settings to use the assistant.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('configuration banner opens settings from the assistant tab', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(700, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      TokenizersApp(bootstrap: _buildBootstrap(_FakeMedicationRepository())),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Assistant'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Open Settings'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bring Your Own AI'), findsOneWidget);
+    expect(
+      find.text('Add a Gemini API key in Settings to use the assistant.'),
+      findsNothing,
+    );
+  });
 }
 
 AppBootstrap _buildBootstrap(_FakeMedicationRepository medicationRepository) {
