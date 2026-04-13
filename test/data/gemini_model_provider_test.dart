@@ -44,7 +44,7 @@ void main() {
       final provider = GeminiModelProvider(apiKey: 'test-key', client: client);
 
       final response = await provider.generateResponse(
-        activeSchedules: const [],
+        confirmedSchedules: const [],
         conversation: const [],
         threadId: 'thread-1',
         userText: 'Add ibuprofen 200 mg at 8am',
@@ -85,7 +85,7 @@ void main() {
       final provider = GeminiModelProvider(apiKey: 'test-key', client: client);
 
       await provider.generateResponse(
-        activeSchedules: const [],
+        confirmedSchedules: const [],
         conversation: const [],
         threadId: 'thread-1',
         userText: 'Please read this script.',

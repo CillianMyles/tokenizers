@@ -54,7 +54,7 @@ void main() {
       );
 
       final response = await provider.generateResponse(
-        activeSchedules: const [],
+        confirmedSchedules: const [],
         conversation: const [],
         threadId: 'thread-1',
         userText: 'Add ibuprofen 200 mg at 8am',
@@ -105,7 +105,7 @@ void main() {
       );
 
       await provider.generateResponse(
-        activeSchedules: const [],
+        confirmedSchedules: const [],
         conversation: const [],
         threadId: 'thread-1',
         userText: 'Read this script.',
@@ -138,7 +138,7 @@ void main() {
 
       expect(
         () => provider.generateResponse(
-          activeSchedules: const [],
+          confirmedSchedules: const [],
           conversation: const [],
           threadId: 'thread-1',
           userText: 'Hello',

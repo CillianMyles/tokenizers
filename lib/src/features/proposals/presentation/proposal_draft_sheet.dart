@@ -7,7 +7,7 @@ import 'package:tokenizers/src/features/proposals/domain/proposal_models.dart';
 
 /// Opens an adaptive draft editor for a pending proposal.
 Future<void> showProposalDraftEditor({
-  required List<MedicationScheduleView> activeSchedules,
+  required List<MedicationScheduleView> confirmedSchedules,
   required BuildContext context,
   required Future<void> Function() onCancelProposal,
   required Future<void> Function(List<ProposalActionView> actions)
@@ -22,7 +22,7 @@ Future<void> showProposalDraftEditor({
       useSafeArea: true,
       builder: (context) {
         return _ProposalDraftEditorSurface(
-          activeSchedules: activeSchedules,
+          confirmedSchedules: confirmedSchedules,
           onCancelProposal: onCancelProposal,
           onConfirmProposal: onConfirmProposal,
           proposal: proposal,
@@ -39,7 +39,7 @@ Future<void> showProposalDraftEditor({
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
           child: _ProposalDraftEditorSurface(
-            activeSchedules: activeSchedules,
+            confirmedSchedules: confirmedSchedules,
             onCancelProposal: onCancelProposal,
             onConfirmProposal: onConfirmProposal,
             proposal: proposal,
@@ -61,10 +61,10 @@ class _EditableProposalAction {
 
   factory _EditableProposalAction.fromProposalAction(
     ProposalActionView action, {
-    required List<MedicationScheduleView> activeSchedules,
+    required List<MedicationScheduleView> confirmedSchedules,
   }) {
     final existingSchedule = _findSchedule(
-      activeSchedules,
+      confirmedSchedules,
       action.targetScheduleId,
       action.medicationName,
     );
@@ -188,13 +188,13 @@ class _EditableProposalAction {
 
 class _ProposalDraftEditorSurface extends StatefulWidget {
   const _ProposalDraftEditorSurface({
-    required this.activeSchedules,
+    required this.confirmedSchedules,
     required this.onCancelProposal,
     required this.onConfirmProposal,
     required this.proposal,
   });
 
-  final List<MedicationScheduleView> activeSchedules;
+  final List<MedicationScheduleView> confirmedSchedules;
   final Future<void> Function() onCancelProposal;
   final Future<void> Function(List<ProposalActionView> actions)
   onConfirmProposal;
@@ -219,7 +219,7 @@ class _ProposalDraftEditorSurfaceState
         .map(
           (action) => _EditableProposalAction.fromProposalAction(
             action,
-            activeSchedules: widget.activeSchedules,
+            confirmedSchedules: widget.confirmedSchedules,
           ),
         )
         .toList(growable: true);

@@ -20,7 +20,7 @@ class ModelImageAttachment {
 abstract interface class ModelProvider {
   /// Generates a response for the current user turn.
   Future<ModelResponseContract> generateResponse({
-    required List<MedicationScheduleView> activeSchedules,
+    required List<MedicationScheduleView> confirmedSchedules,
     required List<ConversationMessageView> conversation,
     required String threadId,
     required String userText,

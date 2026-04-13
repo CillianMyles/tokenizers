@@ -382,6 +382,78 @@ void main() {
     );
 
     test(
+      'confirmPendingProposal resolves future schedules for update actions',
+      () async {
+        final tomorrow = DateTime.now().add(const Duration(days: 1));
+        final futureStartDate = DateTime(
+          tomorrow.year,
+          tomorrow.month,
+          tomorrow.day,
+        );
+        final eventStore = _FakeEventStore();
+        final coordinator = ChatCoordinator(
+          conversationRepository: _FakeConversationRepository(
+            pendingProposal: ProposalView(
+              actions: <ProposalActionView>[
+                ProposalActionView(
+                  actionId: 'action-1',
+                  doseAmount: '750',
+                  doseUnit: 'mg',
+                  medicationName: 'Metformin',
+                  startDate: futureStartDate,
+                  targetScheduleId: 'schedule-future',
+                  times: <String>['09:00', '21:00'],
+                  type: ProposalActionType.updateMedicationSchedule,
+                ),
+              ],
+              assistantText: 'Review the updated metformin schedule.',
+              createdAt: DateTime.now(),
+              proposalId: 'proposal-1',
+              status: ProposalStatus.pending,
+              summary: 'Update metformin.',
+              threadId: 'thread-1',
+            ),
+          ),
+          eventStore: eventStore,
+          medicationRepository: _FakeMedicationRepository(
+            activeSchedules: const <MedicationScheduleView>[],
+            currentAndUpcomingSchedules: <MedicationScheduleView>[
+              MedicationScheduleView(
+                doseAmount: '500',
+                doseUnit: 'mg',
+                medicationName: 'Metformin',
+                scheduleId: 'schedule-future',
+                startDate: futureStartDate,
+                threadId: 'thread-1',
+                times: const <String>['08:00', '20:00'],
+              ),
+            ],
+          ),
+          modelProvider: _FakeModelProvider(),
+        );
+
+        await coordinator.confirmPendingProposal('thread-1');
+
+        final eventTypes = eventStore.events
+            .map((event) => event.event.type)
+            .toList();
+        final scheduleUpdated = eventStore.events.singleWhere(
+          (event) => event.event.type == 'medication_schedule_updated',
+        );
+
+        expect(eventTypes, <String>[
+          'proposal_confirmed',
+          'medication_schedule_updated',
+        ]);
+        expect(scheduleUpdated.event.payload['schedule_id'], 'schedule-future');
+        expect(
+          scheduleUpdated.event.payload['start_date'],
+          _date(futureStartDate),
+        );
+      },
+    );
+
+    test(
       'submitText supersedes pending proposals and creates a new proposal',
       () async {
         final eventStore = _FakeEventStore();
@@ -577,6 +649,99 @@ void main() {
       },
     );
 
+    test('submitText does not record future schedules as taken', () async {
+      final tomorrow = DateTime.now().add(const Duration(days: 1));
+      final futureStartDate = DateTime(
+        tomorrow.year,
+        tomorrow.month,
+        tomorrow.day,
+      );
+      final eventStore = _FakeEventStore();
+      final modelProvider = _FakeModelProvider();
+      final coordinator = ChatCoordinator(
+        conversationRepository: _FakeConversationRepository(),
+        eventStore: eventStore,
+        medicationRepository: _FakeMedicationRepository(
+          activeSchedules: const <MedicationScheduleView>[],
+          currentAndUpcomingSchedules: <MedicationScheduleView>[
+            MedicationScheduleView(
+              medicationName: 'Vitamin D',
+              scheduleId: 'schedule-future',
+              startDate: futureStartDate,
+              times: const <String>['09:00'],
+            ),
+          ],
+        ),
+        modelProvider: modelProvider,
+      );
+
+      await coordinator.submitText('thread-1', 'I took vitamin d at 9:05');
+
+      final eventTypes = eventStore.events
+          .map((event) => event.event.type)
+          .toList();
+      final assistantTurn = eventStore.events.singleWhere(
+        (event) => event.event.type == 'model_turn_recorded',
+      );
+
+      expect(eventTypes, <String>['message_added', 'model_turn_recorded']);
+      expect(modelProvider.lastUserText, isNull);
+      expect(
+        eventStore.events.where(
+          (event) => event.event.type == 'medication_taken',
+        ),
+        isEmpty,
+      );
+      expect(
+        assistantTurn.event.payload['assistant_text'],
+        'I can record that, but tell me which medication you took.',
+      );
+    });
+
+    test('submitText includes future schedules in model context', () async {
+      final tomorrow = DateTime.now().add(const Duration(days: 1));
+      final futureStartDate = DateTime(
+        tomorrow.year,
+        tomorrow.month,
+        tomorrow.day,
+      );
+      final eventStore = _FakeEventStore();
+      final modelProvider = _FakeModelProvider();
+      final coordinator = ChatCoordinator(
+        conversationRepository: _FakeConversationRepository(),
+        eventStore: eventStore,
+        medicationRepository: _FakeMedicationRepository(
+          activeSchedules: const <MedicationScheduleView>[],
+          currentAndUpcomingSchedules: <MedicationScheduleView>[
+            MedicationScheduleView(
+              doseAmount: '1000',
+              doseUnit: 'IU',
+              medicationName: 'Vitamin D',
+              scheduleId: 'schedule-future',
+              startDate: futureStartDate,
+              times: const <String>['09:00'],
+            ),
+          ],
+        ),
+        modelProvider: modelProvider,
+      );
+
+      await coordinator.submitText(
+        'thread-1',
+        'Can you change my vitamin d schedule?',
+      );
+
+      expect(
+        modelProvider.lastUserText,
+        'Can you change my vitamin d schedule?',
+      );
+      expect(modelProvider.lastConfirmedSchedules, hasLength(1));
+      expect(
+        modelProvider.lastConfirmedSchedules.single.scheduleId,
+        'schedule-future',
+      );
+    });
+
     test(
       'submitText asks for clarification when a taken message is ambiguous',
       () async {
@@ -624,6 +789,10 @@ void main() {
   });
 }
 
+String _date(DateTime value) {
+  return value.toIso8601String().split('T').first;
+}
+
 class _FakeConversationRepository implements ConversationRepository {
   _FakeConversationRepository({
     List<ConversationMessageView>? messages,
@@ -660,14 +829,29 @@ class _FakeConversationRepository implements ConversationRepository {
 }
 
 class _FakeMedicationRepository implements MedicationRepository {
-  _FakeMedicationRepository({List<MedicationScheduleView>? activeSchedules})
-    : activeSchedules = activeSchedules ?? <MedicationScheduleView>[];
+  _FakeMedicationRepository({
+    List<MedicationScheduleView>? activeSchedules,
+    List<MedicationScheduleView>? currentAndUpcomingSchedules,
+  }) : activeSchedules =
+           activeSchedules ??
+           currentAndUpcomingSchedules ??
+           <MedicationScheduleView>[],
+       currentAndUpcomingSchedules =
+           currentAndUpcomingSchedules ??
+           activeSchedules ??
+           <MedicationScheduleView>[];
 
   final List<MedicationScheduleView> activeSchedules;
+  final List<MedicationScheduleView> currentAndUpcomingSchedules;
 
   @override
   Future<List<MedicationScheduleView>> getActiveSchedules() async {
     return activeSchedules;
+  }
+
+  @override
+  Future<List<MedicationScheduleView>> getCurrentAndUpcomingSchedules() async {
+    return currentAndUpcomingSchedules;
   }
 
   @override
@@ -696,17 +880,20 @@ class _FakeModelProvider implements ModelProvider {
   final ModelResponseContract response;
   List<ConversationMessageView> lastConversation =
       const <ConversationMessageView>[];
+  List<MedicationScheduleView> lastConfirmedSchedules =
+      const <MedicationScheduleView>[];
   ModelImageAttachment? lastImageAttachment;
   String? lastUserText;
 
   @override
   Future<ModelResponseContract> generateResponse({
-    required List<MedicationScheduleView> activeSchedules,
+    required List<MedicationScheduleView> confirmedSchedules,
     required List<ConversationMessageView> conversation,
     required String threadId,
     required String userText,
     ModelImageAttachment? imageAttachment,
   }) async {
+    lastConfirmedSchedules = confirmedSchedules;
     lastConversation = conversation;
     lastImageAttachment = imageAttachment;
     lastUserText = userText;
@@ -720,7 +907,7 @@ class _CompletingModelProvider implements ModelProvider {
 
   @override
   Future<ModelResponseContract> generateResponse({
-    required List<MedicationScheduleView> activeSchedules,
+    required List<MedicationScheduleView> confirmedSchedules,
     required List<ConversationMessageView> conversation,
     required String threadId,
     required String userText,
@@ -741,7 +928,7 @@ class _ThrowingModelProvider implements ModelProvider {
 
   @override
   Future<ModelResponseContract> generateResponse({
-    required List<MedicationScheduleView> activeSchedules,
+    required List<MedicationScheduleView> confirmedSchedules,
     required List<ConversationMessageView> conversation,
     required String threadId,
     required String userText,

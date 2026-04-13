@@ -261,13 +261,13 @@ class _AssistantScreenState extends State<AssistantScreen> {
     required ProposalView proposal,
     required String threadId,
   }) async {
-    final activeSchedules = await bootstrap.medicationRepository
-        .getActiveSchedules();
+    final confirmedSchedules = await bootstrap.medicationRepository
+        .getCurrentAndUpcomingSchedules();
     if (!context.mounted) {
       return;
     }
     return showProposalDraftEditor(
-      activeSchedules: activeSchedules,
+      confirmedSchedules: confirmedSchedules,
       context: context,
       onCancelProposal: () {
         return bootstrap.chatCoordinator.cancelPendingProposal(threadId);

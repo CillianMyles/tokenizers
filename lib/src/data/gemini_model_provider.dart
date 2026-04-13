@@ -26,7 +26,7 @@ class GeminiModelProvider implements ModelProvider {
 
   @override
   Future<ModelResponseContract> generateResponse({
-    required List<MedicationScheduleView> activeSchedules,
+    required List<MedicationScheduleView> confirmedSchedules,
     required List<ConversationMessageView> conversation,
     required String threadId,
     required String userText,
@@ -35,7 +35,7 @@ class GeminiModelProvider implements ModelProvider {
     final contentParts = <Map<String, Object?>>[
       <String, Object?>{
         'text': _buildUserPrompt(
-          activeSchedules: activeSchedules,
+          confirmedSchedules: confirmedSchedules,
           conversation: conversation,
           threadId: threadId,
           userText: userText,
@@ -100,7 +100,7 @@ class GeminiModelProvider implements ModelProvider {
   }
 
   String _buildUserPrompt({
-    required List<MedicationScheduleView> activeSchedules,
+    required List<MedicationScheduleView> confirmedSchedules,
     required List<ConversationMessageView> conversation,
     required String threadId,
     required String userText,
@@ -117,7 +117,7 @@ class GeminiModelProvider implements ModelProvider {
         })
         .toList(growable: false);
 
-    final schedules = activeSchedules
+    final schedules = confirmedSchedules
         .map((schedule) {
           return <String, Object?>{
             'schedule_id': schedule.scheduleId,
@@ -143,7 +143,7 @@ class GeminiModelProvider implements ModelProvider {
       'image_attached': imageAttachment != null,
       'image_mime_type': imageAttachment?.mimeType,
       'conversation_history': recentMessages,
-      'active_schedules': schedules,
+      'confirmed_schedules': schedules,
     });
   }
 

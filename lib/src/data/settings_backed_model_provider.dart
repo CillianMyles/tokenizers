@@ -21,7 +21,7 @@ class SettingsBackedModelProvider implements ModelProvider {
 
   @override
   Future<ModelResponseContract> generateResponse({
-    required List<MedicationScheduleView> activeSchedules,
+    required List<MedicationScheduleView> confirmedSchedules,
     required List<ConversationMessageView> conversation,
     required String threadId,
     required String userText,
@@ -46,7 +46,7 @@ class SettingsBackedModelProvider implements ModelProvider {
       client: _client,
       model: settings.geminiModel.apiModelName,
     ).generateResponse(
-      activeSchedules: activeSchedules,
+      confirmedSchedules: confirmedSchedules,
       conversation: conversation,
       threadId: threadId,
       userText: userText,

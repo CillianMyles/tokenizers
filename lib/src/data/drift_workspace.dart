@@ -64,12 +64,18 @@ class DriftWorkspace
   @override
   Future<List<MedicationScheduleView>> getActiveSchedules() async {
     final todayText = _dateText(DateTime.now())!;
+    final rows = await _activeSchedulesQuery(todayText).get();
+    return rows.map(_scheduleFromRow).toList(growable: false);
+  }
+
+  @override
+  Future<List<MedicationScheduleView>> getCurrentAndUpcomingSchedules() async {
+    final todayText = _dateText(DateTime.now())!;
     final query = _database.select(_database.medicationSchedulesTable)
       ..where(
         (table) =>
-            table.startDate.isSmallerOrEqualValue(todayText) &
-            (table.endDate.isNull() |
-                table.endDate.isBiggerOrEqualValue(todayText)),
+            table.endDate.isNull() |
+            table.endDate.isBiggerOrEqualValue(todayText),
       )
       ..orderBy(<OrderingTerm Function($MedicationSchedulesTableTable)>[
         (table) => OrderingTerm.asc(table.medicationName),
@@ -230,16 +236,7 @@ class DriftWorkspace
     DateTime day,
   ) {
     final dayText = _dateText(day)!;
-    final query = _database.select(_database.medicationSchedulesTable)
-      ..where(
-        (table) =>
-            table.startDate.isSmallerOrEqualValue(dayText) &
-            (table.endDate.isNull() |
-                table.endDate.isBiggerOrEqualValue(dayText)),
-      )
-      ..orderBy(<OrderingTerm Function($MedicationSchedulesTableTable)>[
-        (table) => OrderingTerm.asc(table.medicationName),
-      ]);
+    final query = _activeSchedulesQuery(dayText);
 
     return query.watch().map((rows) {
       final entries = <MedicationCalendarEntry>[];
@@ -274,16 +271,7 @@ class DriftWorkspace
   @override
   Stream<List<MedicationScheduleView>> watchActiveSchedules(DateTime day) {
     final dayText = _dateText(day)!;
-    final query = _database.select(_database.medicationSchedulesTable)
-      ..where(
-        (table) =>
-            table.startDate.isSmallerOrEqualValue(dayText) &
-            (table.endDate.isNull() |
-                table.endDate.isBiggerOrEqualValue(dayText)),
-      )
-      ..orderBy(<OrderingTerm Function($MedicationSchedulesTableTable)>[
-        (table) => OrderingTerm.asc(table.medicationName),
-      ]);
+    final query = _activeSchedulesQuery(dayText);
     return query.watch().map(
       (rows) => rows.map(_scheduleFromRow).toList(growable: false),
     );
@@ -396,6 +384,23 @@ class DriftWorkspace
       summary: row.summary,
       threadId: row.threadId,
     );
+  }
+
+  SimpleSelectStatement<
+    $MedicationSchedulesTableTable,
+    MedicationSchedulesTableData
+  >
+  _activeSchedulesQuery(String dayText) {
+    return _database.select(_database.medicationSchedulesTable)
+      ..where(
+        (table) =>
+            table.startDate.isSmallerOrEqualValue(dayText) &
+            (table.endDate.isNull() |
+                table.endDate.isBiggerOrEqualValue(dayText)),
+      )
+      ..orderBy(<OrderingTerm Function($MedicationSchedulesTableTable)>[
+        (table) => OrderingTerm.asc(table.medicationName),
+      ]);
   }
 
   ProposalActionView _proposalActionFromRow(ProposalActionsTableData row) {
