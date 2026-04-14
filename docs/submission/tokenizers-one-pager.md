@@ -18,14 +18,13 @@ missed or misunderstood dose can have serious consequences.
 
 ## Project Outcome
 
-The outcome of this project is a more practical and reliable way to support
-medication adherence for people whose health depends on getting every dose
-right. It helps reduce confusion, missed medicines, and unsafe schedule changes
-by giving patients and families one clear place to manage routines, confirm
-changes, and track what was actually taken. For transplant care in particular,
-this kind of tool can be a serious support layer: if it helps prevent even one
-adherence-related rejection, complication, or death, it has created meaningful
-real-world value.
+The outcome of this project is a more practical and reliable way to support medication
+adherence for people whose health depends on getting every dose right. It helps reduce
+confusion, missed medicines, and unsafe schedule changes by giving patients and families
+one clear place to manage routines, confirm changes, and track what was actually taken.
+For transplant care in particular, this kind of tool can be a serious support layer: if 
+it helps prevent even one adherence-related rejection, complication, or death, it has 
+created immeasurable value.
 
 ## Repository Link
 
