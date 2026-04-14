@@ -4,11 +4,11 @@ Submission-ready project description for the AI Challenge.
 
 ## Project Name
 
-`Tokenizers`
+`CarePal`
 
 ## Brief Description
 
-Tokenizers is a local-first medication coordination app that helps people with
+CarePal is a local-first medication coordination app that helps people with
 high-consequence treatment routines, especially transplant patients and their
 caregivers, stay on top of daily medicines. It combines reminders, calendar
 management, adherence tracking, and assistant-drafted medication changes with

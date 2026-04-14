@@ -1,9 +1,9 @@
-# Tokenizers
+# CarePal
 
 A local-first medication coordination app that helps people with
 high-consequence treatment routines stay on top of daily medicines.
 
-Tokenizers combines reminders, calendar management, adherence tracking, and an
+CarePal combines reminders, calendar management, adherence tracking, and an
 AI assistant with an explicit human review step before any change is applied.
 The result is a safer bridge between clinical instructions and what actually
 happens at home, where a missed or misunderstood dose can have serious
