@@ -217,14 +217,16 @@ This repo ships structured coding rules and Flutter skills for every major
 AI coding agent platform, generated from a single source of truth via
 [rulesync](https://github.com/nichochar/rulesync):
 
-| Directory | Platform |
+| Path | Platform |
 | --- | --- |
-| `.agents/` | Claude Code (Anthropic) |
+| `AGENTS.md` | Generic agent rules |
+| `.agents/` | Generic agent skills |
+| `CLAUDE.md` | Claude Code (Anthropic) project instructions |
+| `.claude/` | Claude Code settings and skills |
 | `.codex/` | Codex CLI (OpenAI) |
 | `.cursor/` | Cursor |
 | `.github/copilot-instructions.md` | GitHub Copilot |
 | `.opencode/` | OpenCode |
-| `CLAUDE.md` | Claude Code project instructions |
 
 The canonical rules live in `.rulesync/rules/` and `.rulesync/skills/`. Run
 `make rules-generate` to regenerate all platform targets after changes.
