@@ -20,3 +20,4 @@ jobs:
           token: ${{ secrets.RELEASE_PLEASE_COMMIT_TOKEN }}
           release-type: dart
           config-file: ./release_please_config.json
+          target-branch: main
