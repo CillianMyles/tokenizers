@@ -24,7 +24,7 @@ class _TokenizersAppState extends State<TokenizersApp> {
       bootstrap: widget.bootstrap,
       child: MaterialApp.router(
         debugShowCheckedModeBanner: false,
-        title: 'Tokenizers',
+        title: 'CarePal',
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
         routerConfig: router,
