@@ -1,5 +1,9 @@
 # CarePal
 
+> **Important**
+> Hackathon submission code is frozen on the `submission` branch.
+> Ongoing development continues on `main`.
+
 A local-first medication coordination app that helps people with
 high-consequence treatment routines stay on top of daily medicines.
 
