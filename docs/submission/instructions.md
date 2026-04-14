@@ -24,9 +24,9 @@ solution.
 
 Working docs for this repo:
 
-- [Project description](./project-description.md)
-- [Project description template](./project-description-template.md)
-- [Project description example](./project-description-example.md)
+- [Project description](./tokenizers-one-pager.md)
+- [One pager template](./template/AI%20Challenge%202026%20One%20Pager%20Template.pptx)
+- [One pager example](./template/AI%20Challenge%20One%20Pager%20Example.png)
 
 ## Notes
 

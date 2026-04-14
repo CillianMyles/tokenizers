@@ -1,68 +1,72 @@
 # Tokenizers
 
-Tokenizers is a Flutter medication tracker with a local event-sourced data
-model, an assistant-driven schedule workflow, and explicit review before any
-assistant-proposed medication change is applied.
+A local-first medication coordination app that helps people with
+high-consequence treatment routines stay on top of daily medicines.
 
-Fresh installs start empty. There is no bootstrap seed data or demo account.
+Tokenizers combines reminders, calendar management, adherence tracking, and an
+AI assistant with an explicit human review step before any change is applied.
+The result is a safer bridge between clinical instructions and what actually
+happens at home, where a missed or misunderstood dose can have serious
+consequences.
 
-## Product Shape
+**Chat naturally, review carefully, track reliably.**
 
-The app currently has four top-level surfaces:
+## Value Proposition
 
-- `Today`
-  - upcoming, due-now, overdue, and taken reminders for the selected day
-  - pending review card when the assistant has prepared a draft
-- `Assistant`
-  - chat-first interface for proposing medication changes
-  - optional voice input that transcribes speech locally on-device before inserting text into the composer
-  - supports text prompts and prescription/script photos as draft inputs
-  - pending draft review launched from the conversation area
-- `Calendar`
-  - direct manual add, edit, and remove for confirmed medication schedules
-  - per-time dosing support, including different doses at different times of day
-  - explicit "mark taken" flow with scheduled time and actual taken time
-- `History`
-  - day-grouped activity feed built from the event log
-  - adherence items can be corrected by tapping the entry and editing the taken time
+- People think and speak in plain language, not rigid forms
+- Medication changes are high-stakes and need reviewable structure
+- The assistant is useful without ever silently mutating schedules
+- Local-first storage keeps the core experience private, fast, and resilient
 
 ## Core Workflow
 
 There are two ways to change medication state:
 
-1. Manual calendar edits
-   - add, edit, or remove confirmed schedules directly
-2. Assistant proposals
-   - ask for a change in natural language
-   - or attach a prescription/script photo for Gemini to interpret
-   - review the generated draft
-   - confirm it before the change affects confirmed schedules
+1. **Manual calendar edits** — add, edit, or remove confirmed schedules directly
+2. **Assistant proposals** — ask for a change in natural language, or attach a
+   prescription photo for Gemini to interpret, review the generated draft, and
+   confirm it before the change affects confirmed schedules
 
 Adherence is tracked separately from schedule editing:
 
-- you can mark a scheduled dose as taken from `Today` or `Calendar`
-- you can choose both the scheduled dose being completed and the actual taken time
-- history keeps the latest correction for a dose while preserving the audit trail in events
+- Mark a scheduled dose as taken from `Today` or `Calendar`
+- Choose both the scheduled dose being completed and the actual taken time
+- History keeps the latest correction for a dose while preserving the audit
+  trail in events
+
+## Product Shape
+
+The app has four top-level surfaces:
+
+| Surface | Purpose |
+| --- | --- |
+| **Today** | Upcoming, due-now, overdue, and taken reminders for the selected day; daily progress summary; pending review card when the assistant has prepared a draft |
+| **Assistant** | Chat-first interface for proposing medication changes; optional on-device voice input; supports text prompts and prescription/script photos as draft inputs |
+| **Calendar** | Direct manual add, edit, and remove for confirmed medication schedules; per-time dosing support; explicit “mark taken” flow |
+| **History** | Day-grouped activity feed built from the event log; adherence heatmap and streak insights; entries can be corrected by tapping and editing the taken time |
 
 ## Architecture
 
 The app uses a local event log as the source of truth.
 
-- events are appended to a Drift-backed store
-- projections build the read models used by `Today`, `Assistant`, `Calendar`, and `History`
-- assistant-generated drafts stay separate from confirmed schedules until explicit confirmation
-- history is derived from events, but filtered to read like a user-facing activity feed rather than a raw event trace
+- Events are appended to a Drift-backed store
+- Projections build the read models used by each surface
+- Assistant-generated drafts stay separate from confirmed schedules until
+  explicit confirmation
+- History is derived from events but filtered to read like a user-facing
+  activity feed rather than a raw event trace
 
 Relevant planning docs:
 
-- [docs/plans/v0.md](docs/plans/v0.md)
-- [docs/plans/v1.md](docs/plans/v1.md)
+- [docs/plans/v0.md](docs/plans/v0.md) — event-sourced foundation
+- [docs/plans/v1.md](docs/plans/v1.md) — mobile-first draft review and manual management
 
 ## Project Structure
 
 ```text
 lib/
 ├── main.dart
+├── seed_demo_main.dart
 ├── env/
 │   └── env.dart
 └── src/
@@ -71,81 +75,87 @@ lib/
     ├── core/                      # Shared contracts and utilities
     ├── data/                      # Drift persistence, projections, model providers
     └── features/
-        ├── assistant/
-        ├── calendar/
-        ├── chat/
-        ├── history/
-        ├── home/
-        ├── proposals/
-        ├── settings/
-        └── today/
+        ├── adherence/             # Insights dashboard, heatmap, streaks
+        ├── assistant/             # Chat + voice + image input
+        ├── calendar/              # Manual schedule management
+        ├── chat/                  # Chat coordination and domain
+        ├── history/               # Activity timeline
+        ├── home/                  # Home domain models
+        ├── proposals/             # Draft review and confirmation
+        ├── settings/              # BYO-AI config, danger zone
+        └── today/                 # Daily reminders and progress
 ```
 
 ## Getting Started
 
-Install dependencies:
+### Prerequisites
+
+- Flutter SDK (stable channel)
+- A Gemini API key (optional — see below)
+
+### Install Dependencies
 
 ```bash
 flutter pub get
 ```
 
-Optional for local debug builds only: create a local environment file:
+### Environment Setup
+
+Create a local environment file for development:
 
 ```bash
 cp .env.example .env
 ```
 
-Set:
+Set your Gemini API key:
 
-```bash
+```
 GEMINI_API_KEY=your_key_here
 ```
 
-This is optional. The app now supports a BYO-AI flow in `Settings`, where
-users can save their own Gemini API key and choose the Gemini model used for
+This is optional. The app supports a **BYO-AI** flow in `Settings`, where
+users can save their own Gemini API key and choose the model used for
 assistant requests. The current UI exposes `Gemini 2.5 Flash`, `Gemini 3 Flash`,
-and `Gemini 3.1 Pro`. On native debug
-builds, a root `.env` file can still provide a debug fallback key if no user
-key has been saved yet. On web, the runtime app cannot read a root `.env` file
-directly, so either save the key in `Settings` or launch Flutter with
-`--dart-define-from-file=.env`. Release builds do not read a root `.env` file.
+and `Gemini 3.1 Pro`.
 
-Run the app:
+If neither a saved key nor a `.env` key is available, the assistant remains
+visible but live submission is disabled. Manual calendar and adherence flows
+still work.
+
+### Run the App
+
+Always use `--dart-define-from-file=.env` when running locally to ensure the
+environment variables are available on all platforms:
 
 ```bash
-flutter run -d ios
+# iOS
+flutter run --dart-define-from-file=.env -d ios
+
+# Android
+flutter run --dart-define-from-file=.env -d android
+
+# Web (Chrome)
+flutter run --dart-define-from-file=.env -d chrome
+
+# macOS
+flutter run --dart-define-from-file=.env -d macos
 ```
 
-Or:
+### Seed Demo Data
+
+Optionally seed demo data before launching the main app. The demo dataset
+lives in [assets/demo/demo_seed.txt](assets/demo/demo_seed.txt), so you can
+add or tweak records there without changing Dart code:
 
 ```bash
-flutter run -d chrome
-```
-
-If you want Chrome to pick up the same local `.env` values during development,
-use:
-
-```bash
-flutter run -d chrome --dart-define-from-file=.env
-```
-
-If neither a saved Gemini key nor a debug-build `.env` key is available, the
-assistant remains visible but live assistant submission is disabled. Manual
-calendar and adherence flows still work.
-
-Optional: seed demo data for the same local app target before launching the
-main app. The demo dataset lives in [assets/demo/demo_seed.txt](assets/demo/demo_seed.txt),
-so you can add or tweak records there without changing Dart code:
-
-```bash
-flutter run -d chrome -t lib/seed_demo_main.dart
+flutter run --dart-define-from-file=.env -d chrome -t lib/seed_demo_main.dart
 ```
 
 If local data already exists, the seed entrypoint stops without changing it.
 To replace the current local data with the demo dataset:
 
 ```bash
-flutter run -d chrome -t lib/seed_demo_main.dart --dart-define=RESET_DEMO_DATA=true
+flutter run --dart-define-from-file=.env -d chrome -t lib/seed_demo_main.dart --dart-define=RESET_DEMO_DATA=true
 ```
 
 After the seed entrypoint reports success, stop it and launch the normal app
@@ -155,144 +165,121 @@ again on the same target.
 
 All app data is stored locally.
 
-- native platforms use Drift on SQLite
-- web uses Drift with the bundled SQLite worker/wasm assets
-- non-sensitive AI settings use shared preferences
+- Native platforms use Drift on SQLite
+- Web uses Drift with the bundled SQLite worker/wasm assets
+- Non-sensitive AI settings use shared preferences
 - Gemini API keys use secure storage where supported, with shared-preferences
   fallback on unsupported platforms
-- assistant voice input keeps raw audio on-device and only sends the user-reviewed transcript to Gemini
+- Assistant voice input keeps raw audio on-device and only sends the
+  user-reviewed transcript to Gemini
 - `Settings` includes a `Danger Zone` action that clears local schedules,
   history, conversations, and saved AI settings from the current device
-- installs are no longer pre-seeded with sample medications, chat messages, or history
+- Fresh installs start empty — there is no bootstrap seed data or demo account
 
 ## Development
 
-Format:
+### Code Quality
 
 ```bash
+# Format
 dart format .
-```
 
-Analyze:
-
-```bash
+# Analyze
 flutter analyze
-```
 
-Run tests:
-
-```bash
+# Run tests
 flutter test
 ```
 
-Codemagic CD:
+### Code Generation
 
-- tag builds run the Codemagic `mobile-workflow`
-- iOS builds/signing/TestFlight publishing are enabled
-- Android release steps are intentionally commented out until signing and Play
-  credentials exist
-- the Codemagic App Store Connect integration is assumed to be named
-  `tokenizers.p8`
-- iOS build numbers come from the `pubspec.yaml` version metadata
-  (`x.y.z+build`)
-
-Release Please:
-
-- `.github/workflows/release_please.yml` runs on pushes to `main` and on manual
-  dispatch
-- it uses `release_please_config.json` with the Dart releaser for the
-  `tokenizers` package
-- release metadata is sourced from `pubspec.yaml` and `CHANGELOG.md`
-- `.github/workflows/release-with-bumped-patch-version.yaml` provides the same
-  manual patch-bump release entrypoint as the sibling apps
-- both workflows require the `RELEASE_PLEASE_COMMIT_TOKEN` GitHub secret
-
-Regenerate generated database code after schema changes:
+Regenerate Drift database code after schema changes:
 
 ```bash
 dart run build_runner build --delete-conflicting-outputs
 ```
 
-Regenerate repo rules:
+### Regenerate Agent Rules
 
 ```bash
 make rules-generate
 ```
 
-## Hackathon Demo
+## Engineering Practices
 
-### Value Proposition
+### CI / CD
 
-Tokenizers is a privacy-first medication companion that helps people turn messy real-world instructions into a trustworthy daily medication plan.
+- **GitHub Actions CI** (`.github/workflows/ci.yml`) — runs format, analyze,
+  and test checks on every push and PR to `main`
+- **Codemagic CD** (`codemagic.yaml`) — tag builds run the `mobile-workflow`;
+  iOS builds, signing, and TestFlight publishing are enabled; Android release
+  steps are commented out until signing and Play credentials exist
 
-The pitch is simple:
-- people think and speak in plain language, not rigid forms
-- medication changes are high-stakes and need reviewable structure
-- the app keeps the assistant useful without letting it silently mutate schedules
-- local-first storage keeps the core experience private, fast, and resilient
+### Automated Release Management
 
-In one line:
-**chat naturally, review carefully, track reliably.**
+Release Please automates versioning, changelogs, and GitHub releases using
+Conventional Commits.
 
-### Demo Checklist
+- `.github/workflows/release_please.yml` runs on pushes to `main` and on
+  manual dispatch
+- Uses `release_please_config.json` with the Dart releaser for the
+  `tokenizers` package
+- Release metadata is sourced from `pubspec.yaml` and `CHANGELOG.md`
+- `.github/workflows/release-with-bumped-patch-version.yaml` provides a
+  manual patch-bump release entrypoint
+- Both workflows require the `RELEASE_PLEASE_COMMIT_TOKEN` GitHub secret
 
-#### Medication plan setup and schedule management
-- [ ] create medications with dosages and times
-- [ ] support schedule start and end dates
-- [ ] update dosage or timing for an existing medication
-- [ ] stop or remove a medication cleanly
-- [ ] show that proposed changes stay in draft until manually accepted
+### Agent Coding Rules
 
-#### Today view / adherence loop
-- [ ] mark medicines as taken
-- [ ] today view clearly shows overdue, due now, upcoming, and taken items
-- [ ] show what happens when a dose is recorded late or corrected later
-- [ ] confirm that accepted schedule changes are reflected in Today
+This repo ships structured coding rules and Flutter skills for every major
+AI coding agent platform, generated from a single source of truth via
+[rulesync](https://github.com/nichochar/rulesync):
 
-#### Calendar and history
-- [ ] calendar shows medications for a given day
-- [ ] calendar supports direct manual edits for confirmed schedules
-- [ ] history shows important events such as:
-  - medication started
-  - medication taken
-  - medication stopped
-  - dosage updated
-  - taken time corrected
+| Directory | Platform |
+| --- | --- |
+| `.agents/` | Claude Code (Anthropic) |
+| `.codex/` | Codex CLI (OpenAI) |
+| `.cursor/` | Cursor |
+| `.github/copilot-instructions.md` | GitHub Copilot |
+| `.opencode/` | OpenCode |
+| `CLAUDE.md` | Claude Code project instructions |
 
-#### Assistant workflow
-- [ ] chat with the assistant in plain language
-- [ ] assistant returns proposed draft events rather than directly changing schedules
-- [ ] manually edit proposals before accepting them
-- [ ] accept the proposal and show it reflected in Today / Calendar / History
+The canonical rules live in `.rulesync/rules/` and `.rulesync/skills/`. Run
+`make rules-generate` to regenerate all platform targets after changes.
 
-#### Multimodal inputs
-- [ ] record a voice note with medication changes
-- [ ] take a picture of a prescription to propose changes
-- [ ] keep both as proposal-generation inputs, not auto-apply flows
+### Sensitive Data Protection
 
-### Admin / Hackathon Readiness
-- [ ] pull in all latest files and dependency/runtime versions
-- [ ] refresh generated rules and repo conventions
-- [ ] verify the end-to-end happy path before polishing edge cases
-- [ ] prepare a crisp value proposition for judges/users
-- [ ] prepare demo deliverables and fallback assets
+- `.gitignore` excludes all `.env` files (`**/.env`) from version control
+- `.rulesync/.aiignore` excludes `.env*` files from AI agent context
+- API keys are never committed — the repo ships only `.env.example`
+- Release builds do not read `.env` files; keys are provided via the in-app
+  BYO-AI settings flow or CI secrets
 
-### Demo Deliverables
-- [ ] live demo path with one clean “magic” scenario
-- [ ] README-level feature checklist and narrative
-- [ ] short verbal pitch / value proposition
-- [ ] screenshots or screen recording backup in case live demo gods are cruel
-- [ ] sample prescription / voice-note examples for repeatable demos
-- [ ] clear statement of what is already working vs what is stretch
+### Test Coverage
 
-### Stretch Goals
-- [ ] integrate a local Gemma 4 model for a fully offline, privacy-first assistant path
-- [ ] expand multimodal intake quality for voice and prescription-image parsing
-- [ ] tighten proposal UX so review feels like a natural continuation of chat, not admin paperwork
+The test suite covers unit, widget, and integration-style tests across the
+application layers:
 
-## Current Focus
+```text
+test/
+├── app/                           # App shell widget tests
+├── bootstrap/                     # Demo data seeder tests
+├── core/domain/                   # Medication scheduling logic
+├── data/                          # API key store, data reset, AI settings
+├── env/                           # Environment configuration tests
+└── features/
+    ├── adherence/                 # Calculator and insights card
+    ├── assistant/                 # Voice input controller and screen
+    ├── calendar/                  # Command service, time inference, screen
+    ├── chat/                      # Chat coordinator
+    ├── history/                   # Timeline models and screen
+    ├── home/                      # Reminder models
+    ├── settings/                  # Settings screen
+    └── today/                     # Today screen
+```
 
-- tighten temporal modeling around scheduled, taken, and recorded times
-- keep history readable while preserving a correct event log
-- improve assistant/media input flows without bypassing review
-- sharpen the hackathon demo around one end-to-end magical loop
+## Up Next
+
+- Integrate a local Gemma model for a fully offline, privacy-first assistant
+- Expand multimodal intake quality for voice and prescription-image parsing
+- Tighten proposal UX so review feels like a natural continuation of chat
