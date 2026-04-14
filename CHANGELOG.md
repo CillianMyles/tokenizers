@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.23.0](https://github.com/CillianMyles/tokenizers/compare/v0.22.0...v0.23.0) (2026-04-14)
+
+
+### Features
+
+* rename app display name to 'CarePal' ([#36](https://github.com/CillianMyles/tokenizers/issues/36)) ([cb62382](https://github.com/CillianMyles/tokenizers/commit/cb62382d426279a5934efe0847e217086c2b93cf))
+
+
+### Bug Fixes
+
+* **ci:** pin release please target branch ([79af863](https://github.com/CillianMyles/tokenizers/commit/79af8633553f85ecca987cdb0accf1b25d896280))
+
 ## [0.22.0](https://github.com/CillianMyles/tokenizers/compare/v0.21.0...v0.22.0) (2026-04-13)
 
 
