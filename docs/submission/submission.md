@@ -24,6 +24,7 @@ solution.
 
 Working docs for this repo:
 
+- [Project description](./project-description.md)
 - [Project description template](./project-description-template.md)
 - [Project description example](./project-description-example.md)
 
