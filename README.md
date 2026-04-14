@@ -124,22 +124,21 @@ still work.
 
 ### Run the App
 
-Always use `--dart-define-from-file=.env` when running locally to ensure the
-environment variables are available on all platforms:
+All platforms need `--dart-define-from-file=.env` because the `.env` file is
+not bundled as an asset.
 
 ```bash
-# iOS
-flutter run --dart-define-from-file=.env -d ios
-
-# Android
-flutter run --dart-define-from-file=.env -d android
-
-# Web (Chrome)
-flutter run --dart-define-from-file=.env -d chrome
-
-# macOS
-flutter run --dart-define-from-file=.env -d macos
+make run-web       # Chrome
+make run-macos     # macOS
 ```
+
+For mobile targets, pass a device ID (use `flutter devices` to list them):
+
+```bash
+flutter run --dart-define-from-file=.env -d <device_id>
+```
+
+Run `make help` for the full command list.
 
 ### Seed Demo Data
 
@@ -178,32 +177,15 @@ All app data is stored locally.
 
 ## Development
 
-### Code Quality
-
 ```bash
-# Format
-dart format .
-
-# Analyze
-flutter analyze
-
-# Run tests
-flutter test
+make fmt               # Format Dart code
+make lint              # Analyze Dart code
+make test              # Run Flutter tests
+make codegen           # Regenerate Drift database code
+make rules-generate    # Regenerate AI agent rules files
 ```
 
-### Code Generation
-
-Regenerate Drift database code after schema changes:
-
-```bash
-dart run build_runner build --delete-conflicting-outputs
-```
-
-### Regenerate Agent Rules
-
-```bash
-make rules-generate
-```
+Run `make help` for the full command list.
 
 ## Engineering Practices
 
