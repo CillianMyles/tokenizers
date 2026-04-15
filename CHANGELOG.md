@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.1](https://github.com/CillianMyles/tokenizers/compare/v0.23.0...v0.23.1) (2026-04-15)
+
+
+### Bug Fixes
+
+* **apple:** declare non-exempt encryption usage ([#38](https://github.com/CillianMyles/tokenizers/issues/38)) ([ec0a45d](https://github.com/CillianMyles/tokenizers/commit/ec0a45d62ba75d7356b6fb1b1f7cbd7d74f03675))
+
 ## [0.23.0](https://github.com/CillianMyles/tokenizers/compare/v0.22.0...v0.23.0) (2026-04-14)
 
 
